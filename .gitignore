@@ -1,0 +1,17 @@
+# 忽略 Word 文档
+*.docx
+*.docm
+
+# 忽略常见图片文件（包括你生成的 media 目录里的图片）
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.webp
+*.heic
+*.heif
+
+# 可选：整个 media 目录都不纳入版本控制
+media/
