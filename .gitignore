@@ -15,3 +15,5 @@
 
 # 可选：整个 media 目录都不纳入版本控制
 media/
+skills_training_course
+log/
