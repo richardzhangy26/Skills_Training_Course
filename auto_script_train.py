@@ -8,27 +8,6 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 class WorkflowTester:
-    STUDENT_PROFILES = {
-        "good": {
-            "label": "优秀学生",
-            "description": "理解透彻、表达清晰，回答结构化、条理分明，并主动总结要点。",
-            "style": "语气自信、语言规范，必要时引用题目或材料中的关键信息。",
-            "fallback_hint": "若模拟对话中没有合适示例，可自己组织最佳答案，保持高水平。"
-        },
-        "medium": {
-            "label": "需要引导的学生",
-            "description": "基本理解问题但不够全面，回答中会暴露疑惑或请求提示。",
-            "style": "语气略显犹豫，能覆盖核心内容，但会提出 1-2 个不确定点或寻求老师建议。",
-            "fallback_hint": "示例缺失时，先回答主要内容再说明不确定之处。"
-        },
-        "bad": {
-            "label": "答非所问的学生",
-            "description": "理解偏差，常常跑题或只复述与问题弱相关的信息。",
-            "style": "语气随意，容易偏离重点或答非所问。",
-            "fallback_hint": "即使需要自己生成，也要保持轻微跑题或误解的特征。"
-        }
-    }
-
     def __init__(self, base_url="https://cloudapi.polymas.com"):
         self.base_url = base_url
         self.session = requests.Session()
@@ -37,13 +16,10 @@ class WorkflowTester:
         self.task_id = None
         self.dialogue_round = 0
         self.base_path = Path(__file__).resolve().parent
-        self.log_root = self.base_path / "log"
+        self.log_dir = self.base_path / "logs"
         self.run_card_log_path = None
         self.dialogue_log_path = None
         self.log_prefix = None
-        self.student_profile_key = None
-        self.dialogue_samples_content = None
-        self.log_context_path = None
         
         # 从环境变量加载认证信息
         load_dotenv()
@@ -92,22 +68,16 @@ class WorkflowTester:
     def _prepare_log_files(self, task_id):
         """创建日志文件并写入开头信息"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_dir = self._determine_log_directory(task_id)
-        log_dir.mkdir(parents=True, exist_ok=True)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
         self.log_prefix = f"task_{task_id}_{timestamp}"
-        self.run_card_log_path = log_dir / f"{self.log_prefix}_runcard.txt"
-        self.dialogue_log_path = log_dir / f"{self.log_prefix}_dialogue.txt"
-        profile_label = self._get_student_profile_info()["label"] if self.student_profile_key else "未设置"
+        self.run_card_log_path = self.log_dir / f"{self.log_prefix}_runcard.txt"
+        self.dialogue_log_path = self.log_dir / f"{self.log_prefix}_dialogue.txt"
 
-        header_lines = [
-            f"日志创建时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"task_id: {task_id}",
-            f"学生档位: {profile_label}"
-        ]
-        if self.log_context_path:
-            header_lines.append(f"参考文档: {str(self.log_context_path)}")
-        header_lines.append("=" * 60)
-        header = "\n".join(header_lines) + "\n"
+        header = (
+            f"日志创建时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"task_id: {task_id}\n"
+            + "=" * 60 + "\n"
+        )
         for path, title in [
             (self.run_card_log_path, "RunCard 信息记录"),
             (self.dialogue_log_path, "对话记录"),
@@ -146,110 +116,6 @@ class WorkflowTester:
         lines.append("-" * 80)
         self._append_log(self.dialogue_log_path, "\n".join(lines))
 
-    def _get_log_context_parts(self):
-        if not self.log_context_path:
-            return []
-
-        path = self.log_context_path
-        if not isinstance(path, Path):
-            path = Path(path)
-
-        try:
-            path = path.resolve()
-        except Exception:
-            pass
-
-        try:
-            relative = path.relative_to(self.base_path)
-        except ValueError:
-            relative = path
-
-        parts = list(relative.parts)
-        if not parts:
-            return []
-
-        if "skills_training_course" in parts:
-            idx = parts.index("skills_training_course")
-            parts = parts[idx + 1 :]
-
-        if not parts:
-            return []
-
-        trimmed = []
-        for i, part in enumerate(parts):
-            if i == len(parts) - 1:
-                trimmed.append(Path(part).stem)
-            else:
-                trimmed.append(part)
-        return trimmed
-
-    def _determine_log_directory(self, task_id):
-        profile_key = self.student_profile_key or "unassigned"
-        context_parts = self._get_log_context_parts()
-        if context_parts:
-            return self.log_root.joinpath(*context_parts, profile_key)
-        return self.log_root / f"task_{task_id}" / profile_key
-
-    def _update_log_context(self, new_path):
-        if not new_path:
-            return
-
-        try:
-            path = Path(new_path).expanduser().resolve()
-        except Exception:
-            path = Path(new_path)
-
-        priority = "skills_training_course" in path.parts
-        if priority or not self.log_context_path:
-            self.log_context_path = path
-
-    def _get_student_profile_info(self):
-        key = self.student_profile_key or "medium"
-        return self.STUDENT_PROFILES.get(key, self.STUDENT_PROFILES["medium"])
-
-    def set_student_profile(self, profile_key):
-        if profile_key not in self.STUDENT_PROFILES:
-            raise ValueError(f"未知的学生档位: {profile_key}")
-        self.student_profile_key = profile_key
-        info = self._get_student_profile_info()
-        print(f"\n🎓 已选择学生档位: {info['label']}")
-
-    def prompt_student_profile(self):
-        """交互式选择学生档位"""
-        options = {
-            "1": "good",
-            "2": "medium",
-            "3": "bad"
-        }
-        print("\n请选择学生档位：")
-        print("1. 优秀学生 (回答完整、结构化)")
-        print("2. 需要引导的学生 (部分正确并提出疑惑)")
-        print("3. 答非所问的学生 (容易跑题)")
-
-        while True:
-            choice = input("\n请输入选项 (1/2/3，默认 2): ").strip()
-            if not choice:
-                choice = "2"
-            if choice in options:
-                self.set_student_profile(options[choice])
-                break
-            print("⚠️  无效选项，请重新输入。")
-
-    def load_student_dialogues(self, md_path):
-        """加载学生档位的模拟对话 Markdown"""
-        try:
-            path = Path(md_path)
-            if not path.exists():
-                print(f"❌ 模拟对话文件不存在: {md_path}")
-                return False
-            self.dialogue_samples_content = path.read_text(encoding="utf-8")
-            print(f"✅ 已加载模拟对话: {md_path} (大小: {len(self.dialogue_samples_content)} 字符)")
-            self._update_log_context(path)
-            return True
-        except Exception as e:
-            print(f"❌ 加载模拟对话失败: {str(e)}")
-            return False
-
     def load_knowledge_base(self, kb_path):
         """加载知识库文件"""
         try:
@@ -260,7 +126,6 @@ class WorkflowTester:
 
             self.knowledge_base_content = path.read_text(encoding="utf-8")
             print(f"✅ 知识库已加载: {kb_path} (大小: {len(self.knowledge_base_content)} 字符)")
-            self._update_log_context(path)
             return True
         except Exception as e:
             print(f"❌ 加载知识库失败: {str(e)}")
@@ -273,49 +138,25 @@ class WorkflowTester:
             return None
 
         try:
-            profile_info = self._get_student_profile_info()
-            system_prompt = (
-                "你是一名能力训练助手，需要严格按照给定的学生档位扮演角色。"
-            )
-
-            sections = [
-                "## 角色设定",
-                f"学生档位: {profile_info['label']}",
-                f"角色特征: {profile_info['description']}",
-                f"表达风格: {profile_info['style']}",
-                "",
-            ]
-
-            if self.dialogue_samples_content:
-                sections.extend([
-                    "## 档位示例对话 (如有匹配请优先引用或改写)",
-                    self.dialogue_samples_content,
-                    "",
-                ])
+            system_prompt = "你是一个能力训练助手，需要根据提供的问题和知识库内容生成恰当的学生回答。"
 
             if self.knowledge_base_content:
-                sections.extend([
-                    "## 参考知识库 (可结合使用)",
-                    self.knowledge_base_content,
-                    "",
-                ])
+                user_message = f"""根据以下知识库内容，生成一个学生的回答。
 
-            sections.extend([
-                "## 当前问题",
-                question,
-                "",
-                "## 输出要求",
-                "1. **字数限制**: 回答必须严格控制在50字以内。",
-                "2. **确认式问题**: 如'你准备好了吗？请回复是或否'、'确认的话请回复是'等，直接回答'是'、'好的'、'确认'等简短词汇。",
-                "3. **选择式问题**: 如'你选择A还是B？'、'请选择1/2/3'等，直接回复选项，如'A'、'1'等。",
-                "4. 回答需与所选学生档位的语气、思路保持一致。",
-                "5. 如果示例对话中存在高度相关的回答，请优先引用或在其基础上微调。",
-                f"6. 若示例未覆盖此问题，可自行生成，但需符合档位特征（{profile_info['fallback_hint']}）。",
-                "7. 仅返回学生回答内容，不要额外解释。",
-                "8. 保持简洁，避免冗余表达。"
-            ])
+## 知识库内容
+{self.knowledge_base_content}
 
-            user_message = "\n".join(sections)
+## 问题
+{question}
+
+请生成一个自然、恰当的学生回答（只返回回答内容，不要包含其他说明）："""
+            else:
+                user_message = f"""请根据问题生成一个学生的回答。
+
+## 问题
+{question}
+
+请生成一个自然、恰当的学生回答（只返回回答内容，不要包含其他说明）："""
 
             response = self.doubao_client.chat.completions.create(
                 model=self.doubao_model,
@@ -442,8 +283,7 @@ class WorkflowTester:
                 
                 return result
             else:
-                print("训练完成")
-                return result
+                raise Exception(f"运行卡片失败: {result.get('msg')}")
                 
         except requests.exceptions.Timeout:
             raise Exception("请求超时")
@@ -493,6 +333,9 @@ class WorkflowTester:
                     print(f"\n⏭️  需要跳转到下一步骤: {next_step_id}")
                     print("自动调用 runCard...")
                     self.current_step_id=next_step_id
+                    if not ai_text:
+                        print("\n✅ 训练结束返回")
+                        return result 
                     return self.run_card(self.task_id, next_step_id, self.session_id)
                 else:
                     return result
@@ -616,10 +459,6 @@ class WorkflowTester:
             print("\n❌ Doubao 客户端未初始化，请检查 ARK_API_KEY 环境变量")
             return
 
-        if not self.student_profile_key:
-            print("\n⚠️  未指定学生档位，默认使用'需要引导的学生'。")
-            self.student_profile_key = "medium"
-
         try:
             # 启动工作流
             self.start_workflow(task_id)
@@ -715,29 +554,23 @@ if __name__ == "__main__":
 
     elif choice == "3":
         print("\n🤖 使用 Doubao 模型自主回答模式")
-        tester.prompt_student_profile()
+        print("可选: 是否使用外接知识库？")
+        use_kb = input("\n是否使用知识库？(y/n，默认 n): ").strip().lower()
 
-        print("\n可选: 是否提供学生档位模拟对话 Markdown？")
-        use_dialogue_md = input("是否加载模拟对话？(y/n，默认 n): ").strip().lower()
-        if use_dialogue_md == "y":
-            dialogue_path = input("\n请输入 Markdown 文件的绝对路径: ").strip()
-            if dialogue_path:
-                tester.load_student_dialogues(dialogue_path)
-            else:
-                print("⚠️  未提供路径，跳过加载模拟对话")
-
-        print("\n可选: 是否使用外接知识库？")
-        use_kb = input("是否使用知识库？(y/n，默认 n): ").strip().lower()
         if use_kb == "y":
             kb_path = input("\n请输入知识库 Markdown 文件的绝对路径: ").strip()
             if kb_path:
-                if not tester.load_knowledge_base(kb_path):
-                    print("⚠️  知识库加载失败，将以通用模式运行")
+                if tester.load_knowledge_base(kb_path):
+                    print(f"✅ 知识库已加载，开始工作流...")
+                    tester.run_with_doubao(task_id)
+                else:
+                    print("❌ 知识库加载失败，请检查路径")
             else:
-                print("⚠️  未提供知识库路径，跳过加载")
-
-        print("\n开始工作流...")
-        tester.run_with_doubao(task_id)
+                print("⚠️  未提供知识库路径，将以通用模式运行...")
+                tester.run_with_doubao(task_id)
+        else:
+            print("\n开始工作流（不使用外接知识库）...")
+            tester.run_with_doubao(task_id)
 
     else:
         print("❌ 无效选项")
