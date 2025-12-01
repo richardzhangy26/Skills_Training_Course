@@ -1,3 +1,4 @@
+import asyncio
 import requests
 import json
 import time
@@ -240,8 +241,8 @@ class WorkflowTester:
         info = self._get_student_profile_info()
         print(f"\n🎓 已选择学生角色: {info['label']}")
 
-    def prompt_student_profile(self):
-        """交互式选择学生角色"""
+    def prompt_student_profile(self, allow_multi=False):
+        """交互式选择学生角色，可选多角色"""
         print("\n请选择学生角色（5 种性格）：")
         options = {}
         for idx, (key, info) in enumerate(self.STUDENT_PROFILES.items(), 1):
@@ -253,16 +254,66 @@ class WorkflowTester:
             "1"
         )
 
+        tip = "可输入多个编号并用逗号分隔" if allow_multi else "只需输入一个编号"
+        prompt_template = (
+            f"\n请输入选项 (1-{len(options)}，默认 {default_choice}，{tip}): "
+        )
+
         while True:
-            choice = input(
-                f"\n请输入选项 (1-{len(options)}，默认 {default_choice}): "
-            ).strip()
-            if not choice:
-                choice = default_choice
-            if choice in options:
-                self.set_student_profile(options[choice])
-                break
+            raw_choice = input(prompt_template).strip()
+            if not raw_choice:
+                raw_choice = default_choice
+
+            selections = [c.strip() for c in raw_choice.split(",") if c.strip()]
+            if not selections:
+                selections = [default_choice]
+
+            if all(choice in options for choice in selections):
+                chosen_keys = []
+                for choice in selections:
+                    mapped = options[choice]
+                    if mapped not in chosen_keys:
+                        chosen_keys.append(mapped)
+
+                if not allow_multi:
+                    self.set_student_profile(chosen_keys[0])
+                    return chosen_keys
+
+                labels = "，".join(self.STUDENT_PROFILES[key]["label"] for key in chosen_keys)
+                print(f"\n🎯 已选择 {len(chosen_keys)} 个学生角色: {labels}")
+                return chosen_keys
+
             print("⚠️  无效选项，请重新输入。")
+
+    def _clone_for_parallel(self):
+        """复制当前实例的上下文供并发运行使用"""
+        clone = WorkflowTester(self.base_url)
+        clone.headers = self.headers.copy()
+        clone.doubao_model = self.doubao_model
+        clone.dialogue_samples_content = self.dialogue_samples_content
+        clone.knowledge_base_content = self.knowledge_base_content
+        clone.log_context_path = self.log_context_path
+        return clone
+
+    def _run_profile_workflow(self, task_id, profile_key):
+        """在线程中执行单个学生角色的 Doubao 流程"""
+        runner = self._clone_for_parallel()
+        runner.set_student_profile(profile_key)
+        runner.run_with_doubao(task_id)
+
+    async def run_profiles_concurrently(self, task_id, profile_keys):
+        """异步并发运行多个学生角色"""
+        if not profile_keys:
+            print("⚠️  未选择学生角色，无法并发运行。")
+            return
+
+        print(f"\n🚀 正在并发运行 {len(profile_keys)} 个学生角色...")
+        tasks = [
+            asyncio.to_thread(self._run_profile_workflow, task_id, profile_key)
+            for profile_key in profile_keys
+        ]
+        await asyncio.gather(*tasks)
+        print("\n✅ 所有选定的学生角色已运行完成。")
 
     def load_student_dialogues(self, md_path):
         """加载学生角色的模拟对话 Markdown"""
@@ -304,7 +355,9 @@ class WorkflowTester:
         try:
             profile_info = self._get_student_profile_info()
             system_prompt = (
-                "你是一名能力训练助手，需要严格按照给定的学生角色扮演性格。"
+                "你是一名能力训练助手，需要模拟学生角色进行回答。"
+                "注意：性格特点应该自然融入对话，而非生硬套用，要保持回答的真实性和多样性。"
+                "如果有角色示例对话，请优先引用或改写。"
             )
 
             sections = [
@@ -323,9 +376,24 @@ class WorkflowTester:
 
             sections.append("")
 
+            # 添加问题类型识别
+            sections.extend([
+                "## 问题类型识别（优先级最高）",
+                "如果当前问题属于以下类型，请优先直接回答，不需要强制体现性格特点：",
+                "1. **确认式问题**: 如'你准备好了吗？请回复是或否'、'确认的话请回复是'",
+                "   → 直接回答'是'、'好的'、'确认'等",
+                "2. **选择式问题**: 如'你选择A还是B？'、'请选择1/2/3'",
+                "   → 直接说出选项，如'我选择A'、'选1'",
+                "3. **角色确认问题**: 如'你是学生还是老师？'",
+                "   → 直接回答角色，如'学生'",
+                "",
+                "**判断标准**: 如果问题中包含'请回复'、'请选择'、'是或否'、'A/B/C'等明确指示，则为封闭式问题。",
+                ""
+            ])
+
             if self.dialogue_samples_content:
                 sections.extend([
-                    "## 角色示例对话 (如有匹配请优先引用或改写)",
+                    "## 角色示例对话 (如有匹配请优先引用或改写，优先级最高)",
                     self.dialogue_samples_content,
                     "",
                 ])
@@ -341,13 +409,16 @@ class WorkflowTester:
                 "## 当前问题",
                 question,
                 "",
-                "## 输出要求",
-                "1. 回答需与所选学生角色的语气、思路保持一致。",
-                "2. 如果示例对话中存在高度相关的回答，请优先引用或在其基础上微调。",
-                f"3. 若示例未覆盖此问题，可自行生成，但需符合角色特征（{profile_info['fallback_hint']}）。",
-                "4. 仅返回学生回答内容，不要额外解释。"
-                "5. 控制在50字以内"
-                
+                "## 输出要求（按优先级执行）",
+                "**优先级1**: 优先输出角色示例对话中的内容",
+                "**优先级2**: 如果是开放式问题，再适度融入学生性格特点，但要注意：",
+                "   - 性格特点应该自然体现，不要生硬套用",
+                "   - 避免每次都使用相同的话术（如不要总说'这说不通'、'不知道'等）",
+                "   - 保持回答的多样性和真实性，可以偶尔正常回答",
+                f"   - 性格提示: {profile_info['fallback_hint']}",
+                "**优先级3**: 如果示例对话中有高度相关的回答，可以参考但需变化表达方式。",
+                "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在50字以内。",
+                ""
             ])
 
             user_message = "\n".join(sections)
@@ -358,8 +429,10 @@ class WorkflowTester:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message}
                 ],
-                temperature=0.7,
-                top_p=0.9
+                temperature=0.85,  # 提高温度增加随机性和多样性
+                top_p=0.95,
+                frequency_penalty=0.3,  # 降低重复性
+                presence_penalty=0.2    # 鼓励使用新词汇
             )
 
             answer = response.choices[0].message.content
@@ -751,7 +824,10 @@ if __name__ == "__main__":
 
     elif choice == "3":
         print("\n🤖 使用 Doubao 模型自主回答模式")
-        tester.prompt_student_profile()
+        multi_mode = input(
+            "\n是否需要同时运行多个学生角色？(y/n，默认 n): "
+        ).strip().lower() == "y"
+        selected_profiles = tester.prompt_student_profile(allow_multi=multi_mode)
 
         print("\n可选: 是否提供学生角色模拟对话 Markdown？")
         use_dialogue_md = input("是否加载模拟对话？(y/n，默认 n): ").strip().lower()
@@ -773,7 +849,10 @@ if __name__ == "__main__":
                 print("⚠️  未提供知识库路径，跳过加载")
 
         print("\n开始工作流...")
-        tester.run_with_doubao(task_id)
+        if multi_mode:
+            asyncio.run(tester.run_profiles_concurrently(task_id, selected_profiles))
+        else:
+            tester.run_with_doubao(task_id)
 
     else:
         print("❌ 无效选项")
