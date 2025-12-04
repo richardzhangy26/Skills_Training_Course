@@ -17,7 +17,6 @@ class WorkflowTester:
             "speech_habit": "常说“嗯”“好”“不知道”，回答多为 1-2 句甚至只有词语。",
             "style": "语气克制、信息量少，除非被追问不会展开。",
             "test_goal": "测试 AI 是否能主动引导、追问，避免对话中断。",
-            "fallback_hint": "尽量用短句或单词回复，即便需要自拟回答。"
         },
         "S2": {
             "label": "S2 话多跑题的学生",
@@ -25,7 +24,6 @@ class WorkflowTester:
             "speech_habit": "回答冗长跳跃，经常夹杂与问题弱相关的经历或感受。",
             "style": "语速快、情绪高涨，想到什么就说什么，很难保持中心。",
             "test_goal": "测试 AI 的话题收束能力和耐心引导能力。",
-            "fallback_hint": "主动延伸到题外话，确保出现跑题或碎碎念的特征。"
         },
         "S3": {
             "label": "S3 高需求的完美主义者",
@@ -33,23 +31,20 @@ class WorkflowTester:
             "speech_habit": "习惯反复追问“还有吗”“能具体点吗”，不断强调标准要更高。",
             "style": "语气苛求且严谨，总在寻找不足之处。",
             "test_goal": "测试 AI 的深度解答能力和面对高标准的应对策略。",
-            "fallback_hint": "无论回复什么内容，都要继续追问或表示仍不满足。"
         },
         "S4": {
             "label": "S4 逻辑挑刺型学生",
             "description": "喜欢找 AI 的矛盾或漏洞，专注于质疑和反驳。",
             "speech_habit": "习惯先指出不合理点，再要求给解释，甚至抛出反例。",
             "style": "语气犀利爱辩论，动不动就说“这说不通”。",
-            "test_goal": "测试 AI 的逻辑一致性与抗质疑能力。",
-            "fallback_hint": "即便答案合理也要挑刺，抛出反驳或追问逻辑。"
+            "test_goal": "测试 AI 的逻辑一致性与抗质疑能力。"
         },
         "S5": {
             "label": "S5 情绪化学生",
             "description": "情绪波动大，容易沮丧或生气，语言夹杂情绪词汇。",
             "speech_habit": "会突然表达“我快崩溃了”“太让人失望”等感受。",
             "style": "语气带情绪色彩，时而激动时而低落。",
-            "test_goal": "测试 AI 的情绪安抚与正向引导能力。",
-            "fallback_hint": "刻意表达情绪起伏，把情绪反应放在答案里。"
+            "test_goal": "测试 AI 的情绪安抚与正向引导能力。"
         }
     }
 
@@ -68,6 +63,7 @@ class WorkflowTester:
         self.student_profile_key = None
         self.dialogue_samples_content = None
         self.log_context_path = None
+        self.conversation_history = []  # 存储对话历史
         
         # 从环境变量加载认证信息
         load_dotenv()
@@ -96,22 +92,103 @@ class WorkflowTester:
             except json.JSONDecodeError:
                 print("⚠️  警告: CUSTOM_HEADERS 格式不正确，已忽略")
 
-        # 初始化 Doubao 客户端
+        # 模型配置
+        self.model_type = os.getenv("MODEL_TYPE", "doubao_sdk")  # doubao_sdk, doubao_post, deepseek_sdk
         self.doubao_client = None
+        self.deepseek_client = None
         self.doubao_model = os.getenv("DOUBAO_MODEL", "doubao-seed-1-6-251015")
+        self.deepseek_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
         self.knowledge_base_content = None
-        self._initialize_doubao_client()
 
-    def _initialize_doubao_client(self):
-        """初始化 Doubao 客户端"""
-        api_key = os.getenv("ARK_API_KEY")
-        base_url = os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+        # POST 调用配置
+        self.llm_api_url = os.getenv("LLM_API_URL", "http://llm-service.polymas.com/api/openai/v1/chat/completions")
+        self.llm_api_key = os.getenv("LLM_API_KEY", "")
+        self.llm_model = os.getenv("LLM_MODEL", "Doubao-1.5-pro-32k")
+        self.llm_service_code = os.getenv("LLM_SERVICE_CODE", "SI_Ability")
+        self.use_post_api = os.getenv("USE_POST_API", "false").lower() == "true"
 
-        if api_key:
-            try:
-                self.doubao_client = OpenAI(api_key=api_key, base_url=base_url)
-            except Exception as e:
-                print(f"⚠️  警告: 初始化 Doubao 客户端失败: {str(e)}")
+        self._initialize_llm_client()
+
+    def _initialize_llm_client(self):
+        """初始化 LLM 客户端"""
+        print(f"🔧 模型类型: {self.model_type}")
+
+        if self.model_type == "doubao_post":
+            print(f"   - 使用 Doubao POST API 调用模式")
+            print(f"   - API URL: {self.llm_api_url}")
+            print(f"   - Model: {self.llm_model}")
+            print(f"   - Service Code: {self.llm_service_code}")
+            if not self.llm_api_key:
+                print("⚠️  警告: LLM_API_KEY 未设置")
+
+        elif self.model_type == "doubao_sdk":
+            api_key = os.getenv("ARK_API_KEY")
+            base_url = os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+
+            if api_key:
+                try:
+                    self.doubao_client = OpenAI(api_key=api_key, base_url=base_url)
+                    print(f"   - 使用 Doubao OpenAI SDK 调用模式")
+                    print(f"   - Model: {self.doubao_model}")
+                except Exception as e:
+                    print(f"⚠️  警告: 初始化 Doubao 客户端失败: {str(e)}")
+            else:
+                print("⚠️  警告: ARK_API_KEY 未设置")
+
+        elif self.model_type == "deepseek_sdk":
+            api_key = os.getenv("DEEPSEEK_API_KEY")
+
+            if api_key:
+                try:
+                    self.deepseek_client = OpenAI(
+                        api_key=api_key,
+                        base_url="https://api.deepseek.com"
+                    )
+                    print(f"   - 使用 DeepSeek OpenAI SDK 调用模式")
+                    print(f"   - Model: {self.deepseek_model}")
+                except Exception as e:
+                    print(f"⚠️  警告: 初始化 DeepSeek 客户端失败: {str(e)}")
+            else:
+                print("⚠️  警告: DEEPSEEK_API_KEY 未设置")
+        else:
+            print(f"⚠️  警告: 未知的模型类型: {self.model_type}")
+
+    def _call_doubao_post(self, messages, temperature=0.85, max_tokens=1000):
+        """使用 HTTP POST 方式调用 Doubao API"""
+        headers = {
+            "Content-Type": "application/json",
+            "service-code": self.llm_service_code,
+        }
+
+        if self.llm_api_key:
+            headers["api-key"] = self.llm_api_key
+
+        payload = {
+            "model": self.llm_model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "top_p": 0.95,
+            "frequency_penalty": 0.3,
+            "presence_penalty": 0.2
+        }
+
+        try:
+            response = requests.post(
+                self.llm_api_url,
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result["choices"][0]["message"]["content"].strip()
+        except requests.exceptions.RequestException as e:
+            print(f"❌ HTTP POST 调用失败: {str(e)}")
+            return None
+        except (KeyError, IndexError) as e:
+            print(f"❌ 解析响应失败: {str(e)}")
+            return None
 
     def _prepare_log_files(self, task_id):
         """创建日志文件并写入开头信息"""
@@ -289,17 +366,27 @@ class WorkflowTester:
         """复制当前实例的上下文供并发运行使用"""
         clone = WorkflowTester(self.base_url)
         clone.headers = self.headers.copy()
+        clone.model_type = self.model_type
         clone.doubao_model = self.doubao_model
+        clone.deepseek_model = self.deepseek_model
         clone.dialogue_samples_content = self.dialogue_samples_content
         clone.knowledge_base_content = self.knowledge_base_content
         clone.log_context_path = self.log_context_path
+        # 复制 API 配置
+        clone.llm_api_url = self.llm_api_url
+        clone.llm_api_key = self.llm_api_key
+        clone.llm_model = self.llm_model
+        clone.llm_service_code = self.llm_service_code
+        clone.conversation_history = []  # 每个克隆实例独立的对话历史
+        # 重新初始化客户端
+        clone._initialize_llm_client()
         return clone
 
     def _run_profile_workflow(self, task_id, profile_key):
-        """在线程中执行单个学生角色的 Doubao 流程"""
+        """在线程中执行单个学生角色的 LLM 流程"""
         runner = self._clone_for_parallel()
         runner.set_student_profile(profile_key)
-        runner.run_with_doubao(task_id)
+        runner.run_with_llm(task_id)
 
     async def run_profiles_concurrently(self, task_id, profile_keys):
         """异步并发运行多个学生角色"""
@@ -346,10 +433,17 @@ class WorkflowTester:
             print(f"❌ 加载知识库失败: {str(e)}")
             return False
 
-    def generate_answer_with_doubao(self, question):
-        """使用 Doubao 模型生成回答"""
-        if not self.doubao_client:
+    def generate_answer_with_llm(self, question):
+        """使用 LLM 模型生成回答"""
+        # 检查是否有可用的调用方式
+        if self.model_type == "doubao_sdk" and not self.doubao_client:
             print("❌ Doubao 客户端未初始化")
+            return None
+        elif self.model_type == "deepseek_sdk" and not self.deepseek_client:
+            print("❌ DeepSeek 客户端未初始化")
+            return None
+        elif self.model_type == "doubao_post" and not self.llm_api_url:
+            print("❌ POST API URL 未配置")
             return None
 
         try:
@@ -405,6 +499,17 @@ class WorkflowTester:
                     "",
                 ])
 
+            # 添加对话历史
+            if self.conversation_history:
+                sections.extend([
+                    "## 对话历史（按时间顺序）",
+                ])
+                for i, turn in enumerate(self.conversation_history, 1):
+                    sections.append(f"第{i}轮:")
+                    sections.append(f"  AI提问: {turn['ai']}")
+                    sections.append(f"  学生回答: {turn['student']}")
+                sections.append("")
+
             sections.extend([
                 "## 当前问题",
                 question,
@@ -415,7 +520,6 @@ class WorkflowTester:
                 "   - 性格特点应该自然体现，不要生硬套用",
                 "   - 避免每次都使用相同的话术（如不要总说'这说不通'、'不知道'等）",
                 "   - 保持回答的多样性和真实性，可以偶尔正常回答",
-                f"   - 性格提示: {profile_info['fallback_hint']}",
                 "**优先级3**: 如果示例对话中有高度相关的回答，可以参考但需变化表达方式。",
                 "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在50字以内。",
                 ""
@@ -423,22 +527,44 @@ class WorkflowTester:
 
             user_message = "\n".join(sections)
 
-            response = self.doubao_client.chat.completions.create(
-                model=self.doubao_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
-                temperature=0.85,  # 提高温度增加随机性和多样性
-                top_p=0.95,
-                frequency_penalty=0.3,  # 降低重复性
-                presence_penalty=0.2    # 鼓励使用新词汇
-            )
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
 
-            answer = response.choices[0].message.content
+            # 根据配置选择调用方式
+            if self.model_type == "doubao_post":
+                print("🔄 使用 Doubao POST API 调用...")
+                answer = self._call_doubao_post(messages, temperature=0.85, max_tokens=1000)
+            elif self.model_type == "doubao_sdk":
+                print("🔄 使用 Doubao OpenAI SDK 调用...")
+                response = self.doubao_client.chat.completions.create(
+                    model=self.doubao_model,
+                    messages=messages,
+                    temperature=0.85,  # 提高温度增加随机性和多样性
+                    top_p=0.95,
+                    frequency_penalty=0.3,  # 降低重复性
+                    presence_penalty=0.2    # 鼓励使用新词汇
+                )
+                answer = response.choices[0].message.content
+            elif self.model_type == "deepseek_sdk":
+                print("🔄 使用 DeepSeek OpenAI SDK 调用...")
+                response = self.deepseek_client.chat.completions.create(
+                    model=self.deepseek_model,
+                    messages=messages,
+                    temperature=0.85,  # 提高温度增加随机性和多样性
+                    top_p=0.95,
+                    frequency_penalty=0.3,  # 降低重复性
+                    presence_penalty=0.2    # 鼓励使用新词汇
+                )
+                answer = response.choices[0].message.content
+            else:
+                print(f"❌ 未知的模型类型: {self.model_type}")
+                return None
+
             return answer
         except Exception as e:
-            print(f"❌ 调用 Doubao 模型失败: {str(e)}")
+            print(f"❌ 调用 {self.model_type} 模型失败: {str(e)}")
             return None
 
     def test_connection(self):
@@ -592,9 +718,11 @@ class WorkflowTester:
                 ai_text = data.get("text")
                 self.dialogue_round += 1
                 self._log_dialogue_entry(step_id, user_text=user_input, ai_text=ai_text, source="chat")
-                
+
                 if ai_text:
                     print(f"\n📝 AI 说: {ai_text}")
+                    # 更新当前问题文本，供下一轮生成回答使用
+                    self.question_text = ai_text
 
                 # 关键逻辑：如果 needSkipStep=true 且 nextStepId 不为空，需要调用 runCard
                 if need_skip and next_step_id:
@@ -624,6 +752,7 @@ class WorkflowTester:
         
         self.task_id = task_id
         self.dialogue_round = 0
+        self.conversation_history = []  # 重置对话历史
         self._prepare_log_files(task_id)
         
         # 1. 获取第一个步骤ID
@@ -716,12 +845,19 @@ class WorkflowTester:
             import traceback
             traceback.print_exc()
 
-    def run_with_doubao(self, task_id):
+    def run_with_llm(self, task_id):
         """
-        使用 Doubao 模型自动生成回答并运行工作流
+        使用 LLM 模型自动生成回答并运行工作流
         """
-        if not self.doubao_client:
+        # 检查客户端初始化
+        if self.model_type == "doubao_sdk" and not self.doubao_client:
             print("\n❌ Doubao 客户端未初始化，请检查 ARK_API_KEY 环境变量")
+            return
+        elif self.model_type == "deepseek_sdk" and not self.deepseek_client:
+            print("\n❌ DeepSeek 客户端未初始化，请检查 DEEPSEEK_API_KEY 环境变量")
+            return
+        elif self.model_type == "doubao_post" and not self.llm_api_url:
+            print("\n❌ POST API URL 未配置")
             return
 
         if not self.student_profile_key:
@@ -742,26 +878,37 @@ class WorkflowTester:
                     print("\n✅ 工作流完成！没有更多步骤了。")
                     break
 
+                # 安全检查：防止无限循环
+                if round_num > 50:
+                    print(f"\n⚠️  警告：已达到最大对话轮数（{round_num}轮），自动退出防止无限循环")
+                    break
+
                 print("\n" + "="*60)
-                print(f"🤖 第 {round_num} 轮对话（Doubao 自主回答）")
+                print(f"🤖 第 {round_num} 轮对话（{self.model_type} 自主回答）")
                 print("="*60)
 
-                # 使用 Doubao 生成回答
+                # 使用 LLM 生成回答
                 print(f"\n🔄 正在生成回答...")
-                generated_answer = self.generate_answer_with_doubao(self.question_text)
+                generated_answer = self.generate_answer_with_llm(self.question_text)
 
                 if not generated_answer:
                     print("❌ 无法生成回答，跳过此轮")
                     break
 
-                print(f"\n🤖 Doubao 生成的回答: {generated_answer}")
+                print(f"\n🤖 {self.model_type} 生成的回答: {generated_answer}")
+
+                # 保存当前轮对话到历史
+                self.conversation_history.append({
+                    "ai": self.question_text,
+                    "student": generated_answer
+                })
 
                 # 发送生成的回答
                 result = self.chat(generated_answer)
 
-                # 检查返回结果中的text,如果为null代表输出结束 
+                # 检查返回结果，如果 text 为 null 且 nextStepId 为 null，代表输出结束
                 data = result.get("data") or {}
-                if data.get("text") is None:
+                if data.get("text") is None and data.get("nextStepId") is None:
                     print("\n✅ 工作流完成！")
                     break
 
@@ -823,7 +970,25 @@ if __name__ == "__main__":
         tester.run_auto(task_id, user_answers)
 
     elif choice == "3":
-        print("\n🤖 使用 Doubao 模型自主回答模式")
+        print("\n🤖 使用 LLM 模型自主回答模式")
+
+        # 模型选择
+        print("\n请选择 LLM 模型：")
+        print("1. Doubao (OpenAI SDK)")
+        print("2. Doubao (POST API)")
+        print("3. DeepSeek (OpenAI SDK)")
+
+        model_choice = input("\n请输入选项 (1/2/3，默认 1): ").strip()
+        if model_choice == "2":
+            tester.model_type = "doubao_post"
+        elif model_choice == "3":
+            tester.model_type = "deepseek_sdk"
+        else:
+            tester.model_type = "doubao_sdk"
+
+        # 重新初始化客户端
+        tester._initialize_llm_client()
+
         multi_mode = input(
             "\n是否需要同时运行多个学生角色？(y/n，默认 n): "
         ).strip().lower() == "y"
@@ -852,7 +1017,7 @@ if __name__ == "__main__":
         if multi_mode:
             asyncio.run(tester.run_profiles_concurrently(task_id, selected_profiles))
         else:
-            tester.run_with_doubao(task_id)
+            tester.run_with_llm(task_id)
 
     else:
         print("❌ 无效选项")
