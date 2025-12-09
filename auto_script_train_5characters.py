@@ -64,7 +64,8 @@ class WorkflowTester:
         self.dialogue_samples_content = None
         self.log_context_path = None
         self.conversation_history = []  # 存储对话历史
-        
+        self.step_name_mapping = {}  # 存储 stepId -> stepName 的映射
+
         # 从环境变量加载认证信息
         load_dotenv()
         
@@ -291,28 +292,34 @@ class WorkflowTester:
             f.write(text + "\n")
 
     def _log_run_card(self, step_id, payload, response_data):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        step_name = self._get_step_display_name(step_id)
         log_lines = [
-            f"[{timestamp}] Step {step_id}",
+            f"Step: {step_name}",
             f"请求载荷: {json.dumps(payload, ensure_ascii=False)}",
             f"响应内容: {json.dumps(response_data, ensure_ascii=False)}",
-            "-" * 80,
+            "-" * 40,
         ]
         self._append_log(self.run_card_log_path, "\n".join(log_lines))
 
     def _log_dialogue_entry(self, step_id, user_text=None, ai_text=None, source="chat"):
         if user_text is None and ai_text is None:
             return
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        step_name = self._get_step_display_name(step_id)
         round_info = f" | 第 {self.dialogue_round} 轮" if self.dialogue_round else ""
-        header = f"[{timestamp}] Step {step_id}{round_info} | 来源: {source}"
+        header = f"Step: {step_name}{round_info} | 来源: {source}"
         lines = [header]
         if user_text:
             lines.append(f"用户: {user_text}")
         if ai_text:
             lines.append(f"AI: {ai_text}")
-        lines.append("-" * 80)
+        lines.append("-" * 40)
         self._append_log(self.dialogue_log_path, "\n".join(lines))
+
+    def _get_step_display_name(self, step_id):
+        """获取步骤的显示名称，优先返回中文名，否则返回 UUID"""
+        if not step_id:
+            return "未知步骤"
+        return self.step_name_mapping.get(step_id, step_id)
 
     def _get_log_context_parts(self):
         if not self.log_context_path:
@@ -447,6 +454,7 @@ class WorkflowTester:
         clone.llm_model = self.llm_model
         clone.llm_service_code = self.llm_service_code
         clone.conversation_history = []  # 每个克隆实例独立的对话历史
+        clone.step_name_mapping = self.step_name_mapping.copy()  # 复制步骤名称映射
         # 重新初始化客户端
         clone._initialize_llm_client()
         return clone
@@ -690,8 +698,20 @@ class WorkflowTester:
             if result.get("code") == 200 and result.get("success"):
                 data = result.get("data") or []
                 if data and len(data) > 0:
+                    # 构建 stepId -> stepName 的映射
+                    for step_item in data:
+                        step_id = step_item.get("stepId")
+                        step_detail = step_item.get("stepDetailDTO", {})
+                        step_name = step_detail.get("stepName", "未命名步骤")
+                        if step_id:
+                            self.step_name_mapping[step_id] = step_name
+
+                    print(f"✅ 已加载 {len(self.step_name_mapping)} 个步骤名称映射")
+
+                    # 返回第一个实际的步骤ID（跳过 START 和 END 节点）
                     first_step_id = data[2].get("stepId")
-                    print(f"\n✅ 获取到第一个步骤ID: {first_step_id}")
+                    first_step_name = self.step_name_mapping.get(first_step_id, first_step_id)
+                    print(f"✅ 获取到第一个步骤: {first_step_name} ({first_step_id})")
                     return first_step_id
                 else:
                     raise Exception("步骤列表为空")
