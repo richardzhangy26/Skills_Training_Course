@@ -10,7 +10,7 @@ from openai import OpenAI
 
 class WorkflowTester:
     DEFAULT_PROFILE_KEY = "S2"
-    STUDENT_PROFILES = {
+    DEFAULT_STUDENT_PROFILES = {
         "S1": {
             "label": "S1 沉默寡言的学生",
             "description": "内向不主动表达，只给最简短的回应，常用词重复。",
@@ -92,8 +92,11 @@ class WorkflowTester:
             except json.JSONDecodeError:
                 print("⚠️  警告: CUSTOM_HEADERS 格式不正确，已忽略")
 
+        # 加载学生性格配置
+        self.student_profiles = self._load_student_profiles()
+
         # 模型配置
-        self.model_type = os.getenv("MODEL_TYPE", "doubao_sdk")  # doubao_sdk, doubao_post, deepseek_sdk
+        self.model_type = os.getenv("MODEL_TYPE", "doubao_post")  # doubao_sdk, doubao_post, deepseek_sdk
         self.doubao_client = None
         self.deepseek_client = None
         self.doubao_model = os.getenv("DOUBAO_MODEL", "doubao-seed-1-6-251015")
@@ -108,6 +111,70 @@ class WorkflowTester:
         self.use_post_api = os.getenv("USE_POST_API", "false").lower() == "true"
 
         self._initialize_llm_client()
+
+    def _load_student_profiles(self):
+        """加载学生性格配置文件"""
+        config_paths = [
+            Path.cwd() / "student_profiles.custom.json",
+            self.base_path / "student_profiles.json"
+        ]
+
+        for config_path in config_paths:
+            if config_path.exists():
+                try:
+                    return self._load_config_file(config_path)
+                except Exception as e:
+                    print(f"⚠️  警告: 无法加载配置文件 {config_path}: {str(e)}")
+
+        # 使用内置默认配置
+        print("⚠️  未找到配置文件，使用内置默认配置")
+        return self.DEFAULT_STUDENT_PROFILES
+
+    def _load_config_file(self, config_path):
+        """加载并验证配置文件"""
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+
+            # 验证配置文件结构
+            if "profiles" not in config:
+                raise ValueError("配置文件缺少 'profiles' 字段")
+
+            profiles = config["profiles"]
+            validated_profiles = {}
+
+            # 验证并合并每个性格配置
+            for profile_key in ["S1", "S2", "S3", "S4", "S5"]:
+                if profile_key in profiles:
+                    user_profile = profiles[profile_key]
+                    default_profile = self.DEFAULT_STUDENT_PROFILES.get(profile_key, {})
+
+                    # 合并配置：用户配置覆盖默认配置
+                    merged_profile = default_profile.copy()
+                    merged_profile.update(user_profile)
+
+                    # 确保必填字段存在
+                    required_fields = ["label", "description", "speech_habit", "style", "test_goal"]
+                    for field in required_fields:
+                        if field not in merged_profile:
+                            merged_profile[field] = default_profile.get(field, "")
+
+                    # 添加 enabled 字段（默认为 true）
+                    if "enabled" not in merged_profile:
+                        merged_profile["enabled"] = True
+
+                    validated_profiles[profile_key] = merged_profile
+                else:
+                    # 使用默认配置
+                    validated_profiles[profile_key] = self.DEFAULT_STUDENT_PROFILES[profile_key]
+
+            print(f"✅ 已加载学生性格配置: {config_path}")
+            return validated_profiles
+
+        except json.JSONDecodeError as e:
+            raise ValueError(f"配置文件格式错误: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"加载配置文件失败: {str(e)}")
 
     def _initialize_llm_client(self):
         """初始化 LLM 客户端"""
@@ -306,13 +373,13 @@ class WorkflowTester:
 
     def _get_student_profile_info(self):
         key = self.student_profile_key or self.DEFAULT_PROFILE_KEY
-        return self.STUDENT_PROFILES.get(
+        return self.student_profiles.get(
             key,
-            self.STUDENT_PROFILES[self.DEFAULT_PROFILE_KEY]
+            self.student_profiles[self.DEFAULT_PROFILE_KEY]
         )
 
     def set_student_profile(self, profile_key):
-        if profile_key not in self.STUDENT_PROFILES:
+        if profile_key not in self.student_profiles:
             raise ValueError(f"未知的学生角色: {profile_key}")
         self.student_profile_key = profile_key
         info = self._get_student_profile_info()
@@ -320,9 +387,11 @@ class WorkflowTester:
 
     def prompt_student_profile(self, allow_multi=False):
         """交互式选择学生角色，可选多角色"""
-        print("\n请选择学生角色（5 种性格）：")
+        print("\n请选择学生角色：")
         options = {}
-        for idx, (key, info) in enumerate(self.STUDENT_PROFILES.items(), 1):
+        enabled_profiles = {k: v for k, v in self.student_profiles.items() if v.get("enabled", True)}
+
+        for idx, (key, info) in enumerate(enabled_profiles.items(), 1):
             options[str(idx)] = key
             print(f"{idx}. {info['label']} - {info['description']}")
 
@@ -356,7 +425,7 @@ class WorkflowTester:
                     self.set_student_profile(chosen_keys[0])
                     return chosen_keys
 
-                labels = "，".join(self.STUDENT_PROFILES[key]["label"] for key in chosen_keys)
+                labels = "，".join(self.student_profiles[key]["label"] for key in chosen_keys)
                 print(f"\n🎯 已选择 {len(chosen_keys)} 个学生角色: {labels}")
                 return chosen_keys
 
@@ -590,7 +659,7 @@ class WorkflowTester:
         # 测试网络连接
         print("\n2️⃣  测试网络连接:")
         try:
-            response = requests.get(self.base_url, timeout=5)
+            response = requests.get(self.base_url, timeout=10)
             print(f"✅ 服务器可访问 (状态码: {response.status_code})")
             return True
         except requests.exceptions.RequestException as e:
@@ -612,7 +681,7 @@ class WorkflowTester:
         # print(f"请求载荷: {json.dumps(payload, indent=2, ensure_ascii=False)}")
         
         try:
-            response = self.session.post(url, json=payload, headers=self.headers, timeout=30)
+            response = self.session.post(url, json=payload, headers=self.headers, timeout=60)
             result = response.json()
             
             print(f"响应状态码: {response.status_code}")
@@ -655,7 +724,7 @@ class WorkflowTester:
         print(f"请求载荷: {json.dumps(payload, indent=2, ensure_ascii=False)}")
         
         try:
-            response = self.session.post(url, json=payload, headers=self.headers, timeout=30)
+            response = self.session.post(url, json=payload, headers=self.headers, timeout=60)
             result = response.json()
             self._log_run_card(step_id, payload, result)
             
@@ -705,7 +774,7 @@ class WorkflowTester:
         # print(f"请求载荷: {json.dumps(payload, indent=2, ensure_ascii=False)}")
         
         try:
-            response = self.session.post(url, json=payload, headers=self.headers, timeout=30)
+            response = self.session.post(url, json=payload, headers=self.headers, timeout=60)
             result = response.json()
             
             print(f"响应状态码: {response.status_code}")
@@ -861,7 +930,7 @@ class WorkflowTester:
             return
 
         if not self.student_profile_key:
-            default_label = self.STUDENT_PROFILES[self.DEFAULT_PROFILE_KEY]["label"]
+            default_label = self.student_profiles[self.DEFAULT_PROFILE_KEY]["label"]
             print(f"\n⚠️  未指定学生角色，默认使用 '{default_label}'。")
             self.student_profile_key = self.DEFAULT_PROFILE_KEY
 
