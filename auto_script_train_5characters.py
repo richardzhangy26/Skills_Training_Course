@@ -66,6 +66,13 @@ class WorkflowTester:
         self.conversation_history = []  # 存储对话历史
         self.step_name_mapping = {}  # 存储 stepId -> stepName 的映射
 
+        # JSON logging
+        self.json_log_enabled = False
+        self.json_log_path = None
+        self.json_stages = {}  # Dict: step_id -> stage data
+        self.workflow_start_time = None
+        self.log_format = "txt"  # Default format
+
         # 从环境变量加载认证信息
         load_dotenv()
         
@@ -260,30 +267,41 @@ class WorkflowTester:
 
     def _prepare_log_files(self, task_id):
         """创建日志文件并写入开头信息"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now()
+        self.workflow_start_time = timestamp  # 记录工作流开始时间
+
         log_dir = self._determine_log_directory(task_id)
         log_dir.mkdir(parents=True, exist_ok=True)
-        self.log_prefix = f"task_{task_id}_{timestamp}"
-        self.run_card_log_path = log_dir / f"{self.log_prefix}_runcard.txt"
-        self.dialogue_log_path = log_dir / f"{self.log_prefix}_dialogue.txt"
-        profile_label = self._get_student_profile_info()["label"] if self.student_profile_key else "未设置"
+        self.log_prefix = f"task_{task_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}"
 
-        header_lines = [
-            f"日志创建时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"task_id: {task_id}",
-            f"学生角色: {profile_label}"
-        ]
-        if self.log_context_path:
-            header_lines.append(f"参考文档: {str(self.log_context_path)}")
-        header_lines.append("=" * 60)
-        header = "\n".join(header_lines) + "\n"
-        for path, title in [
-            (self.run_card_log_path, "RunCard 信息记录"),
-            (self.dialogue_log_path, "对话记录"),
-        ]:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(title + "\n")
-                f.write(header)
+        # 初始化 JSON 日志
+        if self.log_format in ["json", "both"]:
+            self.json_log_enabled = True
+            self.json_log_path = log_dir / f"{self.log_prefix}_dialogue.json"
+            self.json_stages = {}
+
+        # 只在需要 TXT 格式时创建 TXT 文件
+        if self.log_format in ["txt", "both"]:
+            self.run_card_log_path = log_dir / f"{self.log_prefix}_runcard.txt"
+            self.dialogue_log_path = log_dir / f"{self.log_prefix}_dialogue.txt"
+            profile_label = self._get_student_profile_info()["label"] if self.student_profile_key else "未设置"
+
+            header_lines = [
+                f"日志创建时间: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}",
+                f"task_id: {task_id}",
+                f"学生角色: {profile_label}"
+            ]
+            if self.log_context_path:
+                header_lines.append(f"参考文档: {str(self.log_context_path)}")
+            header_lines.append("=" * 60)
+            header = "\n".join(header_lines) + "\n"
+            for path, title in [
+                (self.run_card_log_path, "RunCard 信息记录"),
+                (self.dialogue_log_path, "对话记录"),
+            ]:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(title + "\n")
+                    f.write(header)
 
     def _append_log(self, path, text):
         if not path:
@@ -314,6 +332,12 @@ class WorkflowTester:
             lines.append(f"AI: {ai_text}")
         lines.append("-" * 40)
         self._append_log(self.dialogue_log_path, "\n".join(lines))
+
+        # 收集 JSON 数据
+        if user_text:
+            self._collect_stage_data(step_id, self.dialogue_round, "user", user_text)
+        if ai_text:
+            self._collect_stage_data(step_id, self.dialogue_round, "assistant", ai_text)
 
     def _get_step_display_name(self, step_id):
         """获取步骤的显示名称，优先返回中文名，否则返回 UUID"""
@@ -384,6 +408,99 @@ class WorkflowTester:
             key,
             self.student_profiles[self.DEFAULT_PROFILE_KEY]
         )
+
+    def _get_current_model_name(self):
+        """获取当前模型的显示名称"""
+        if self.model_type == "doubao_post":
+            return self.llm_model
+        elif self.model_type == "doubao_sdk":
+            return self.doubao_model
+        elif self.model_type == "deepseek_sdk":
+            return self.deepseek_model
+        return "unknown"
+
+    def _get_log_format_preference(self):
+        """获取用户的日志格式偏好"""
+        # 1. 检查环境变量
+        env_format = os.getenv("LOG_FORMAT", "").lower()
+        if env_format in ["txt", "json", "both"]:
+            print(f"📋 使用环境变量设置的日志格式: {env_format.upper()}")
+            return env_format
+
+        # 2. 提示用户选择
+        print("\n请选择日志格式：")
+        print("1. 仅 TXT 格式（默认）")
+        print("2. 仅 JSON 格式")
+        print("3. TXT + JSON 两种格式")
+
+        choice = input("\n请输入选项 (1/2/3，默认 1): ").strip() or "1"
+        format_map = {"1": "txt", "2": "json", "3": "both"}
+        selected_format = format_map.get(choice, "txt")
+        print(f"✅ 已选择日志格式: {selected_format.upper()}")
+        return selected_format
+
+    def _collect_stage_data(self, step_id, round_num, role, content):
+        """收集当前阶段的消息数据"""
+        if not self.json_log_enabled:
+            return
+
+        # 初始化阶段（如果是该步骤的第一条消息）
+        if step_id not in self.json_stages:
+            stage_name = self.step_name_mapping.get(step_id, step_id)
+            self.json_stages[step_id] = {
+                "stage_index": len(self.json_stages) + 1,
+                "stage_name": stage_name,
+                "step_id": step_id,
+                "messages": []
+            }
+
+        # 添加消息
+        self.json_stages[step_id]["messages"].append({
+            "round": round_num,
+            "role": role,
+            "content": content
+        })
+
+    def _build_json_structure(self):
+        """构建完整的 JSON 结构"""
+        workflow_end_time = datetime.now()
+
+        # 获取学生性格标签
+        profile_info = self._get_student_profile_info()
+
+        # 获取知识库和对话样本文件路径
+        kb_file = str(self.log_context_path) if self.log_context_path else None
+        dialogue_file = None  # 如果需要单独跟踪对话样本文件，可以添加实例变量
+
+        return {
+            "metadata": {
+                "task_id": self.task_id,
+                "student_profile": self.student_profile_key or self.DEFAULT_PROFILE_KEY,
+                "student_profile_label": profile_info.get("label", "未知"),
+                "model_type": self.model_type,
+                "model_name": self._get_current_model_name(),
+                "workflow_start_time": self.workflow_start_time.strftime("%Y-%m-%d %H:%M:%S") if self.workflow_start_time else None,
+                "workflow_end_time": workflow_end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "total_rounds": self.dialogue_round,
+                "total_steps": len(self.json_stages),
+                "knowledge_base_file": kb_file,
+                "dialogue_samples_file": dialogue_file
+            },
+            "stages": list(self.json_stages.values())
+        }
+
+    def _write_json_log(self):
+        """在工作流完成时写入 JSON 日志文件"""
+        if not self.json_log_enabled or not self.json_log_path:
+            return
+
+        try:
+            json_data = self._build_json_structure()
+            with open(self.json_log_path, 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, ensure_ascii=False, indent=2)
+            print(f"✅ JSON 日志已保存: {self.json_log_path}")
+        except Exception as e:
+            print(f"⚠️  警告: 保存 JSON 日志失败: {str(e)}")
 
     def set_student_profile(self, profile_key):
         if profile_key not in self.student_profiles:
@@ -894,12 +1011,18 @@ class WorkflowTester:
                 
                 round_num += 1
                 time.sleep(0.5)  # 稍微延迟，避免请求过快
-                
+
+            # 写入 JSON 日志
+            try:
+                self._write_json_log()
+            except Exception as e:
+                print(f"⚠️  警告: JSON 日志写入失败: {str(e)}")
+
         except Exception as e:
             print(f"\n❌ 错误: {str(e)}")
             import traceback
             traceback.print_exc()
-    
+
     def run_auto(self, task_id, user_answers):
         """
         自动化运行工作流（使用预设答案）
@@ -924,6 +1047,12 @@ class WorkflowTester:
                 if data.get("nextStepId") is None:
                     print("\n✅ 工作流完成！")
                     break
+
+            # 写入 JSON 日志
+            try:
+                self._write_json_log()
+            except Exception as e:
+                print(f"⚠️  警告: JSON 日志写入失败: {str(e)}")
 
             print("\n" + "="*60)
             print("🎉 工作流测试结束")
@@ -1004,6 +1133,12 @@ class WorkflowTester:
                 round_num += 1
                 time.sleep(1)  # 稍微延迟，避免请求过快
 
+            # 写入 JSON 日志
+            try:
+                self._write_json_log()
+            except Exception as e:
+                print(f"⚠️  警告: JSON 日志写入失败: {str(e)}")
+
             print("\n" + "="*60)
             print("🎉 工作流测试结束")
             print("="*60)
@@ -1037,7 +1172,10 @@ if __name__ == "__main__":
             exit(1)
     
     print(f"\n使用 task_id: {task_id}")
-    
+
+    # 选择日志格式
+    tester.log_format = tester._get_log_format_preference()
+
     # 选择运行模式
     print("\n请选择运行方式：")
     print("1. 交互式运行（推荐）")
