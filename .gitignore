@@ -17,3 +17,4 @@
 media/
 skills_training_course
 log/
+.env
