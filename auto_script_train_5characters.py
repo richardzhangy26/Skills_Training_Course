@@ -10,14 +10,13 @@ from openai import OpenAI
 
 class WorkflowTester:
     DEFAULT_PROFILE_KEY = "S2"
-    STUDENT_PROFILES = {
+    DEFAULT_STUDENT_PROFILES = {
         "S1": {
             "label": "S1 沉默寡言的学生",
             "description": "内向不主动表达，只给最简短的回应，常用词重复。",
             "speech_habit": "常说“嗯”“好”“不知道”，回答多为 1-2 句甚至只有词语。",
             "style": "语气克制、信息量少，除非被追问不会展开。",
             "test_goal": "测试 AI 是否能主动引导、追问，避免对话中断。",
-            "fallback_hint": "尽量用短句或单词回复，即便需要自拟回答。"
         },
         "S2": {
             "label": "S2 话多跑题的学生",
@@ -25,7 +24,6 @@ class WorkflowTester:
             "speech_habit": "回答冗长跳跃，经常夹杂与问题弱相关的经历或感受。",
             "style": "语速快、情绪高涨，想到什么就说什么，很难保持中心。",
             "test_goal": "测试 AI 的话题收束能力和耐心引导能力。",
-            "fallback_hint": "主动延伸到题外话，确保出现跑题或碎碎念的特征。"
         },
         "S3": {
             "label": "S3 高需求的完美主义者",
@@ -33,23 +31,20 @@ class WorkflowTester:
             "speech_habit": "习惯反复追问“还有吗”“能具体点吗”，不断强调标准要更高。",
             "style": "语气苛求且严谨，总在寻找不足之处。",
             "test_goal": "测试 AI 的深度解答能力和面对高标准的应对策略。",
-            "fallback_hint": "无论回复什么内容，都要继续追问或表示仍不满足。"
         },
         "S4": {
             "label": "S4 逻辑挑刺型学生",
             "description": "喜欢找 AI 的矛盾或漏洞，专注于质疑和反驳。",
             "speech_habit": "习惯先指出不合理点，再要求给解释，甚至抛出反例。",
             "style": "语气犀利爱辩论，动不动就说“这说不通”。",
-            "test_goal": "测试 AI 的逻辑一致性与抗质疑能力。",
-            "fallback_hint": "即便答案合理也要挑刺，抛出反驳或追问逻辑。"
+            "test_goal": "测试 AI 的逻辑一致性与抗质疑能力。"
         },
         "S5": {
             "label": "S5 情绪化学生",
             "description": "情绪波动大，容易沮丧或生气，语言夹杂情绪词汇。",
             "speech_habit": "会突然表达“我快崩溃了”“太让人失望”等感受。",
             "style": "语气带情绪色彩，时而激动时而低落。",
-            "test_goal": "测试 AI 的情绪安抚与正向引导能力。",
-            "fallback_hint": "刻意表达情绪起伏，把情绪反应放在答案里。"
+            "test_goal": "测试 AI 的情绪安抚与正向引导能力。"
         }
     }
 
@@ -68,7 +63,16 @@ class WorkflowTester:
         self.student_profile_key = None
         self.dialogue_samples_content = None
         self.log_context_path = None
-        
+        self.conversation_history = []  # 存储对话历史
+        self.step_name_mapping = {}  # 存储 stepId -> stepName 的映射
+
+        # JSON logging
+        self.json_log_enabled = False
+        self.json_log_path = None
+        self.json_stages = {}  # Dict: step_id -> stage data
+        self.workflow_start_time = None
+        self.log_format = "txt"  # Default format
+
         # 从环境变量加载认证信息
         load_dotenv()
         
@@ -96,49 +100,208 @@ class WorkflowTester:
             except json.JSONDecodeError:
                 print("⚠️  警告: CUSTOM_HEADERS 格式不正确，已忽略")
 
-        # 初始化 Doubao 客户端
+        # 加载学生性格配置
+        self.student_profiles = self._load_student_profiles()
+
+        # 模型配置
+        self.model_type = os.getenv("MODEL_TYPE", "doubao_post")  # doubao_sdk, doubao_post, deepseek_sdk
         self.doubao_client = None
+        self.deepseek_client = None
         self.doubao_model = os.getenv("DOUBAO_MODEL", "doubao-seed-1-6-251015")
+        self.deepseek_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
         self.knowledge_base_content = None
-        self._initialize_doubao_client()
 
-    def _initialize_doubao_client(self):
-        """初始化 Doubao 客户端"""
-        api_key = os.getenv("ARK_API_KEY")
-        base_url = os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+        # POST 调用配置
+        self.llm_api_url = os.getenv("LLM_API_URL", "http://llm-service.polymas.com/api/openai/v1/chat/completions")
+        self.llm_api_key = os.getenv("LLM_API_KEY", "")
+        self.llm_model = os.getenv("LLM_MODEL", "Doubao-1.5-pro-32k")
+        self.llm_service_code = os.getenv("LLM_SERVICE_CODE", "SI_Ability")
+        self.use_post_api = os.getenv("USE_POST_API", "false").lower() == "true"
 
-        if api_key:
-            try:
-                self.doubao_client = OpenAI(api_key=api_key, base_url=base_url)
-            except Exception as e:
-                print(f"⚠️  警告: 初始化 Doubao 客户端失败: {str(e)}")
+        self._initialize_llm_client()
+
+    def _load_student_profiles(self):
+        """加载学生性格配置文件"""
+        config_paths = [
+            Path.cwd() / "student_profiles.custom.json",
+            self.base_path / "student_profiles.json"
+        ]
+
+        for config_path in config_paths:
+            if config_path.exists():
+                try:
+                    return self._load_config_file(config_path)
+                except Exception as e:
+                    print(f"⚠️  警告: 无法加载配置文件 {config_path}: {str(e)}")
+
+        # 使用内置默认配置
+        print("⚠️  未找到配置文件，使用内置默认配置")
+        return self.DEFAULT_STUDENT_PROFILES
+
+    def _load_config_file(self, config_path):
+        """加载并验证配置文件"""
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+
+            # 验证配置文件结构
+            if "profiles" not in config:
+                raise ValueError("配置文件缺少 'profiles' 字段")
+
+            profiles = config["profiles"]
+            validated_profiles = {}
+
+            # 验证并合并每个性格配置
+            for profile_key in ["S1", "S2", "S3", "S4", "S5"]:
+                if profile_key in profiles:
+                    user_profile = profiles[profile_key]
+                    default_profile = self.DEFAULT_STUDENT_PROFILES.get(profile_key, {})
+
+                    # 合并配置：用户配置覆盖默认配置
+                    merged_profile = default_profile.copy()
+                    merged_profile.update(user_profile)
+
+                    # 确保必填字段存在
+                    required_fields = ["label", "description", "speech_habit", "style", "test_goal"]
+                    for field in required_fields:
+                        if field not in merged_profile:
+                            merged_profile[field] = default_profile.get(field, "")
+
+                    # 添加 enabled 字段（默认为 true）
+                    if "enabled" not in merged_profile:
+                        merged_profile["enabled"] = True
+
+                    validated_profiles[profile_key] = merged_profile
+                else:
+                    # 使用默认配置
+                    validated_profiles[profile_key] = self.DEFAULT_STUDENT_PROFILES[profile_key]
+
+            print(f"✅ 已加载学生性格配置: {config_path}")
+            return validated_profiles
+
+        except json.JSONDecodeError as e:
+            raise ValueError(f"配置文件格式错误: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"加载配置文件失败: {str(e)}")
+
+    def _initialize_llm_client(self):
+        """初始化 LLM 客户端"""
+        print(f"🔧 模型类型: {self.model_type}")
+
+        if self.model_type == "doubao_post":
+            print(f"   - 使用 Doubao POST API 调用模式")
+            print(f"   - API URL: {self.llm_api_url}")
+            print(f"   - Model: {self.llm_model}")
+            print(f"   - Service Code: {self.llm_service_code}")
+            if not self.llm_api_key:
+                print("⚠️  警告: LLM_API_KEY 未设置")
+
+        elif self.model_type == "doubao_sdk":
+            api_key = os.getenv("ARK_API_KEY")
+            base_url = os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+
+            if api_key:
+                try:
+                    self.doubao_client = OpenAI(api_key=api_key, base_url=base_url)
+                    print(f"   - 使用 Doubao OpenAI SDK 调用模式")
+                    print(f"   - Model: {self.doubao_model}")
+                except Exception as e:
+                    print(f"⚠️  警告: 初始化 Doubao 客户端失败: {str(e)}")
+            else:
+                print("⚠️  警告: ARK_API_KEY 未设置")
+
+        elif self.model_type == "deepseek_sdk":
+            api_key = os.getenv("DEEPSEEK_API_KEY")
+
+            if api_key:
+                try:
+                    self.deepseek_client = OpenAI(
+                        api_key=api_key,
+                        base_url="https://api.deepseek.com"
+                    )
+                    print(f"   - 使用 DeepSeek OpenAI SDK 调用模式")
+                    print(f"   - Model: {self.deepseek_model}")
+                except Exception as e:
+                    print(f"⚠️  警告: 初始化 DeepSeek 客户端失败: {str(e)}")
+            else:
+                print("⚠️  警告: DEEPSEEK_API_KEY 未设置")
+        else:
+            print(f"⚠️  警告: 未知的模型类型: {self.model_type}")
+
+    def _call_doubao_post(self, messages, temperature=0.85, max_tokens=1000):
+        """使用 HTTP POST 方式调用 Doubao API"""
+        headers = {
+            "Content-Type": "application/json",
+            "service-code": self.llm_service_code,
+        }
+
+        if self.llm_api_key:
+            headers["api-key"] = self.llm_api_key
+
+        payload = {
+            "model": self.llm_model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "top_p": 0.95,
+            "frequency_penalty": 0.3,
+            "presence_penalty": 0.2
+        }
+
+        try:
+            response = requests.post(
+                self.llm_api_url,
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result["choices"][0]["message"]["content"].strip()
+        except requests.exceptions.RequestException as e:
+            print(f"❌ HTTP POST 调用失败: {str(e)}")
+            return None
+        except (KeyError, IndexError) as e:
+            print(f"❌ 解析响应失败: {str(e)}")
+            return None
 
     def _prepare_log_files(self, task_id):
         """创建日志文件并写入开头信息"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now()
+        self.workflow_start_time = timestamp  # 记录工作流开始时间
+
         log_dir = self._determine_log_directory(task_id)
         log_dir.mkdir(parents=True, exist_ok=True)
-        self.log_prefix = f"task_{task_id}_{timestamp}"
-        self.run_card_log_path = log_dir / f"{self.log_prefix}_runcard.txt"
-        self.dialogue_log_path = log_dir / f"{self.log_prefix}_dialogue.txt"
-        profile_label = self._get_student_profile_info()["label"] if self.student_profile_key else "未设置"
+        self.log_prefix = f"task_{task_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}"
 
-        header_lines = [
-            f"日志创建时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"task_id: {task_id}",
-            f"学生角色: {profile_label}"
-        ]
-        if self.log_context_path:
-            header_lines.append(f"参考文档: {str(self.log_context_path)}")
-        header_lines.append("=" * 60)
-        header = "\n".join(header_lines) + "\n"
-        for path, title in [
-            (self.run_card_log_path, "RunCard 信息记录"),
-            (self.dialogue_log_path, "对话记录"),
-        ]:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(title + "\n")
-                f.write(header)
+        # 初始化 JSON 日志
+        if self.log_format in ["json", "both"]:
+            self.json_log_enabled = True
+            self.json_log_path = log_dir / f"{self.log_prefix}_dialogue.json"
+            self.json_stages = {}
+
+        # 只在需要 TXT 格式时创建 TXT 文件
+        if self.log_format in ["txt", "both"]:
+            self.run_card_log_path = log_dir / f"{self.log_prefix}_runcard.txt"
+            self.dialogue_log_path = log_dir / f"{self.log_prefix}_dialogue.txt"
+            profile_label = self._get_student_profile_info()["label"] if self.student_profile_key else "未设置"
+
+            header_lines = [
+                f"日志创建时间: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}",
+                f"task_id: {task_id}",
+                f"学生角色: {profile_label}"
+            ]
+            if self.log_context_path:
+                header_lines.append(f"参考文档: {str(self.log_context_path)}")
+            header_lines.append("=" * 60)
+            header = "\n".join(header_lines) + "\n"
+            for path, title in [
+                (self.run_card_log_path, "RunCard 信息记录"),
+                (self.dialogue_log_path, "对话记录"),
+            ]:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(title + "\n")
+                    f.write(header)
 
     def _append_log(self, path, text):
         if not path:
@@ -147,28 +310,40 @@ class WorkflowTester:
             f.write(text + "\n")
 
     def _log_run_card(self, step_id, payload, response_data):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        step_name = self._get_step_display_name(step_id)
         log_lines = [
-            f"[{timestamp}] Step {step_id}",
+            f"Step: {step_name}",
             f"请求载荷: {json.dumps(payload, ensure_ascii=False)}",
             f"响应内容: {json.dumps(response_data, ensure_ascii=False)}",
-            "-" * 80,
+            "-" * 40,
         ]
         self._append_log(self.run_card_log_path, "\n".join(log_lines))
 
     def _log_dialogue_entry(self, step_id, user_text=None, ai_text=None, source="chat"):
         if user_text is None and ai_text is None:
             return
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        step_name = self._get_step_display_name(step_id)
         round_info = f" | 第 {self.dialogue_round} 轮" if self.dialogue_round else ""
-        header = f"[{timestamp}] Step {step_id}{round_info} | 来源: {source}"
+        header = f"Step: {step_name}{round_info} | 来源: {source}"
         lines = [header]
         if user_text:
             lines.append(f"用户: {user_text}")
         if ai_text:
             lines.append(f"AI: {ai_text}")
-        lines.append("-" * 80)
+        lines.append("-" * 40)
         self._append_log(self.dialogue_log_path, "\n".join(lines))
+
+        # 收集 JSON 数据
+        if user_text:
+            self._collect_stage_data(step_id, self.dialogue_round, "user", user_text)
+        if ai_text:
+            self._collect_stage_data(step_id, self.dialogue_round, "assistant", ai_text)
+
+    def _get_step_display_name(self, step_id):
+        """获取步骤的显示名称，优先返回中文名，否则返回 UUID"""
+        if not step_id:
+            return "未知步骤"
+        return self.step_name_mapping.get(step_id, step_id)
 
     def _get_log_context_parts(self):
         if not self.log_context_path:
@@ -229,13 +404,106 @@ class WorkflowTester:
 
     def _get_student_profile_info(self):
         key = self.student_profile_key or self.DEFAULT_PROFILE_KEY
-        return self.STUDENT_PROFILES.get(
+        return self.student_profiles.get(
             key,
-            self.STUDENT_PROFILES[self.DEFAULT_PROFILE_KEY]
+            self.student_profiles[self.DEFAULT_PROFILE_KEY]
         )
 
+    def _get_current_model_name(self):
+        """获取当前模型的显示名称"""
+        if self.model_type == "doubao_post":
+            return self.llm_model
+        elif self.model_type == "doubao_sdk":
+            return self.doubao_model
+        elif self.model_type == "deepseek_sdk":
+            return self.deepseek_model
+        return "unknown"
+
+    def _get_log_format_preference(self):
+        """获取用户的日志格式偏好"""
+        # 1. 检查环境变量
+        env_format = os.getenv("LOG_FORMAT", "").lower()
+        if env_format in ["txt", "json", "both"]:
+            print(f"📋 使用环境变量设置的日志格式: {env_format.upper()}")
+            return env_format
+
+        # 2. 提示用户选择
+        print("\n请选择日志格式：")
+        print("1. 仅 TXT 格式（默认）")
+        print("2. 仅 JSON 格式")
+        print("3. TXT + JSON 两种格式")
+
+        choice = input("\n请输入选项 (1/2/3，默认 1): ").strip() or "1"
+        format_map = {"1": "txt", "2": "json", "3": "both"}
+        selected_format = format_map.get(choice, "txt")
+        print(f"✅ 已选择日志格式: {selected_format.upper()}")
+        return selected_format
+
+    def _collect_stage_data(self, step_id, round_num, role, content):
+        """收集当前阶段的消息数据"""
+        if not self.json_log_enabled:
+            return
+
+        # 初始化阶段（如果是该步骤的第一条消息）
+        if step_id not in self.json_stages:
+            stage_name = self.step_name_mapping.get(step_id, step_id)
+            self.json_stages[step_id] = {
+                "stage_index": len(self.json_stages) + 1,
+                "stage_name": stage_name,
+                "step_id": step_id,
+                "messages": []
+            }
+
+        # 添加消息
+        self.json_stages[step_id]["messages"].append({
+            "round": round_num,
+            "role": role,
+            "content": content
+        })
+
+    def _build_json_structure(self):
+        """构建完整的 JSON 结构"""
+        workflow_end_time = datetime.now()
+
+        # 获取学生性格标签
+        profile_info = self._get_student_profile_info()
+
+        # 获取知识库和对话样本文件路径
+        kb_file = str(self.log_context_path) if self.log_context_path else None
+        dialogue_file = None  # 如果需要单独跟踪对话样本文件，可以添加实例变量
+
+        return {
+            "metadata": {
+                "task_id": self.task_id,
+                "student_profile": self.student_profile_key or self.DEFAULT_PROFILE_KEY,
+                "student_profile_label": profile_info.get("label", "未知"),
+                "model_type": self.model_type,
+                "model_name": self._get_current_model_name(),
+                "workflow_start_time": self.workflow_start_time.strftime("%Y-%m-%d %H:%M:%S") if self.workflow_start_time else None,
+                "workflow_end_time": workflow_end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "total_rounds": self.dialogue_round,
+                "total_steps": len(self.json_stages),
+                "knowledge_base_file": kb_file,
+                "dialogue_samples_file": dialogue_file
+            },
+            "stages": list(self.json_stages.values())
+        }
+
+    def _write_json_log(self):
+        """在工作流完成时写入 JSON 日志文件"""
+        if not self.json_log_enabled or not self.json_log_path:
+            return
+
+        try:
+            json_data = self._build_json_structure()
+            with open(self.json_log_path, 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, ensure_ascii=False, indent=2)
+            print(f"✅ JSON 日志已保存: {self.json_log_path}")
+        except Exception as e:
+            print(f"⚠️  警告: 保存 JSON 日志失败: {str(e)}")
+
     def set_student_profile(self, profile_key):
-        if profile_key not in self.STUDENT_PROFILES:
+        if profile_key not in self.student_profiles:
             raise ValueError(f"未知的学生角色: {profile_key}")
         self.student_profile_key = profile_key
         info = self._get_student_profile_info()
@@ -243,9 +511,11 @@ class WorkflowTester:
 
     def prompt_student_profile(self, allow_multi=False):
         """交互式选择学生角色，可选多角色"""
-        print("\n请选择学生角色（5 种性格）：")
+        print("\n请选择学生角色：")
         options = {}
-        for idx, (key, info) in enumerate(self.STUDENT_PROFILES.items(), 1):
+        enabled_profiles = {k: v for k, v in self.student_profiles.items() if v.get("enabled", True)}
+
+        for idx, (key, info) in enumerate(enabled_profiles.items(), 1):
             options[str(idx)] = key
             print(f"{idx}. {info['label']} - {info['description']}")
 
@@ -279,7 +549,7 @@ class WorkflowTester:
                     self.set_student_profile(chosen_keys[0])
                     return chosen_keys
 
-                labels = "，".join(self.STUDENT_PROFILES[key]["label"] for key in chosen_keys)
+                labels = "，".join(self.student_profiles[key]["label"] for key in chosen_keys)
                 print(f"\n🎯 已选择 {len(chosen_keys)} 个学生角色: {labels}")
                 return chosen_keys
 
@@ -289,17 +559,28 @@ class WorkflowTester:
         """复制当前实例的上下文供并发运行使用"""
         clone = WorkflowTester(self.base_url)
         clone.headers = self.headers.copy()
+        clone.model_type = self.model_type
         clone.doubao_model = self.doubao_model
+        clone.deepseek_model = self.deepseek_model
         clone.dialogue_samples_content = self.dialogue_samples_content
         clone.knowledge_base_content = self.knowledge_base_content
         clone.log_context_path = self.log_context_path
+        # 复制 API 配置
+        clone.llm_api_url = self.llm_api_url
+        clone.llm_api_key = self.llm_api_key
+        clone.llm_model = self.llm_model
+        clone.llm_service_code = self.llm_service_code
+        clone.conversation_history = []  # 每个克隆实例独立的对话历史
+        clone.step_name_mapping = self.step_name_mapping.copy()  # 复制步骤名称映射
+        # 重新初始化客户端
+        clone._initialize_llm_client()
         return clone
 
     def _run_profile_workflow(self, task_id, profile_key):
-        """在线程中执行单个学生角色的 Doubao 流程"""
+        """在线程中执行单个学生角色的 LLM 流程"""
         runner = self._clone_for_parallel()
         runner.set_student_profile(profile_key)
-        runner.run_with_doubao(task_id)
+        runner.run_with_llm(task_id)
 
     async def run_profiles_concurrently(self, task_id, profile_keys):
         """异步并发运行多个学生角色"""
@@ -346,10 +627,17 @@ class WorkflowTester:
             print(f"❌ 加载知识库失败: {str(e)}")
             return False
 
-    def generate_answer_with_doubao(self, question):
-        """使用 Doubao 模型生成回答"""
-        if not self.doubao_client:
+    def generate_answer_with_llm(self, question):
+        """使用 LLM 模型生成回答"""
+        # 检查是否有可用的调用方式
+        if self.model_type == "doubao_sdk" and not self.doubao_client:
             print("❌ Doubao 客户端未初始化")
+            return None
+        elif self.model_type == "deepseek_sdk" and not self.deepseek_client:
+            print("❌ DeepSeek 客户端未初始化")
+            return None
+        elif self.model_type == "doubao_post" and not self.llm_api_url:
+            print("❌ POST API URL 未配置")
             return None
 
         try:
@@ -405,6 +693,17 @@ class WorkflowTester:
                     "",
                 ])
 
+            # 添加对话历史
+            if self.conversation_history:
+                sections.extend([
+                    "## 对话历史（按时间顺序）",
+                ])
+                for i, turn in enumerate(self.conversation_history, 1):
+                    sections.append(f"第{i}轮:")
+                    sections.append(f"  AI提问: {turn['ai']}")
+                    sections.append(f"  学生回答: {turn['student']}")
+                sections.append("")
+
             sections.extend([
                 "## 当前问题",
                 question,
@@ -415,7 +714,6 @@ class WorkflowTester:
                 "   - 性格特点应该自然体现，不要生硬套用",
                 "   - 避免每次都使用相同的话术（如不要总说'这说不通'、'不知道'等）",
                 "   - 保持回答的多样性和真实性，可以偶尔正常回答",
-                f"   - 性格提示: {profile_info['fallback_hint']}",
                 "**优先级3**: 如果示例对话中有高度相关的回答，可以参考但需变化表达方式。",
                 "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在50字以内。",
                 ""
@@ -423,22 +721,44 @@ class WorkflowTester:
 
             user_message = "\n".join(sections)
 
-            response = self.doubao_client.chat.completions.create(
-                model=self.doubao_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
-                temperature=0.85,  # 提高温度增加随机性和多样性
-                top_p=0.95,
-                frequency_penalty=0.3,  # 降低重复性
-                presence_penalty=0.2    # 鼓励使用新词汇
-            )
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
 
-            answer = response.choices[0].message.content
+            # 根据配置选择调用方式
+            if self.model_type == "doubao_post":
+                print("🔄 使用 Doubao POST API 调用...")
+                answer = self._call_doubao_post(messages, temperature=0.85, max_tokens=1000)
+            elif self.model_type == "doubao_sdk":
+                print("🔄 使用 Doubao OpenAI SDK 调用...")
+                response = self.doubao_client.chat.completions.create(
+                    model=self.doubao_model,
+                    messages=messages,
+                    temperature=0.85,  # 提高温度增加随机性和多样性
+                    top_p=0.95,
+                    frequency_penalty=0.3,  # 降低重复性
+                    presence_penalty=0.2    # 鼓励使用新词汇
+                )
+                answer = response.choices[0].message.content
+            elif self.model_type == "deepseek_sdk":
+                print("🔄 使用 DeepSeek OpenAI SDK 调用...")
+                response = self.deepseek_client.chat.completions.create(
+                    model=self.deepseek_model,
+                    messages=messages,
+                    temperature=0.85,  # 提高温度增加随机性和多样性
+                    top_p=0.95,
+                    frequency_penalty=0.3,  # 降低重复性
+                    presence_penalty=0.2    # 鼓励使用新词汇
+                )
+                answer = response.choices[0].message.content
+            else:
+                print(f"❌ 未知的模型类型: {self.model_type}")
+                return None
+
             return answer
         except Exception as e:
-            print(f"❌ 调用 Doubao 模型失败: {str(e)}")
+            print(f"❌ 调用 {self.model_type} 模型失败: {str(e)}")
             return None
 
     def test_connection(self):
@@ -464,7 +784,7 @@ class WorkflowTester:
         # 测试网络连接
         print("\n2️⃣  测试网络连接:")
         try:
-            response = requests.get(self.base_url, timeout=5)
+            response = requests.get(self.base_url, timeout=10)
             print(f"✅ 服务器可访问 (状态码: {response.status_code})")
             return True
         except requests.exceptions.RequestException as e:
@@ -486,7 +806,7 @@ class WorkflowTester:
         # print(f"请求载荷: {json.dumps(payload, indent=2, ensure_ascii=False)}")
         
         try:
-            response = self.session.post(url, json=payload, headers=self.headers, timeout=30)
+            response = self.session.post(url, json=payload, headers=self.headers, timeout=60)
             result = response.json()
             
             print(f"响应状态码: {response.status_code}")
@@ -495,8 +815,20 @@ class WorkflowTester:
             if result.get("code") == 200 and result.get("success"):
                 data = result.get("data") or []
                 if data and len(data) > 0:
+                    # 构建 stepId -> stepName 的映射
+                    for step_item in data:
+                        step_id = step_item.get("stepId")
+                        step_detail = step_item.get("stepDetailDTO", {})
+                        step_name = step_detail.get("stepName", "未命名步骤")
+                        if step_id:
+                            self.step_name_mapping[step_id] = step_name
+
+                    print(f"✅ 已加载 {len(self.step_name_mapping)} 个步骤名称映射")
+
+                    # 返回第一个实际的步骤ID（跳过 START 和 END 节点）
                     first_step_id = data[2].get("stepId")
-                    print(f"\n✅ 获取到第一个步骤ID: {first_step_id}")
+                    first_step_name = self.step_name_mapping.get(first_step_id, first_step_id)
+                    print(f"✅ 获取到第一个步骤: {first_step_name} ({first_step_id})")
                     return first_step_id
                 else:
                     raise Exception("步骤列表为空")
@@ -529,7 +861,7 @@ class WorkflowTester:
         print(f"请求载荷: {json.dumps(payload, indent=2, ensure_ascii=False)}")
         
         try:
-            response = self.session.post(url, json=payload, headers=self.headers, timeout=30)
+            response = self.session.post(url, json=payload, headers=self.headers, timeout=60)
             result = response.json()
             self._log_run_card(step_id, payload, result)
             
@@ -579,7 +911,7 @@ class WorkflowTester:
         # print(f"请求载荷: {json.dumps(payload, indent=2, ensure_ascii=False)}")
         
         try:
-            response = self.session.post(url, json=payload, headers=self.headers, timeout=30)
+            response = self.session.post(url, json=payload, headers=self.headers, timeout=60)
             result = response.json()
             
             print(f"响应状态码: {response.status_code}")
@@ -592,9 +924,11 @@ class WorkflowTester:
                 ai_text = data.get("text")
                 self.dialogue_round += 1
                 self._log_dialogue_entry(step_id, user_text=user_input, ai_text=ai_text, source="chat")
-                
+
                 if ai_text:
                     print(f"\n📝 AI 说: {ai_text}")
+                    # 更新当前问题文本，供下一轮生成回答使用
+                    self.question_text = ai_text
 
                 # 关键逻辑：如果 needSkipStep=true 且 nextStepId 不为空，需要调用 runCard
                 if need_skip and next_step_id:
@@ -624,6 +958,7 @@ class WorkflowTester:
         
         self.task_id = task_id
         self.dialogue_round = 0
+        self.conversation_history = []  # 重置对话历史
         self._prepare_log_files(task_id)
         
         # 1. 获取第一个步骤ID
@@ -676,12 +1011,18 @@ class WorkflowTester:
                 
                 round_num += 1
                 time.sleep(0.5)  # 稍微延迟，避免请求过快
-                
+
+            # 写入 JSON 日志
+            try:
+                self._write_json_log()
+            except Exception as e:
+                print(f"⚠️  警告: JSON 日志写入失败: {str(e)}")
+
         except Exception as e:
             print(f"\n❌ 错误: {str(e)}")
             import traceback
             traceback.print_exc()
-    
+
     def run_auto(self, task_id, user_answers):
         """
         自动化运行工作流（使用预设答案）
@@ -707,6 +1048,12 @@ class WorkflowTester:
                     print("\n✅ 工作流完成！")
                     break
 
+            # 写入 JSON 日志
+            try:
+                self._write_json_log()
+            except Exception as e:
+                print(f"⚠️  警告: JSON 日志写入失败: {str(e)}")
+
             print("\n" + "="*60)
             print("🎉 工作流测试结束")
             print("="*60)
@@ -716,16 +1063,23 @@ class WorkflowTester:
             import traceback
             traceback.print_exc()
 
-    def run_with_doubao(self, task_id):
+    def run_with_llm(self, task_id):
         """
-        使用 Doubao 模型自动生成回答并运行工作流
+        使用 LLM 模型自动生成回答并运行工作流
         """
-        if not self.doubao_client:
+        # 检查客户端初始化
+        if self.model_type == "doubao_sdk" and not self.doubao_client:
             print("\n❌ Doubao 客户端未初始化，请检查 ARK_API_KEY 环境变量")
+            return
+        elif self.model_type == "deepseek_sdk" and not self.deepseek_client:
+            print("\n❌ DeepSeek 客户端未初始化，请检查 DEEPSEEK_API_KEY 环境变量")
+            return
+        elif self.model_type == "doubao_post" and not self.llm_api_url:
+            print("\n❌ POST API URL 未配置")
             return
 
         if not self.student_profile_key:
-            default_label = self.STUDENT_PROFILES[self.DEFAULT_PROFILE_KEY]["label"]
+            default_label = self.student_profiles[self.DEFAULT_PROFILE_KEY]["label"]
             print(f"\n⚠️  未指定学生角色，默认使用 '{default_label}'。")
             self.student_profile_key = self.DEFAULT_PROFILE_KEY
 
@@ -742,31 +1096,48 @@ class WorkflowTester:
                     print("\n✅ 工作流完成！没有更多步骤了。")
                     break
 
+                # 安全检查：防止无限循环
+                if round_num > 50:
+                    print(f"\n⚠️  警告：已达到最大对话轮数（{round_num}轮），自动退出防止无限循环")
+                    break
+
                 print("\n" + "="*60)
-                print(f"🤖 第 {round_num} 轮对话（Doubao 自主回答）")
+                print(f"🤖 第 {round_num} 轮对话（{self.model_type} 自主回答）")
                 print("="*60)
 
-                # 使用 Doubao 生成回答
+                # 使用 LLM 生成回答
                 print(f"\n🔄 正在生成回答...")
-                generated_answer = self.generate_answer_with_doubao(self.question_text)
+                generated_answer = self.generate_answer_with_llm(self.question_text)
 
                 if not generated_answer:
                     print("❌ 无法生成回答，跳过此轮")
                     break
 
-                print(f"\n🤖 Doubao 生成的回答: {generated_answer}")
+                print(f"\n🤖 {self.model_type} 生成的回答: {generated_answer}")
+
+                # 保存当前轮对话到历史
+                self.conversation_history.append({
+                    "ai": self.question_text,
+                    "student": generated_answer
+                })
 
                 # 发送生成的回答
                 result = self.chat(generated_answer)
 
-                # 检查返回结果中的text,如果为null代表输出结束 
+                # 检查返回结果，如果 text 为 null 且 nextStepId 为 null，代表输出结束
                 data = result.get("data") or {}
-                if data.get("text") is None:
+                if data.get("text") is None and data.get("nextStepId") is None:
                     print("\n✅ 工作流完成！")
                     break
 
                 round_num += 1
                 time.sleep(1)  # 稍微延迟，避免请求过快
+
+            # 写入 JSON 日志
+            try:
+                self._write_json_log()
+            except Exception as e:
+                print(f"⚠️  警告: JSON 日志写入失败: {str(e)}")
 
             print("\n" + "="*60)
             print("🎉 工作流测试结束")
@@ -801,7 +1172,10 @@ if __name__ == "__main__":
             exit(1)
     
     print(f"\n使用 task_id: {task_id}")
-    
+
+    # 选择日志格式
+    tester.log_format = tester._get_log_format_preference()
+
     # 选择运行模式
     print("\n请选择运行方式：")
     print("1. 交互式运行（推荐）")
@@ -823,7 +1197,25 @@ if __name__ == "__main__":
         tester.run_auto(task_id, user_answers)
 
     elif choice == "3":
-        print("\n🤖 使用 Doubao 模型自主回答模式")
+        print("\n🤖 使用 LLM 模型自主回答模式")
+
+        # 模型选择
+        print("\n请选择 LLM 模型：")
+        print("1. Doubao (OpenAI SDK)")
+        print("2. Doubao (POST API)")
+        print("3. DeepSeek (OpenAI SDK)")
+
+        model_choice = input("\n请输入选项 (1/2/3，默认 1): ").strip()
+        if model_choice == "2":
+            tester.model_type = "doubao_post"
+        elif model_choice == "3":
+            tester.model_type = "deepseek_sdk"
+        else:
+            tester.model_type = "doubao_sdk"
+
+        # 重新初始化客户端
+        tester._initialize_llm_client()
+
         multi_mode = input(
             "\n是否需要同时运行多个学生角色？(y/n，默认 n): "
         ).strip().lower() == "y"
@@ -852,7 +1244,7 @@ if __name__ == "__main__":
         if multi_mode:
             asyncio.run(tester.run_profiles_concurrently(task_id, selected_profiles))
         else:
-            tester.run_with_doubao(task_id)
+            tester.run_with_llm(task_id)
 
     else:
         print("❌ 无效选项")

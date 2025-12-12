@@ -1,0 +1,43 @@
+# 能力训练项目依赖包
+# 版本号基于Python 3.8+兼容性
+
+# HTTP请求库
+requests>=2.28.0,<3.0.0
+
+# 环境变量管理
+python-dotenv>=1.0.0,<2.0.0
+
+# OpenAI SDK (用于Doubao/DeepSeek API)
+openai>=1.0.0,<2.0.0
+
+# 异步编程
+asyncio>=3.4.3
+
+# 以下为标准库，无需安装：
+# - json
+# - os
+# - sys
+# - time
+# - datetime
+# - pathlib
+# - typing
+# - dataclasses
+# - argparse
+
+# 可选依赖（根据实际需要安装）：
+# 如果需要处理Word文档，可以添加：
+# python-docx>=0.8.11,<1.0.0
+
+# 如果需要处理Excel文件，可以添加：
+# openpyxl>=3.0.0,<4.0.0
+# pandas>=1.5.0,<2.0.0
+
+# 如果需要处理PDF文件，可以添加：
+# PyPDF2>=3.0.0,<4.0.0
+# pdfminer.six>=20221105
+
+# 开发依赖（可选）：
+# pytest>=7.0.0,<8.0.0
+# black>=23.0.0,<24.0.0
+# flake8>=6.0.0,<7.0.0
+# mypy>=1.0.0,<2.0.0
