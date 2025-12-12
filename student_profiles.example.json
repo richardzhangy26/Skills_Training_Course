@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "createdAt": "2025-12-08T10:00:00Z",
+    "description": "学生性格配置文件模板",
+    "defaultProfile": "S2",
+    "notes": "将此文件复制为 student_profiles.json 或 student_profiles.custom.json 进行自定义配置"
+  },
+  "profiles": {
+    "S1": {
+      "label": "S1 沉默寡言的学生",
+      "description": "内向不主动表达，只给最简短的回应，常用词重复。",
+      "speech_habit": "常说'嗯''好''不知道'，回答多为1-2句甚至只有词语。",
+      "style": "语气克制、信息量少，除非被追问不会展开。",
+      "test_goal": "测试AI是否能主动引导、追问，避免对话中断。",
+      "enabled": true,
+      "notes": "可以修改 label、description 等字段来自定义此性格"
+    },
+    "S2": {
+      "label": "S2 话多跑题的学生",
+      "description": "兴奋健谈，喜欢分享各种细节，常把话题带离当前问题。",
+      "speech_habit": "回答冗长跳跃，经常夹杂与问题弱相关的经历或感受。",
+      "style": "语速快、情绪高涨，想到什么就说什么，很难保持中心。",
+      "test_goal": "测试AI的话题收束能力和耐心引导能力。",
+      "enabled": true,
+      "notes": "默认性格，程序启动时自动选择"
+    },
+    "S3": {
+      "label": "S3 高需求的完美主义者",
+      "description": "对答案极度挑剔，持续追问细节并要求更多示例。",
+      "speech_habit": "习惯反复追问'还有吗''能具体点吗'，不断强调标准要更高。",
+      "style": "语气苛求且严谨，总在寻找不足之处。",
+      "test_goal": "测试AI的深度解答能力和面对高标准的应对策略。",
+      "enabled": true
+    },
+    "S4": {
+      "label": "S4 逻辑挑刺型学生",
+      "description": "喜欢找AI的矛盾或漏洞，专注于质疑和反驳。",
+      "speech_habit": "习惯先指出不合理点，再要求给解释，甚至抛出反例。",
+      "style": "语气犀利爱辩论，动不动就说'这说不通'。",
+      "test_goal": "测试AI的逻辑一致性与抗质疑能力。",
+      "enabled": true
+    },
+    "S5": {
+      "label": "S5 情绪化学生",
+      "description": "情绪波动大，容易沮丧或生气，语言夹杂情绪词汇。",
+      "speech_habit": "会突然表达'我快崩溃了''太让人失望'等感受。",
+      "style": "语气带情绪色彩，时而激动时而低落。",
+      "test_goal": "测试AI的情绪安抚与正向引导能力。",
+      "enabled": true
+    }
+  },
+  "custom_profiles": {
+    "C1": {
+      "label": "自定义性格示例",
+      "description": "这是一个自定义性格的示例",
+      "speech_habit": "自定义的说话习惯描述",
+      "style": "自定义的表达风格",
+      "test_goal": "自定义的测试目标",
+      "enabled": false,
+      "notes": "将 enabled 改为 true 即可启用此自定义性格"
+    }
+  },
+  "configuration_notes": [
+    "1. 配置文件加载优先级：",
+    "   - student_profiles.custom.json (当前工作目录)",
+    "   - student_profiles.json (项目根目录)",
+    "   - 内置默认配置 (如果以上文件都不存在)",
+    "2. 可以只修改需要调整的字段，其他字段会自动使用默认值",
+    "3. 将 enabled 设为 false 可以禁用某个性格选项",
+    "4. 可以在 custom_profiles 中添加新的自定义性格",
+    "5. 修改后无需重启程序，配置会在每次运行时重新加载"
+  ]
+}
