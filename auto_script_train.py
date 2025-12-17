@@ -3,11 +3,13 @@ import json
 import time
 import os
 import difflib
+import math
+import re
 from datetime import datetime
 from pathlib import Path
-from dotenv import load_dotenv
 from openai import OpenAI
 from typing import Optional, List, Dict
+from workflow_tester_base import WorkflowTesterBase
 
 
 class DialogueEntry:
@@ -153,17 +155,29 @@ class DialogueLogParser:
         Returns:
             [{"ai": ai_text, "user": user_text}, ...]
         """
-        pairs = []
+        # Important: chat blocks contain A_i (user) and Q_{i+1} (AI).
+        # We pair each user answer with the most recent AI question seen earlier.
+        pairs: List[Dict] = []
+        last_ai_text: Optional[str] = None
+        last_ai_meta: Dict = {}
 
         for entry in entries:
-            if entry.source == "chat" and entry.ai_text and entry.user_text:
+            if entry.user_text and last_ai_text:
                 pairs.append({
-                    "ai": entry.ai_text,
+                    "ai": last_ai_text,
                     "user": entry.user_text,
                     "timestamp": entry.timestamp,
-                    "step_id": entry.step_id,
-                    "round_num": entry.round_num
+                    "step_id": last_ai_meta.get("step_id") or entry.step_id,
+                    "round_num": entry.round_num,
                 })
+
+            if entry.ai_text:
+                last_ai_text = entry.ai_text
+                last_ai_meta = {
+                    "timestamp": entry.timestamp,
+                    "step_id": entry.step_id,
+                    "round_num": entry.round_num,
+                }
 
         print(f"✅ 提取到 {len(pairs)} 个对话对")
         return pairs
@@ -181,7 +195,12 @@ class DialogueMatcher:
         """
         self.threshold = similarity_threshold
 
-    def find_best_match(self, ai_question: str, dialogue_pairs: List[Dict]) -> Optional[str]:
+    def find_best_match(
+        self,
+        ai_question: str,
+        dialogue_pairs: List[Dict],
+        step_id: Optional[str] = None,
+    ) -> Optional[str]:
         """
         查找最佳匹配的用户回答
 
@@ -195,11 +214,17 @@ class DialogueMatcher:
         if not dialogue_pairs:
             return None
 
+        candidates = dialogue_pairs
+        if step_id:
+            step_candidates = [p for p in dialogue_pairs if p.get("step_id") == step_id]
+            if step_candidates:
+                candidates = step_candidates
+
         best_match = None
         best_similarity = 0.0
         best_pair_info = None
 
-        for pair in dialogue_pairs:
+        for pair in candidates:
             historical_ai = pair.get("ai", "")
             if not historical_ai:
                 continue
@@ -279,12 +304,13 @@ class DialogueReplayEngine:
             print(f"❌ 加载日志失败: {str(e)}")
             return False
 
-    def get_answer(self, ai_question: str) -> Optional[str]:
+    def get_answer(self, ai_question: str, step_id: Optional[str] = None) -> Optional[str]:
         """
         获取匹配的回答
 
         Args:
             ai_question: AI提问
+            step_id: 当前步骤ID（可选，用于过滤候选）
 
         Returns:
             匹配的用户回答，或None表示未找到
@@ -293,14 +319,15 @@ class DialogueReplayEngine:
             print("⚠️  日志未加载或为空")
             return None
 
-        return self.matcher.find_best_match(ai_question, self.dialogue_pairs)
+        return self.matcher.find_best_match(ai_question, self.dialogue_pairs, step_id=step_id)
 
-    def get_match_info(self, ai_question: str) -> Dict:
+    def get_match_info(self, ai_question: str, step_id: Optional[str] = None) -> Dict:
         """
         获取匹配的详细信息
 
         Args:
             ai_question: AI提问
+            step_id: 当前步骤ID（可选）
 
         Returns:
             匹配信息字典
@@ -312,7 +339,13 @@ class DialogueReplayEngine:
         best_similarity = 0.0
         best_pair = None
 
-        for pair in self.dialogue_pairs:
+        candidates = self.dialogue_pairs
+        if step_id:
+            step_candidates = [p for p in self.dialogue_pairs if p.get("step_id") == step_id]
+            if step_candidates:
+                candidates = step_candidates
+
+        for pair in candidates:
             historical_ai = pair.get("ai", "")
             if not historical_ai:
                 continue
@@ -333,11 +366,242 @@ class DialogueReplayEngine:
             "timestamp": best_pair.get("timestamp") if best_pair else None,
             "step_id": best_pair.get("step_id") if best_pair else None,
             "round_num": best_pair.get("round_num") if best_pair else None,
-            "total_pairs": len(self.dialogue_pairs)
+            "total_pairs": len(candidates)
         }
 
 
-class WorkflowTester:
+class EmbeddingClient:
+    """OpenAI-compatible embedding client using api-key header."""
+
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = "https://llm-service.polymas.com/api/openai/v1",
+        model: str = "text-embedding-3-small",
+        max_batch_size: int = 25,
+        timeout: int = 60,
+    ):
+        self.api_key = api_key
+        base_url = base_url.rstrip("/")
+        self.embed_url = base_url if base_url.endswith("/embeddings") else base_url + "/embeddings"
+        self.model = model
+        self.max_batch_size = max_batch_size
+        self.timeout = timeout
+        self.session = requests.Session()
+
+    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+        if not texts:
+            return []
+
+        embeddings: List[List[float]] = []
+        headers = {
+            "Content-Type": "application/json",
+            "api-key": self.api_key,
+        }
+
+        for i in range(0, len(texts), self.max_batch_size):
+            batch = texts[i : i + self.max_batch_size]
+            payload = {"input": batch, "model": self.model}
+            resp = self.session.post(self.embed_url, json=payload, headers=headers, timeout=self.timeout)
+            resp.raise_for_status()
+            data = resp.json() or {}
+            items = data.get("data") or []
+            # Ensure original ordering by index if provided.
+            items = sorted(items, key=lambda x: x.get("index", 0))
+            embeddings.extend([it.get("embedding") for it in items])
+
+        return embeddings
+
+
+class JsonDialogueReplayEngine:
+    """Replay engine based on exported dialogue JSON + embeddings."""
+
+    def __init__(
+        self,
+        json_path: str,
+        similarity_threshold: float = 0.8,
+        embedding_model: str = "text-embedding-3-large",
+        embedding_base_url: str = "https://llm-service.polymas.com/api/openai/v1",
+    ):
+        self.json_path = json_path
+        self.threshold = similarity_threshold
+        self.embedding_model = embedding_model
+        self.embedding_base_url = embedding_base_url
+        self.dialogue_pairs: List[Dict] = []
+        self.loaded = False
+        self.embed_client: Optional[EmbeddingClient] = None
+        self._last_query_key = None
+        self._last_match_info: Optional[Dict] = None
+
+    @staticmethod
+    def _normalize_question(text: str) -> str:
+        # Strip think tags / artifacts.
+        text = re.sub(r"</?think[^>]*>", "", text or "")
+        text = text.strip()
+        if not text:
+            return text
+        # Take the last sentence ending with '?' or '？' to reduce noise.
+        matches = re.findall(r"[^。！？\n\r]*[？\?]", text)
+        if matches:
+            return matches[-1].strip()
+        return text
+
+    def _parse_json_pairs(self, data: Dict) -> List[Dict]:
+        pairs: List[Dict] = []
+        last_ai_raw: Optional[str] = None
+        last_ai_norm: Optional[str] = None
+        last_step_id: Optional[str] = None
+        last_stage_index: Optional[int] = None
+
+        for stage in data.get("stages", []) or []:
+            step_id = stage.get("step_id") or stage.get("stepId")
+            stage_index = stage.get("stage_index") or stage.get("stageIndex")
+            for m in stage.get("messages", []) or []:
+                role = m.get("role")
+                content = (m.get("content") or "").strip()
+                if not content:
+                    continue
+                if role == "assistant":
+                    last_ai_raw = content
+                    last_ai_norm = self._normalize_question(content)
+                    last_step_id = step_id
+                    last_stage_index = stage_index
+                elif role == "user" and last_ai_norm:
+                    pairs.append({
+                        "ai": last_ai_norm,
+                        "ai_raw": last_ai_raw,
+                        "user": content,
+                        "step_id": last_step_id,
+                        "round_num": m.get("round"),
+                        "stage_index": last_stage_index,
+                    })
+        return pairs
+
+    def load_log(self) -> bool:
+        try:
+            with open(self.json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            print(f"❌ 读取 JSON 回放文件失败: {str(e)}")
+            return False
+
+        self.dialogue_pairs = self._parse_json_pairs(data)
+        if not self.dialogue_pairs:
+            print("⚠️  JSON 中未提取到可用对话对")
+            return False
+
+        # Try load cached embeddings to avoid recomputation.
+        cache_path = Path(self.json_path).with_name(Path(self.json_path).stem + "_replay_index.json")
+        if cache_path.exists():
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    cached = json.load(f)
+                if isinstance(cached, list) and all("emb" in p for p in cached):
+                    self.dialogue_pairs = cached
+                    self.loaded = True
+                    print(f"✅ 已加载 embedding 索引缓存: {str(cache_path)}")
+                    return True
+            except Exception:
+                pass
+
+        api_key = os.getenv("EMBEDDING_API_KEY") or os.getenv("ARK_API_KEY")
+        if not api_key:
+            print("❌ 未设置 EMBEDDING_API_KEY，无法生成 embedding")
+            return False
+
+        self.embed_client = EmbeddingClient(
+            api_key=api_key,
+            base_url=self.embedding_base_url,
+            model=self.embedding_model,
+            max_batch_size=6 if "embedding-v3" in self.embedding_model or self.embedding_model.endswith("v3") else 25,
+        )
+
+        try:
+            texts = [p["ai"] for p in self.dialogue_pairs]
+            embs = self.embed_client.embed_texts(texts)
+            if len(embs) != len(self.dialogue_pairs):
+                print("⚠️  embedding 数量与对话对数量不一致，将回退到普通模式")
+                return False
+            for p, e in zip(self.dialogue_pairs, embs):
+                p["emb"] = e
+            # Write cache.
+            try:
+                with open(cache_path, "w", encoding="utf-8") as f:
+                    json.dump(self.dialogue_pairs, f, ensure_ascii=False)
+                print(f"✅ 已写入 embedding 索引缓存: {str(cache_path)}")
+            except Exception:
+                pass
+            self.loaded = True
+            return True
+        except Exception as e:
+            print(f"❌ 生成 embedding 失败: {str(e)}")
+            return False
+
+    @staticmethod
+    def _cosine(a: List[float], b: List[float]) -> float:
+        dot = sum(x * y for x, y in zip(a, b))
+        na = math.sqrt(sum(x * x for x in a))
+        nb = math.sqrt(sum(y * y for y in b))
+        return dot / (na * nb + 1e-9)
+
+    def get_answer(self, ai_question: str, step_id: Optional[str] = None) -> Optional[str]:
+        if not self.loaded or not self.dialogue_pairs or not self.embed_client:
+            print("⚠️  JSON 回放引擎未加载")
+            return None
+
+        q_norm = self._normalize_question(ai_question)
+        q_emb = self.embed_client.embed_texts([q_norm])[0]
+
+        candidates = self.dialogue_pairs
+        if step_id:
+            step_candidates = [p for p in self.dialogue_pairs if p.get("step_id") == step_id]
+            if step_candidates:
+                candidates = step_candidates
+
+        best_pair = None
+        best_sim = 0.0
+        for p in candidates:
+            emb = p.get("emb")
+            if not emb:
+                continue
+            sim = self._cosine(q_emb, emb)
+            if sim > best_sim:
+                best_sim = sim
+                best_pair = p
+
+        self._last_query_key = (ai_question, step_id)
+        self._last_match_info = {
+            "matched": bool(best_pair and best_sim >= self.threshold),
+            "similarity": best_sim,
+            "answer": best_pair.get("user") if best_pair else None,
+            "threshold": self.threshold,
+            "historical_ai": (best_pair.get("ai_raw") or best_pair.get("ai")) if best_pair else None,
+            "step_id": best_pair.get("step_id") if best_pair else None,
+            "round_num": best_pair.get("round_num") if best_pair else None,
+            "total_pairs": len(candidates),
+        }
+
+        if best_pair and best_sim >= self.threshold:
+            print(f"✅ JSON 回放命中，相似度: {best_sim:.3f}")
+            return best_pair.get("user")
+
+        print(f"❌ JSON 回放未命中 (最高相似度: {best_sim:.3f}, 阈值: {self.threshold})")
+        return None
+
+    def get_match_info(self, ai_question: str, step_id: Optional[str] = None) -> Dict:
+        key = (ai_question, step_id)
+        if self._last_query_key == key and self._last_match_info:
+            return self._last_match_info
+        # Fallback: run a match to populate info.
+        _ = self.get_answer(ai_question, step_id=step_id)
+        return self._last_match_info or {"matched": False, "similarity": 0.0}
+
+
+class WorkflowTester(WorkflowTesterBase):
+    DEFAULT_PROFILE_KEY = "medium"
+    PROFILE_LABEL_FIELD_NAME = "学生档位"
+    PROFILE_SELECT_TITLE = "学生档位"
+
     STUDENT_PROFILES = {
         "good": {
             "label": "优秀学生",
@@ -360,58 +624,20 @@ class WorkflowTester:
     }
 
     def __init__(self, base_url="https://cloudapi.polymas.com"):
-        self.base_url = base_url
-        self.session = requests.Session()
-        self.session_id = None
-        self.current_step_id = None
-        self.task_id = None
-        self.dialogue_round = 0
-        self.base_path = Path(__file__).resolve().parent
-        self.log_root = self.base_path / "log"
-        self.run_card_log_path = None
-        self.dialogue_log_path = None
-        self.log_prefix = None
-        self.student_profile_key = None
-        self.dialogue_samples_content = None
-        self.log_context_path = None
-        self.conversation_history = []  # 存储对话历史
+        super().__init__(base_url)
+
+        # Provide profile data for base prompt/selection helpers.
+        self.student_profiles = self.STUDENT_PROFILES
 
         # 重试配置
         self.max_retries = 3  # 最大重试次数
         self.base_timeout = 60  # 基础超时时间（秒）
         self.retry_backoff = 2  # 重试退避因子
 
-        # 从环境变量加载认证信息
-        load_dotenv()
-        
-        self.headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        }
-        
-        # 添加认证信息
-        authorization = os.getenv("AUTHORIZATION")
-        cookie = os.getenv("COOKIE")
-        
-        if authorization:
-            self.headers["Authorization"] = authorization
-        
-        if cookie:
-            self.headers["Cookie"] = cookie
-        
-        # 添加其他可选的请求头
-        custom_headers = os.getenv("CUSTOM_HEADERS")
-        if custom_headers:
-            try:
-                extra_headers = json.loads(custom_headers)
-                self.headers.update(extra_headers)
-            except json.JSONDecodeError:
-                print("⚠️  警告: CUSTOM_HEADERS 格式不正确，已忽略")
-
         # 初始化 Doubao 客户端
         self.doubao_client = None
         self.doubao_model = os.getenv("DOUBAO_MODEL", "doubao-seed-1-6-251015")
-        self.knowledge_base_content = None
+        self.model_type = "doubao_sdk"
 
         # 回放模式相关属性
         self.replay_engine = None
@@ -481,38 +707,16 @@ class WorkflowTester:
         # 所有重试都失败
         raise Exception(f"请求超时，已重试 {self.max_retries} 次")
 
-    def _prepare_log_files(self, task_id):
-        """创建日志文件并写入开头信息"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_dir = self._determine_log_directory(task_id)
-        log_dir.mkdir(parents=True, exist_ok=True)
-        self.log_prefix = f"task_{task_id}_{timestamp}"
-        self.run_card_log_path = log_dir / f"{self.log_prefix}_runcard.txt"
-        self.dialogue_log_path = log_dir / f"{self.log_prefix}_dialogue.txt"
-        profile_label = self._get_student_profile_info()["label"] if self.student_profile_key else "未设置"
-
-        header_lines = [
-            f"日志创建时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"task_id: {task_id}",
-            f"学生档位: {profile_label}"
-        ]
-        if self.log_context_path:
-            header_lines.append(f"参考文档: {str(self.log_context_path)}")
-        header_lines.append("=" * 60)
-        header = "\n".join(header_lines) + "\n"
-        for path, title in [
-            (self.run_card_log_path, "RunCard 信息记录"),
-            (self.dialogue_log_path, "对话记录"),
-        ]:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(title + "\n")
-                f.write(header)
-
-    def _append_log(self, path, text):
-        if not path:
-            return
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(text + "\n")
+    def _post_json(self, url: str, payload: Dict, timeout: int):
+        """Override base POST to add retries."""
+        def make_request():
+            return self.session.post(
+                url,
+                json=payload,
+                headers=self.headers,
+                timeout=timeout,
+            )
+        return self._retry_request(make_request)
 
     def _log_run_card(self, step_id, payload, response_data):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -538,66 +742,17 @@ class WorkflowTester:
         lines.append("-" * 80)
         self._append_log(self.dialogue_log_path, "\n".join(lines))
 
-    def _get_log_context_parts(self):
-        if not self.log_context_path:
-            return []
-
-        path = self.log_context_path
-        if not isinstance(path, Path):
-            path = Path(path)
-
-        try:
-            path = path.resolve()
-        except Exception:
-            pass
-
-        try:
-            relative = path.relative_to(self.base_path)
-        except ValueError:
-            relative = path
-
-        parts = list(relative.parts)
-        if not parts:
-            return []
-
-        if "skills_training_course" in parts:
-            idx = parts.index("skills_training_course")
-            parts = parts[idx + 1 :]
-
-        if not parts:
-            return []
-
-        trimmed = []
-        for i, part in enumerate(parts):
-            if i == len(parts) - 1:
-                trimmed.append(Path(part).stem)
-            else:
-                trimmed.append(part)
-        return trimmed
-
-    def _determine_log_directory(self, task_id):
-        profile_key = self.student_profile_key or "unassigned"
-        context_parts = self._get_log_context_parts()
-        if context_parts:
-            return self.log_root.joinpath(*context_parts, profile_key)
-        return self.log_root / f"task_{task_id}" / profile_key
-
-    def _update_log_context(self, new_path):
-        if not new_path:
-            return
-
-        try:
-            path = Path(new_path).expanduser().resolve()
-        except Exception:
-            path = Path(new_path)
-
-        priority = "skills_training_course" in path.parts
-        if priority or not self.log_context_path:
-            self.log_context_path = path
-
-    def _get_student_profile_info(self):
-        key = self.student_profile_key or "medium"
-        return self.STUDENT_PROFILES.get(key, self.STUDENT_PROFILES["medium"])
+        # Collect JSON stage data when enabled (base hook).
+        if user_text:
+            try:
+                self._collect_stage_data(step_id, self.dialogue_round, "user", user_text)
+            except Exception:
+                pass
+        if ai_text:
+            try:
+                self._collect_stage_data(step_id, self.dialogue_round, "assistant", ai_text)
+            except Exception:
+                pass
 
     def enable_replay_mode(self, log_path: str, similarity_threshold: float = 0.7):
         """
@@ -611,8 +766,21 @@ class WorkflowTester:
         self.replay_log_path = log_path
         self.similarity_threshold = similarity_threshold
 
-        # 创建回放引擎
-        self.replay_engine = DialogueReplayEngine(log_path, similarity_threshold)
+        # 创建回放引擎：支持 txt(difflib) 与 json(embedding) 两种格式
+        if str(log_path).lower().endswith(".json"):
+            emb_model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+            emb_base_url = os.getenv(
+                "EMBEDDING_BASE_URL",
+                "https://llm-service.polymas.com/api/openai/v1",
+            )
+            self.replay_engine = JsonDialogueReplayEngine(
+                log_path,
+                similarity_threshold=similarity_threshold,
+                embedding_model=emb_model,
+                embedding_base_url=emb_base_url,
+            )
+        else:
+            self.replay_engine = DialogueReplayEngine(log_path, similarity_threshold)
 
         # 加载日志
         if self.replay_engine.load_log():
@@ -624,65 +792,6 @@ class WorkflowTester:
             print(f"\n❌ 回放模式启用失败，将使用普通模式")
             self.use_replay_mode = False
             self.replay_engine = None
-
-    def set_student_profile(self, profile_key):
-        if profile_key not in self.STUDENT_PROFILES:
-            raise ValueError(f"未知的学生档位: {profile_key}")
-        self.student_profile_key = profile_key
-        info = self._get_student_profile_info()
-        print(f"\n🎓 已选择学生档位: {info['label']}")
-
-    def prompt_student_profile(self):
-        """交互式选择学生档位"""
-        options = {
-            "1": "good",
-            "2": "medium",
-            "3": "bad"
-        }
-        print("\n请选择学生档位：")
-        print("1. 优秀学生 (回答完整、结构化)")
-        print("2. 需要引导的学生 (部分正确并提出疑惑)")
-        print("3. 答非所问的学生 (容易跑题)")
-
-        while True:
-            choice = input("\n请输入选项 (1/2/3，默认 2): ").strip()
-            if not choice:
-                choice = "2"
-            if choice in options:
-                self.set_student_profile(options[choice])
-                break
-            print("⚠️  无效选项，请重新输入。")
-
-    def load_student_dialogues(self, md_path):
-        """加载学生档位的模拟对话 Markdown"""
-        try:
-            path = Path(md_path)
-            if not path.exists():
-                print(f"❌ 模拟对话文件不存在: {md_path}")
-                return False
-            self.dialogue_samples_content = path.read_text(encoding="utf-8")
-            print(f"✅ 已加载模拟对话: {md_path} (大小: {len(self.dialogue_samples_content)} 字符)")
-            self._update_log_context(path)
-            return True
-        except Exception as e:
-            print(f"❌ 加载模拟对话失败: {str(e)}")
-            return False
-
-    def load_knowledge_base(self, kb_path):
-        """加载知识库文件"""
-        try:
-            path = Path(kb_path)
-            if not path.exists():
-                print(f"❌ 知识库文件不存在: {kb_path}")
-                return False
-
-            self.knowledge_base_content = path.read_text(encoding="utf-8")
-            print(f"✅ 知识库已加载: {kb_path} (大小: {len(self.knowledge_base_content)} 字符)")
-            self._update_log_context(path)
-            return True
-        except Exception as e:
-            print(f"❌ 加载知识库失败: {str(e)}")
-            return False
 
     def generate_answer_with_replay(self, question: str) -> str:
         """
@@ -699,7 +808,8 @@ class WorkflowTester:
             return self.generate_answer_with_doubao(question)
 
         # 尝试从日志中获取匹配的回答
-        matched_answer = self.replay_engine.get_answer(question)
+        step_id = getattr(self, "current_step_id", None)
+        matched_answer = self.replay_engine.get_answer(question, step_id=step_id)
 
         if matched_answer:
             print(f"🎯 使用日志回答 (相似度匹配)")
@@ -786,294 +896,6 @@ class WorkflowTester:
             print(f"❌ 调用 Doubao 模型失败: {str(e)}")
             return None
 
-    def test_connection(self):
-        """测试接口连接和认证是否正常"""
-        print("\n" + "="*60)
-        print("🔍 开始测试接口连接...")
-        print("="*60)
-        
-        # 检查环境变量
-        print("\n1️⃣  检查环境变量:")
-        auth = os.getenv("AUTHORIZATION")
-        cookie = os.getenv("COOKIE")
-        
-        if not auth and not cookie:
-            print("❌ 错误: 未找到 AUTHORIZATION 或 COOKIE")
-            return False
-        
-        if auth:
-            print(f"✅ AUTHORIZATION: {auth[:20]}...")
-        if cookie:
-            print(f"✅ COOKIE: {cookie[:50]}...")
-        
-        # 测试网络连接
-        print("\n2️⃣  测试网络连接:")
-        try:
-            response = requests.get(self.base_url, timeout=5)
-            print(f"✅ 服务器可访问 (状态码: {response.status_code})")
-            return True
-        except requests.exceptions.RequestException as e:
-            print(f"❌ 网络连接失败: {str(e)}")
-            return False
-    
-    def query_script_step_list(self, task_id):
-        """
-        获取工作流的步骤列表，返回第一个 stepId
-        """
-        url = f"{self.base_url}/teacher-course/abilityTrain/queryScriptStepList"
-        payload = {
-            "trainTaskId": task_id,
-            "trainSubType": "ability"
-        }
-
-        print(f"\n=== 获取步骤列表 ===")
-        print(f"请求URL: {url}")
-
-        def make_request():
-            response = self.session.post(
-                url,
-                json=payload,
-                headers=self.headers,
-                timeout=self.base_timeout
-            )
-            result = response.json()
-
-            print(f"响应状态码: {response.status_code}")
-
-            if result.get("code") == 200 and result.get("success"):
-                data = result.get("data", [])
-                if data and len(data) > 0:
-                    first_step_id = data[2].get("stepId")
-                    print(f"\n✅ 获取到第一个步骤ID: {first_step_id}")
-                    return first_step_id
-                else:
-                    raise Exception("步骤列表为空")
-            else:
-                raise Exception(f"获取步骤列表失败: {result.get('msg')}")
-
-        try:
-            return self._retry_request(make_request)
-        except Exception as e:
-            raise Exception(f"获取步骤列表失败: {str(e)}")
-    
-    def run_card(self, task_id, step_id, session_id=None):
-        """
-        运行工作流卡片
-        """
-        url = f"{self.base_url}/ai-tools/trainRun/runCard"
-
-        payload = {
-            "taskId": task_id,
-            "stepId": step_id,
-            "sessionId": session_id
-        }
-
-        # 如果有 sessionId，添加到载荷中
-        if session_id:
-            payload["sessionId"] = session_id
-
-        print(f"\n=== 运行卡片 (stepId: {step_id}) ===")
-        print(f"请求URL: {url}")
-        print(f"请求载荷: {json.dumps(payload, indent=2, ensure_ascii=False)}")
-
-        def make_request():
-            response = self.session.post(
-                url,
-                json=payload,
-                headers=self.headers,
-                timeout=self.base_timeout
-            )
-            result = response.json()
-            self._log_run_card(step_id, payload, result)
-
-            print(f"响应状态码: {response.status_code}")
-
-            if result.get("code") == 200 and result.get("success"):
-                data = result.get("data", {})
-                self.session_id = data.get("sessionId")
-                self.current_step_id = step_id
-
-                self.question_text = data.get("text")
-                need_skip = data.get("needSkipStep", False)
-
-                if self.question_text:
-                    print(f"\n📝 AI 说: {self.question_text}")
-                    self._log_dialogue_entry(step_id, ai_text=self.question_text, source="runCard")
-
-                return result
-            else:
-                print("训练完成")
-                return result
-
-        try:
-            return self._retry_request(make_request)
-        except Exception as e:
-            raise Exception(f"运行卡片失败: {str(e)}")
-    
-    def chat(self, user_input, step_id=None):
-        """
-        发送用户回答
-        """
-        url = f"{self.base_url}/ai-tools/trainRun/chat"
-
-        if step_id is None:
-            step_id = self.current_step_id
-
-        payload = {
-            "taskId": self.task_id,
-            "stepId": step_id,
-            "text": user_input,
-            "sessionId": self.session_id
-        }
-
-        print(f"\n=== 发送用户回答 ===")
-        print(f"👤 用户说: {user_input}")
-
-        def make_request():
-            response = self.session.post(
-                url,
-                json=payload,
-                headers=self.headers,
-                timeout=self.base_timeout
-            )
-            result = response.json()
-
-            print(f"响应状态码: {response.status_code}")
-
-            if result.get("code") == 200 and result.get("success"):
-                data = result.get("data", {})
-                next_step_id = data.get("nextStepId")
-                need_skip = data.get("needSkipStep", False)
-                ai_text = data.get("text")
-                self.dialogue_round += 1
-                self._log_dialogue_entry(step_id, user_text=user_input, ai_text=ai_text, source="chat")
-
-                if ai_text:
-                    print(f"\n📝 AI 说: {ai_text}")
-                    # 更新当前问题文本，供下一轮生成回答使用
-                    self.question_text = ai_text
-
-                # 关键逻辑：如果 needSkipStep=true 且 nextStepId 不为空，需要调用 runCard
-                if need_skip and next_step_id:
-                    print(f"\n⏭️  需要跳转到下一步骤: {next_step_id}")
-                    print("自动调用 runCard...")
-                    self.current_step_id = next_step_id
-                    return self.run_card(self.task_id, next_step_id, self.session_id)
-                else:
-                    return result
-            else:
-                raise Exception(f"发送消息失败: {result.get('msg')}")
-
-        try:
-            return self._retry_request(make_request)
-        except Exception as e:
-            raise Exception(f"发送用户回答失败: {str(e)}")
-    
-    def start_workflow(self, task_id):
-        """
-        启动工作流
-        1. 获取第一个 stepId
-        2. 调用 runCard 开始第一步
-        """
-        print("\n" + "="*60)
-        print("🚀 启动工作流")
-        print("="*60)
-        
-        self.task_id = task_id
-        self.dialogue_round = 0
-        self.conversation_history = []  # 重置对话历史
-        self._prepare_log_files(task_id)
-        
-        # 1. 获取第一个步骤ID
-        first_step_id = self.query_script_step_list(task_id)
-
-        # 2. 运行第一个卡片
-        result = self.run_card(task_id, first_step_id)
-        
-        return result
-    
-    def run_interactive(self, task_id):
-        """
-        交互式运行工作流
-        """
-        try:
-            # 启动工作流
-            self.start_workflow(task_id)
-            
-            round_num = 1
-            
-            # 循环对话
-            while True:
-                # 检查是否还有下一步
-                if self.current_step_id is None:
-                    print("\n✅ 工作流完成！没有更多步骤了。")
-                    break
-                
-                print("\n" + "="*60)
-                print(f"💬 第 {round_num} 轮对话")
-                print("="*60)
-                
-                user_answer = input("请输入你的回答（输入 'quit' 退出）: ").strip()
-                
-                if user_answer.lower() == 'quit':
-                    print("👋 用户主动退出")
-                    break
-                
-                if not user_answer:
-                    print("⚠️  回答不能为空，请重新输入")
-                    continue
-                
-                # 发送用户回答
-                result = self.chat(user_answer)
-                
-                # 检查返回结果中的 nextStepId
-                data = result.get("data", {})
-                if data.get("nextStepId") is None:
-                    print("\n✅ 工作流完成！")
-                    break
-                
-                round_num += 1
-                time.sleep(0.5)  # 稍微延迟，避免请求过快
-                
-        except Exception as e:
-            print(f"\n❌ 错误: {str(e)}")
-            import traceback
-            traceback.print_exc()
-    
-    def run_auto(self, task_id, user_answers):
-        """
-        自动化运行工作流（使用预设答案）
-        """
-        try:
-            # 启动工作流
-            self.start_workflow(task_id)
-
-            # 循环回答问题
-            for i, answer in enumerate(user_answers, 1):
-                if self.current_step_id is None:
-                    print("\n✅ 工作流已结束")
-                    break
-
-                print(f"\n--- 第 {i} 轮对话 ---")
-                time.sleep(1)
-
-                result = self.chat(answer)
-
-                # 检查是否完成
-                data = result.get("data", {})
-                if data.get("nextStepId") is None:
-                    print("\n✅ 工作流完成！")
-                    break
-
-            print("\n" + "="*60)
-            print("🎉 工作流测试结束")
-            print("="*60)
-
-        except Exception as e:
-            print(f"\n❌ 错误: {str(e)}")
-            import traceback
-            traceback.print_exc()
-
     def run_with_doubao(self, task_id):
         """
         使用 Doubao 模型自动生成回答并运行工作流
@@ -1117,7 +939,8 @@ class WorkflowTester:
                     print("❌ 无法生成回答，跳过此轮")
                     break
 
-                source = "日志" if self.use_replay_mode and self.replay_engine and self.replay_engine.get_match_info(self.question_text).get("matched") else "Doubao"
+                step_id = getattr(self, "current_step_id", None)
+                source = "日志" if self.use_replay_mode and self.replay_engine and self.replay_engine.get_match_info(self.question_text, step_id=step_id).get("matched") else "Doubao"
                 print(f"\n🤖 {source} 生成的回答: {generated_answer}")
 
                 # 保存当前轮对话到历史
@@ -1127,10 +950,14 @@ class WorkflowTester:
                 })
 
                 # 发送生成的回答
-                result = self.chat(generated_answer)
+                try:
+                    result = self.chat(generated_answer)
+                except Exception as e:
+                    print(f"\n⚠️  发送回答失败: {str(e)}")
+                    break
 
                 # 检查返回结果，如果 text 为 null 且 nextStepId 为 null，代表输出结束
-                data = result.get("data", {})
+                data = (result or {}).get("data") or {}
                 if data.get("text") is None and data.get("nextStepId") is None:
                     print("\n✅ 工作流完成！")
                     break
@@ -1146,6 +973,12 @@ class WorkflowTester:
             print(f"\n❌ 错误: {str(e)}")
             import traceback
             traceback.print_exc()
+        finally:
+            # Ensure JSON logs are written even if the last round errors out.
+            try:
+                self._finalize_workflow()
+            except Exception:
+                pass
 
 
 # 主程序
@@ -1171,13 +1004,16 @@ if __name__ == "__main__":
             exit(1)
     
     print(f"\n使用 task_id: {task_id}")
+
+    # 选择日志格式
+    tester.log_format = tester._get_log_format_preference()
     
     # 选择运行模式
     print("\n请选择运行方式：")
     print("1. 交互式运行（推荐）")
     print("2. 自动化运行（需要预设答案）")
     print("3. 大模型自主选择回答（Doubao 自动生成答案）")
-    print("4. 日志回放模式（使用修改后的日志回答）")
+    print("4. 回放模式（支持 TXT 日志 difflib / JSON 日志 embedding）")
 
     choice = input("\n请输入选项 (1/2/3/4): ").strip()
 
@@ -1223,15 +1059,15 @@ if __name__ == "__main__":
         print("\n🎯 日志回放模式")
         print("="*60)
         print("说明：")
-        print("1. 第一次运行生成对话日志")
-        print("2. 手动修改日志中的用户回答")
-        print("3. 再次运行时，程序会根据AI提问从修改后的日志中")
-        print("   找到最匹配的用户回答")
-        print("4. 如果找不到匹配，才让模型自己生成回答")
+        print("1. 第一次运行生成对话日志或导出对话 JSON")
+        print("2. 手动修改其中的用户回答（如需要）")
+        print("3. 再次运行时，程序会根据AI提问找到最匹配的历史提问")
+        print("   并强制使用对应的用户回答")
+        print("4. 找不到匹配时，才让模型自己生成回答")
         print("="*60)
 
         # 输入日志文件路径
-        log_path = input("\n请输入对话日志文件路径 (*_dialogue.txt): ").strip()
+        log_path = input("\n请输入对话日志文件路径 (*_dialogue.txt 或 *_dialogue.json): ").strip()
         if not log_path:
             print("❌ 日志文件路径不能为空")
             exit(1)
@@ -1242,16 +1078,17 @@ if __name__ == "__main__":
             exit(1)
 
         # 配置相似度阈值
-        threshold_input = input("\n请输入相似度阈值 (0.0-1.0，默认 0.7): ").strip()
-        similarity_threshold = 0.7
+        default_threshold = 0.8 if log_path.lower().endswith(".json") else 0.7
+        threshold_input = input(f"\n请输入相似度阈值 (0.0-1.0，默认 {default_threshold}): ").strip()
+        similarity_threshold = default_threshold
         if threshold_input:
             try:
                 similarity_threshold = float(threshold_input)
                 if similarity_threshold < 0.0 or similarity_threshold > 1.0:
-                    print("⚠️  阈值必须在0.0-1.0之间，使用默认值0.7")
-                    similarity_threshold = 0.7
+                    print(f"⚠️  阈值必须在0.0-1.0之间，使用默认值{default_threshold}")
+                    similarity_threshold = default_threshold
             except ValueError:
-                print("⚠️  无效的阈值，使用默认值0.7")
+                print(f"⚠️  无效的阈值，使用默认值{default_threshold}")
 
         # 选择学生档位
         tester.prompt_student_profile()
