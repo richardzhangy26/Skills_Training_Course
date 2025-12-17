@@ -472,7 +472,6 @@ class WorkflowTester(WorkflowTesterBase):
                 # 检查返回结果，如果 text 为 null 且 nextStepId 为 null，代表输出结束
                 data = result.get("data") or {}
                 if data.get("text") is None and data.get("nextStepId") is None:
-                if data.get("text") is None and data.get("nextStepId") is None:
                     print("\n✅ 工作流完成！")
                     break
 
