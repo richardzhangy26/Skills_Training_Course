@@ -896,6 +896,150 @@ class WorkflowTester(WorkflowTesterBase):
             print(f"❌ 调用 Doubao 模型失败: {str(e)}")
             return None
 
+    def run_semi_interactive(self, task_id, breakpoint_round: int = 0):
+        """
+        半交互式运行工作流：
+        - 用户输入内容不为空时，按用户输入走流程
+        - 用户直接回车（输入为空）时，让 Doubao 模型自动生成回答（默认好学生）
+        - 用户输入 'continue' 时，后续全部自动让模型回答
+        - 用户输入 'continue N' 时，自动运行到第 N 轮后恢复半交互
+
+        Args:
+            task_id: 任务ID
+            breakpoint_round: 断点轮数，0表示不设断点
+        """
+        if not self.doubao_client:
+            print("\n❌ Doubao 客户端未初始化，请检查 ARK_API_KEY 环境变量")
+            return
+
+        # 如果未设置学生档位，默认使用"好学生"
+        if not self.student_profile_key:
+            print("\n📚 半交互模式默认使用'优秀学生'档位生成回答")
+            self.student_profile_key = "good"
+
+        try:
+            self.start_workflow(task_id)
+            round_num = 1
+            auto_continue = False  # 是否进入全自动模式
+            current_breakpoint = breakpoint_round  # 当前断点轮数
+
+            while True:
+                if self.current_step_id is None:
+                    print("\n✅ 工作流完成！没有更多步骤了。")
+                    break
+
+                if round_num > 50:
+                    print(f"\n⚠️  警告：已达到最大对话轮数（{round_num}轮），自动退出防止无限循环")
+                    break
+
+                print("\n" + "=" * 60)
+                mode_label = "全自动模式" if auto_continue else "半交互模式"
+                print(f"💬 第 {round_num} 轮对话（{mode_label}）")
+                print("=" * 60)
+
+                if auto_continue:
+                    # 检查是否到达断点
+                    if current_breakpoint > 0 and round_num >= current_breakpoint:
+                        print(f"\n🔴 到达断点（第 {current_breakpoint} 轮），切回半交互模式")
+                        auto_continue = False
+                        current_breakpoint = 0  # 清除断点
+                        # 不 continue，继续走下面的半交互逻辑
+                    else:
+                        # 全自动模式：直接让模型生成回答
+                        bp_info = f"（断点: 第 {current_breakpoint} 轮）" if current_breakpoint > 0 else ""
+                        print(f"\n🤖 正在使用 Doubao 生成回答...{bp_info}")
+                        answer = self.generate_answer_with_doubao(self.question_text)
+                        if not answer:
+                            print("❌ 无法生成回答，退出自动模式")
+                            auto_continue = False
+                            continue
+                        print(f"🤖 Doubao 生成的回答: {answer}")
+
+                if not auto_continue:
+                    # 半交互模式：等待用户输入
+                    print("\n提示：回车=AI回答 | 输入内容=手动回答 | continue [N]=全自动(可选断点) | quit=退出")
+                    user_input = input("请输入你的回答: ").strip()
+
+                    if user_input.lower() == "quit":
+                        print("👋 用户主动退出")
+                        break
+
+                    if user_input.lower().startswith("continue"):
+                        # 解析是否带断点参数: "continue" 或 "continue 10"
+                        parts = user_input.split()
+                        if len(parts) >= 2:
+                            try:
+                                current_breakpoint = int(parts[1])
+                                if current_breakpoint <= round_num:
+                                    print(f"⚠️  断点必须大于当前轮数（{round_num}），已忽略断点设置")
+                                    current_breakpoint = 0
+                                else:
+                                    print(f"\n🚀 进入全自动模式，将在第 {current_breakpoint} 轮后暂停...")
+                            except ValueError:
+                                print(f"⚠️  无效的断点数字: {parts[1]}，将持续全自动运行")
+                                current_breakpoint = 0
+                        else:
+                            current_breakpoint = 0
+                            print("\n🚀 进入全自动模式，后续将由 AI 自动回答...")
+
+                        auto_continue = True
+                        # 本轮也自动回答
+                        print(f"\n🤖 正在使用 Doubao 生成回答...")
+                        answer = self.generate_answer_with_doubao(self.question_text)
+                        if not answer:
+                            print("❌ 无法生成回答，请手动输入")
+                            auto_continue = False
+                            continue
+                        print(f"🤖 Doubao 生成的回答: {answer}")
+                    elif user_input:
+                        # 用户有输入，使用用户的回答
+                        print(f"\n👤 使用用户回答: {user_input}")
+                        answer = user_input
+                    else:
+                        # 用户直接回车，使用 Doubao 生成回答
+                        print(f"\n🤖 正在使用 Doubao 生成回答...")
+                        answer = self.generate_answer_with_doubao(self.question_text)
+                        if not answer:
+                            print("❌ 无法生成回答，请手动输入")
+                            continue
+                        print(f"🤖 Doubao 生成的回答: {answer}")
+
+                # 保存当前轮对话到历史
+                self.conversation_history.append({
+                    "ai": self.question_text,
+                    "student": answer
+                })
+
+                # 发送回答
+                try:
+                    result = self.chat(answer)
+                except Exception as e:
+                    print(f"\n⚠️  发送回答失败: {str(e)}")
+                    break
+
+                # 检查返回结果
+                data = (result or {}).get("data") or {}
+                if data.get("text") is None and data.get("nextStepId") is None:
+                    print("\n✅ 工作流完成！")
+                    break
+
+                round_num += 1
+                time.sleep(0.5)
+
+            print("\n" + "=" * 60)
+            print("🎉 工作流测试结束")
+            print("=" * 60)
+
+        except Exception as e:
+            print(f"\n❌ 错误: {str(e)}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            try:
+                self._finalize_workflow()
+            except Exception:
+                pass
+
     def run_with_doubao(self, task_id):
         """
         使用 Doubao 模型自动生成回答并运行工作流
@@ -1010,7 +1154,7 @@ if __name__ == "__main__":
     
     # 选择运行模式
     print("\n请选择运行方式：")
-    print("1. 交互式运行（推荐）")
+    print("1. 半交互式运行（推荐）- 回车自动回答，输入内容则手动回答")
     print("2. 自动化运行（需要预设答案）")
     print("3. 大模型自主选择回答（Doubao 自动生成答案）")
     print("4. 回放模式（支持 TXT 日志 difflib / JSON 日志 embedding）")
@@ -1018,7 +1162,37 @@ if __name__ == "__main__":
     choice = input("\n请输入选项 (1/2/3/4): ").strip()
 
     if choice == "1":
-        tester.run_interactive(task_id)
+        print("\n🎯 半交互模式")
+        print("=" * 60)
+        print("说明：")
+        print("- 直接回车：让 Doubao 模型自动生成回答（默认优秀学生）")
+        print("- 输入内容：使用你输入的内容作为回答")
+        print("- 输入 continue：后续全部由 AI 自动回答")
+        print("- 输入 continue N：自动运行到第 N 轮后暂停，恢复半交互")
+        print("- 输入 quit：退出程序")
+        print("=" * 60)
+
+        # 可选：让用户选择学生档位
+        print("\n是否选择学生档位？（直接回车使用默认'优秀学生'）")
+        select_profile = input("选择档位？(y/n，默认 n): ").strip().lower()
+        if select_profile == "y":
+            tester.prompt_student_profile()
+
+        # 可选：设置初始断点
+        print("\n是否预设断点？（在第 N 轮自动暂停，直接回车不设断点）")
+        bp_input = input("断点轮数 (直接回车跳过): ").strip()
+        breakpoint_round = 0
+        if bp_input:
+            try:
+                breakpoint_round = int(bp_input)
+                if breakpoint_round > 0:
+                    print(f"✅ 已设置断点：第 {breakpoint_round} 轮后暂停")
+                else:
+                    breakpoint_round = 0
+            except ValueError:
+                print("⚠️  无效数字，不设置断点")
+
+        tester.run_semi_interactive(task_id, breakpoint_round=breakpoint_round)
 
     elif choice == "2":
         print("\n提示: 请先在代码中配置 user_answers 列表")
