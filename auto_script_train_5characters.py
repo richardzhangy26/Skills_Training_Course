@@ -5,11 +5,13 @@ import time
 import os
 from datetime import datetime
 from pathlib import Path
-from dotenv import load_dotenv
 from openai import OpenAI
+from workflow_tester_base import WorkflowTesterBase
 
-class WorkflowTester:
+class WorkflowTester(WorkflowTesterBase):
     DEFAULT_PROFILE_KEY = "S2"
+    PROFILE_LABEL_FIELD_NAME = "学生角色"
+    PROFILE_SELECT_TITLE = "学生角色"
     DEFAULT_STUDENT_PROFILES = {
         "S1": {
             "label": "S1 沉默寡言的学生",
@@ -49,56 +51,7 @@ class WorkflowTester:
     }
 
     def __init__(self, base_url="https://cloudapi.polymas.com"):
-        self.base_url = base_url
-        self.session = requests.Session()
-        self.session_id = None
-        self.current_step_id = None
-        self.task_id = None
-        self.dialogue_round = 0
-        self.base_path = Path(__file__).resolve().parent
-        self.log_root = self.base_path / "log"
-        self.run_card_log_path = None
-        self.dialogue_log_path = None
-        self.log_prefix = None
-        self.student_profile_key = None
-        self.dialogue_samples_content = None
-        self.log_context_path = None
-        self.conversation_history = []  # 存储对话历史
-        self.step_name_mapping = {}  # 存储 stepId -> stepName 的映射
-
-        # JSON logging
-        self.json_log_enabled = False
-        self.json_log_path = None
-        self.json_stages = {}  # Dict: step_id -> stage data
-        self.workflow_start_time = None
-        self.log_format = "txt"  # Default format
-
-        # 从环境变量加载认证信息
-        load_dotenv()
-        
-        self.headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        }
-        
-        # 添加认证信息
-        authorization = os.getenv("AUTHORIZATION")
-        cookie = os.getenv("COOKIE")
-        
-        if authorization:
-            self.headers["Authorization"] = authorization
-        
-        if cookie:
-            self.headers["Cookie"] = cookie
-        
-        # 添加其他可选的请求头
-        custom_headers = os.getenv("CUSTOM_HEADERS")
-        if custom_headers:
-            try:
-                extra_headers = json.loads(custom_headers)
-                self.headers.update(extra_headers)
-            except json.JSONDecodeError:
-                print("⚠️  警告: CUSTOM_HEADERS 格式不正确，已忽略")
+        super().__init__(base_url)
 
         # 加载学生性格配置
         self.student_profiles = self._load_student_profiles()
@@ -107,12 +60,15 @@ class WorkflowTester:
         self.model_type = os.getenv("MODEL_TYPE", "doubao_post")  # doubao_sdk, doubao_post, deepseek_sdk
         self.doubao_client = None
         self.deepseek_client = None
+        self.deepseek_client = None
         self.doubao_model = os.getenv("DOUBAO_MODEL", "doubao-seed-1-6-251015")
         self.deepseek_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-        self.knowledge_base_content = None
 
         # POST 调用配置
-        self.llm_api_url = os.getenv("LLM_API_URL", "http://llm-service.polymas.com/api/openai/v1/chat/completions")
+        self.llm_api_url = os.getenv(
+            "LLM_API_URL",
+            "http://llm-service.polymas.com/api/openai/v1/chat/completions",
+        )
         self.llm_api_key = os.getenv("LLM_API_KEY", "")
         self.llm_model = os.getenv("LLM_MODEL", "Doubao-1.5-pro-32k")
         self.llm_service_code = os.getenv("LLM_SERVICE_CODE", "SI_Ability")
@@ -265,150 +221,6 @@ class WorkflowTester:
             print(f"❌ 解析响应失败: {str(e)}")
             return None
 
-    def _prepare_log_files(self, task_id):
-        """创建日志文件并写入开头信息"""
-        timestamp = datetime.now()
-        self.workflow_start_time = timestamp  # 记录工作流开始时间
-
-        log_dir = self._determine_log_directory(task_id)
-        log_dir.mkdir(parents=True, exist_ok=True)
-        self.log_prefix = f"task_{task_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}"
-
-        # 初始化 JSON 日志
-        if self.log_format in ["json", "both"]:
-            self.json_log_enabled = True
-            self.json_log_path = log_dir / f"{self.log_prefix}_dialogue.json"
-            self.json_stages = {}
-
-        # 只在需要 TXT 格式时创建 TXT 文件
-        if self.log_format in ["txt", "both"]:
-            self.run_card_log_path = log_dir / f"{self.log_prefix}_runcard.txt"
-            self.dialogue_log_path = log_dir / f"{self.log_prefix}_dialogue.txt"
-            profile_label = self._get_student_profile_info()["label"] if self.student_profile_key else "未设置"
-
-            header_lines = [
-                f"日志创建时间: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}",
-                f"task_id: {task_id}",
-                f"学生角色: {profile_label}"
-            ]
-            if self.log_context_path:
-                header_lines.append(f"参考文档: {str(self.log_context_path)}")
-            header_lines.append("=" * 60)
-            header = "\n".join(header_lines) + "\n"
-            for path, title in [
-                (self.run_card_log_path, "RunCard 信息记录"),
-                (self.dialogue_log_path, "对话记录"),
-            ]:
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(title + "\n")
-                    f.write(header)
-
-    def _append_log(self, path, text):
-        if not path:
-            return
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(text + "\n")
-
-    def _log_run_card(self, step_id, payload, response_data):
-        step_name = self._get_step_display_name(step_id)
-        log_lines = [
-            f"Step: {step_name}",
-            f"请求载荷: {json.dumps(payload, ensure_ascii=False)}",
-            f"响应内容: {json.dumps(response_data, ensure_ascii=False)}",
-            "-" * 40,
-        ]
-        self._append_log(self.run_card_log_path, "\n".join(log_lines))
-
-    def _log_dialogue_entry(self, step_id, user_text=None, ai_text=None, source="chat"):
-        if user_text is None and ai_text is None:
-            return
-        step_name = self._get_step_display_name(step_id)
-        round_info = f" | 第 {self.dialogue_round} 轮" if self.dialogue_round else ""
-        header = f"Step: {step_name}{round_info} | 来源: {source}"
-        lines = [header]
-        if user_text:
-            lines.append(f"用户: {user_text}")
-        if ai_text:
-            lines.append(f"AI: {ai_text}")
-        lines.append("-" * 40)
-        self._append_log(self.dialogue_log_path, "\n".join(lines))
-
-        # 收集 JSON 数据
-        if user_text:
-            self._collect_stage_data(step_id, self.dialogue_round, "user", user_text)
-        if ai_text:
-            self._collect_stage_data(step_id, self.dialogue_round, "assistant", ai_text)
-
-    def _get_step_display_name(self, step_id):
-        """获取步骤的显示名称，优先返回中文名，否则返回 UUID"""
-        if not step_id:
-            return "未知步骤"
-        return self.step_name_mapping.get(step_id, step_id)
-
-    def _get_log_context_parts(self):
-        if not self.log_context_path:
-            return []
-
-        path = self.log_context_path
-        if not isinstance(path, Path):
-            path = Path(path)
-
-        try:
-            path = path.resolve()
-        except Exception:
-            pass
-
-        try:
-            relative = path.relative_to(self.base_path)
-        except ValueError:
-            relative = path
-
-        parts = list(relative.parts)
-        if not parts:
-            return []
-
-        if "skills_training_course" in parts:
-            idx = parts.index("skills_training_course")
-            parts = parts[idx + 1 :]
-
-        if not parts:
-            return []
-
-        trimmed = []
-        for i, part in enumerate(parts):
-            if i == len(parts) - 1:
-                trimmed.append(Path(part).stem)
-            else:
-                trimmed.append(part)
-        return trimmed
-
-    def _determine_log_directory(self, task_id):
-        profile_key = self.student_profile_key or "unassigned"
-        context_parts = self._get_log_context_parts()
-        if context_parts:
-            return self.log_root.joinpath(*context_parts, profile_key)
-        return self.log_root / f"task_{task_id}" / profile_key
-
-    def _update_log_context(self, new_path):
-        if not new_path:
-            return
-
-        try:
-            path = Path(new_path).expanduser().resolve()
-        except Exception:
-            path = Path(new_path)
-
-        priority = "skills_training_course" in path.parts
-        if priority or not self.log_context_path:
-            self.log_context_path = path
-
-    def _get_student_profile_info(self):
-        key = self.student_profile_key or self.DEFAULT_PROFILE_KEY
-        return self.student_profiles.get(
-            key,
-            self.student_profiles[self.DEFAULT_PROFILE_KEY]
-        )
-
     def _get_current_model_name(self):
         """获取当前模型的显示名称"""
         if self.model_type == "doubao_post":
@@ -418,142 +230,6 @@ class WorkflowTester:
         elif self.model_type == "deepseek_sdk":
             return self.deepseek_model
         return "unknown"
-
-    def _get_log_format_preference(self):
-        """获取用户的日志格式偏好"""
-        # 1. 检查环境变量
-        env_format = os.getenv("LOG_FORMAT", "").lower()
-        if env_format in ["txt", "json", "both"]:
-            print(f"📋 使用环境变量设置的日志格式: {env_format.upper()}")
-            return env_format
-
-        # 2. 提示用户选择
-        print("\n请选择日志格式：")
-        print("1. 仅 TXT 格式（默认）")
-        print("2. 仅 JSON 格式")
-        print("3. TXT + JSON 两种格式")
-
-        choice = input("\n请输入选项 (1/2/3，默认 1): ").strip() or "1"
-        format_map = {"1": "txt", "2": "json", "3": "both"}
-        selected_format = format_map.get(choice, "txt")
-        print(f"✅ 已选择日志格式: {selected_format.upper()}")
-        return selected_format
-
-    def _collect_stage_data(self, step_id, round_num, role, content):
-        """收集当前阶段的消息数据"""
-        if not self.json_log_enabled:
-            return
-
-        # 初始化阶段（如果是该步骤的第一条消息）
-        if step_id not in self.json_stages:
-            stage_name = self.step_name_mapping.get(step_id, step_id)
-            self.json_stages[step_id] = {
-                "stage_index": len(self.json_stages) + 1,
-                "stage_name": stage_name,
-                "step_id": step_id,
-                "messages": []
-            }
-
-        # 添加消息
-        self.json_stages[step_id]["messages"].append({
-            "round": round_num,
-            "role": role,
-            "content": content
-        })
-
-    def _build_json_structure(self):
-        """构建完整的 JSON 结构"""
-        workflow_end_time = datetime.now()
-
-        # 获取学生性格标签
-        profile_info = self._get_student_profile_info()
-
-        # 获取知识库和对话样本文件路径
-        kb_file = str(self.log_context_path) if self.log_context_path else None
-        dialogue_file = None  # 如果需要单独跟踪对话样本文件，可以添加实例变量
-
-        return {
-            "metadata": {
-                "task_id": self.task_id,
-                "student_profile": self.student_profile_key or self.DEFAULT_PROFILE_KEY,
-                "student_profile_label": profile_info.get("label", "未知"),
-                "model_type": self.model_type,
-                "model_name": self._get_current_model_name(),
-                "workflow_start_time": self.workflow_start_time.strftime("%Y-%m-%d %H:%M:%S") if self.workflow_start_time else None,
-                "workflow_end_time": workflow_end_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "total_rounds": self.dialogue_round,
-                "total_steps": len(self.json_stages),
-                "knowledge_base_file": kb_file,
-                "dialogue_samples_file": dialogue_file
-            },
-            "stages": list(self.json_stages.values())
-        }
-
-    def _write_json_log(self):
-        """在工作流完成时写入 JSON 日志文件"""
-        if not self.json_log_enabled or not self.json_log_path:
-            return
-
-        try:
-            json_data = self._build_json_structure()
-            with open(self.json_log_path, 'w', encoding='utf-8') as f:
-                json.dump(json_data, f, ensure_ascii=False, indent=2)
-            print(f"✅ JSON 日志已保存: {self.json_log_path}")
-        except Exception as e:
-            print(f"⚠️  警告: 保存 JSON 日志失败: {str(e)}")
-
-    def set_student_profile(self, profile_key):
-        if profile_key not in self.student_profiles:
-            raise ValueError(f"未知的学生角色: {profile_key}")
-        self.student_profile_key = profile_key
-        info = self._get_student_profile_info()
-        print(f"\n🎓 已选择学生角色: {info['label']}")
-
-    def prompt_student_profile(self, allow_multi=False):
-        """交互式选择学生角色，可选多角色"""
-        print("\n请选择学生角色：")
-        options = {}
-        enabled_profiles = {k: v for k, v in self.student_profiles.items() if v.get("enabled", True)}
-
-        for idx, (key, info) in enumerate(enabled_profiles.items(), 1):
-            options[str(idx)] = key
-            print(f"{idx}. {info['label']} - {info['description']}")
-
-        default_choice = next(
-            (num for num, key in options.items() if key == self.DEFAULT_PROFILE_KEY),
-            "1"
-        )
-
-        tip = "可输入多个编号并用逗号分隔" if allow_multi else "只需输入一个编号"
-        prompt_template = (
-            f"\n请输入选项 (1-{len(options)}，默认 {default_choice}，{tip}): "
-        )
-
-        while True:
-            raw_choice = input(prompt_template).strip()
-            if not raw_choice:
-                raw_choice = default_choice
-
-            selections = [c.strip() for c in raw_choice.split(",") if c.strip()]
-            if not selections:
-                selections = [default_choice]
-
-            if all(choice in options for choice in selections):
-                chosen_keys = []
-                for choice in selections:
-                    mapped = options[choice]
-                    if mapped not in chosen_keys:
-                        chosen_keys.append(mapped)
-
-                if not allow_multi:
-                    self.set_student_profile(chosen_keys[0])
-                    return chosen_keys
-
-                labels = "，".join(self.student_profiles[key]["label"] for key in chosen_keys)
-                print(f"\n🎯 已选择 {len(chosen_keys)} 个学生角色: {labels}")
-                return chosen_keys
-
-            print("⚠️  无效选项，请重新输入。")
 
     def _clone_for_parallel(self):
         """复制当前实例的上下文供并发运行使用"""
@@ -595,37 +271,6 @@ class WorkflowTester:
         ]
         await asyncio.gather(*tasks)
         print("\n✅ 所有选定的学生角色已运行完成。")
-
-    def load_student_dialogues(self, md_path):
-        """加载学生角色的模拟对话 Markdown"""
-        try:
-            path = Path(md_path)
-            if not path.exists():
-                print(f"❌ 模拟对话文件不存在: {md_path}")
-                return False
-            self.dialogue_samples_content = path.read_text(encoding="utf-8")
-            print(f"✅ 已加载模拟对话: {md_path} (大小: {len(self.dialogue_samples_content)} 字符)")
-            self._update_log_context(path)
-            return True
-        except Exception as e:
-            print(f"❌ 加载模拟对话失败: {str(e)}")
-            return False
-
-    def load_knowledge_base(self, kb_path):
-        """加载知识库文件"""
-        try:
-            path = Path(kb_path)
-            if not path.exists():
-                print(f"❌ 知识库文件不存在: {kb_path}")
-                return False
-
-            self.knowledge_base_content = path.read_text(encoding="utf-8")
-            print(f"✅ 知识库已加载: {kb_path} (大小: {len(self.knowledge_base_content)} 字符)")
-            self._update_log_context(path)
-            return True
-        except Exception as e:
-            print(f"❌ 加载知识库失败: {str(e)}")
-            return False
 
     def generate_answer_with_llm(self, question):
         """使用 LLM 模型生成回答"""
@@ -759,309 +404,8 @@ class WorkflowTester:
             return answer
         except Exception as e:
             print(f"❌ 调用 {self.model_type} 模型失败: {str(e)}")
+            print(f"❌ 调用 {self.model_type} 模型失败: {str(e)}")
             return None
-
-    def test_connection(self):
-        """测试接口连接和认证是否正常"""
-        print("\n" + "="*60)
-        print("🔍 开始测试接口连接...")
-        print("="*60)
-        
-        # 检查环境变量
-        print("\n1️⃣  检查环境变量:")
-        auth = os.getenv("AUTHORIZATION")
-        cookie = os.getenv("COOKIE")
-        
-        if not auth and not cookie:
-            print("❌ 错误: 未找到 AUTHORIZATION 或 COOKIE")
-            return False
-        
-        if auth:
-            print(f"✅ AUTHORIZATION: {auth[:20]}...")
-        if cookie:
-            print(f"✅ COOKIE: {cookie[:50]}...")
-        
-        # 测试网络连接
-        print("\n2️⃣  测试网络连接:")
-        try:
-            response = requests.get(self.base_url, timeout=10)
-            print(f"✅ 服务器可访问 (状态码: {response.status_code})")
-            return True
-        except requests.exceptions.RequestException as e:
-            print(f"❌ 网络连接失败: {str(e)}")
-            return False
-    
-    def query_script_step_list(self, task_id):
-        """
-        获取工作流的步骤列表，返回第一个 stepId
-        """
-        url = f"{self.base_url}/teacher-course/abilityTrain/queryScriptStepList"
-        payload = {
-            "trainTaskId": task_id,
-            "trainSubType": "ability"
-        }
-        
-        print(f"\n=== 获取步骤列表 ===")
-        print(f"请求URL: {url}")
-        # print(f"请求载荷: {json.dumps(payload, indent=2, ensure_ascii=False)}")
-        
-        try:
-            response = self.session.post(url, json=payload, headers=self.headers, timeout=60)
-            result = response.json()
-            
-            print(f"响应状态码: {response.status_code}")
-            # print(f"响应内容: {json.dumps(result, indent=2, ensure_ascii=False)}")
-            
-            if result.get("code") == 200 and result.get("success"):
-                data = result.get("data") or []
-                if data and len(data) > 0:
-                    # 构建 stepId -> stepName 的映射
-                    for step_item in data:
-                        step_id = step_item.get("stepId")
-                        step_detail = step_item.get("stepDetailDTO", {})
-                        step_name = step_detail.get("stepName", "未命名步骤")
-                        if step_id:
-                            self.step_name_mapping[step_id] = step_name
-
-                    print(f"✅ 已加载 {len(self.step_name_mapping)} 个步骤名称映射")
-
-                    # 返回第一个实际的步骤ID（跳过 START 和 END 节点）
-                    first_step_id = data[2].get("stepId")
-                    first_step_name = self.step_name_mapping.get(first_step_id, first_step_id)
-                    print(f"✅ 获取到第一个步骤: {first_step_name} ({first_step_id})")
-                    return first_step_id
-                else:
-                    raise Exception("步骤列表为空")
-            else:
-                raise Exception(f"获取步骤列表失败: {result.get('msg')}")
-                
-        except requests.exceptions.Timeout:
-            raise Exception("请求超时")
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"网络请求失败: {str(e)}")
-    
-    def run_card(self, task_id, step_id, session_id=None):
-        """
-        运行工作流卡片
-        """
-        url = f"{self.base_url}/ai-tools/trainRun/runCard"
-        
-        payload = {
-            "taskId": task_id,
-            "stepId": step_id,
-            "sessionId": session_id
-        }
-        
-        # 如果有 sessionId，添加到载荷中
-        if session_id:
-            payload["sessionId"] = session_id
-        
-        print(f"\n=== 运行卡片 (stepId: {step_id}) ===")
-        print(f"请求URL: {url}")
-        print(f"请求载荷: {json.dumps(payload, indent=2, ensure_ascii=False)}")
-        
-        try:
-            response = self.session.post(url, json=payload, headers=self.headers, timeout=60)
-            result = response.json()
-            self._log_run_card(step_id, payload, result)
-            
-            print(f"响应状态码: {response.status_code}")
-            # print(f"响应内容: {json.dumps(result, indent=2, ensure_ascii=False)}")
-            
-            if result.get("code") == 200 and result.get("success"):
-                data = result.get("data") or {}
-                self.session_id = data.get("sessionId")
-                self.current_step_id = step_id
-                
-                self.question_text = data.get("text")
-                need_skip = data.get("needSkipStep", False)
-                
-                if self.question_text:
-                    print(f"\n📝 AI 说: {self.question_text}")
-                    self._log_dialogue_entry(step_id, ai_text=self.question_text, source="runCard")
-                
-                return result
-            else:
-                print("训练完成")
-                return result
-                
-        except requests.exceptions.Timeout:
-            raise Exception("请求超时")
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"网络请求失败: {str(e)}")
-    
-    def chat(self, user_input, step_id=None):
-        """
-        发送用户回答
-        """
-        url = f"{self.base_url}/ai-tools/trainRun/chat"
-        
-        if step_id is None:
-            step_id = self.current_step_id
-        
-        payload = {
-            "taskId": self.task_id,
-            "stepId": step_id,
-            "text": user_input,
-            "sessionId": self.session_id
-        }
-        
-        print(f"\n=== 发送用户回答 ===")
-        print(f"👤 用户说: {user_input}")
-        # print(f"请求载荷: {json.dumps(payload, indent=2, ensure_ascii=False)}")
-        
-        try:
-            response = self.session.post(url, json=payload, headers=self.headers, timeout=60)
-            result = response.json()
-            
-            print(f"响应状态码: {response.status_code}")
-            # print(f"响应内容: {json.dumps(result, indent=2, ensure_ascii=False)}")
-            
-            if result.get("code") == 200 and result.get("success"):
-                data = result.get("data") or {}
-                next_step_id = data.get("nextStepId")
-                need_skip = data.get("needSkipStep", False)
-                ai_text = data.get("text")
-                self.dialogue_round += 1
-                self._log_dialogue_entry(step_id, user_text=user_input, ai_text=ai_text, source="chat")
-
-                if ai_text:
-                    print(f"\n📝 AI 说: {ai_text}")
-                    # 更新当前问题文本，供下一轮生成回答使用
-                    self.question_text = ai_text
-
-                # 关键逻辑：如果 needSkipStep=true 且 nextStepId 不为空，需要调用 runCard
-                if need_skip and next_step_id:
-                    print(f"\n⏭️  需要跳转到下一步骤: {next_step_id}")
-                    print("自动调用 runCard...")
-                    self.current_step_id=next_step_id
-                    return self.run_card(self.task_id, next_step_id, self.session_id)
-                else:
-                    return result
-            else:
-                raise Exception(f"发送消息失败: {result.get('msg')}")
-                
-        except requests.exceptions.Timeout:
-            raise Exception("请求超时")
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"网络请求失败: {str(e)}")
-    
-    def start_workflow(self, task_id):
-        """
-        启动工作流
-        1. 获取第一个 stepId
-        2. 调用 runCard 开始第一步
-        """
-        print("\n" + "="*60)
-        print("🚀 启动工作流")
-        print("="*60)
-        
-        self.task_id = task_id
-        self.dialogue_round = 0
-        self.conversation_history = []  # 重置对话历史
-        self._prepare_log_files(task_id)
-        
-        # 1. 获取第一个步骤ID
-        first_step_id = self.query_script_step_list(task_id)
-
-        # 2. 运行第一个卡片
-        result = self.run_card(task_id, first_step_id)
-        
-        return result
-    
-    def run_interactive(self, task_id):
-        """
-        交互式运行工作流
-        """
-        try:
-            # 启动工作流
-            self.start_workflow(task_id)
-            
-            round_num = 1
-            
-            # 循环对话
-            while True:
-                # 检查是否还有下一步
-                if self.current_step_id is None:
-                    print("\n✅ 工作流完成！没有更多步骤了。")
-                    break
-                
-                print("\n" + "="*60)
-                print(f"💬 第 {round_num} 轮对话")
-                print("="*60)
-                
-                user_answer = input("请输入你的回答（输入 'quit' 退出）: ").strip()
-                
-                if user_answer.lower() == 'quit':
-                    print("👋 用户主动退出")
-                    break
-                
-                if not user_answer:
-                    print("⚠️  回答不能为空，请重新输入")
-                    continue
-                
-                # 发送用户回答
-                result = self.chat(user_answer)
-                
-                # 检查返回结果中的 nextStepId
-                data = result.get("data") or {}
-                if data.get("nextStepId") is None:
-                    print("\n✅ 工作流完成！")
-                    break
-                
-                round_num += 1
-                time.sleep(0.5)  # 稍微延迟，避免请求过快
-
-            # 写入 JSON 日志
-            try:
-                self._write_json_log()
-            except Exception as e:
-                print(f"⚠️  警告: JSON 日志写入失败: {str(e)}")
-
-        except Exception as e:
-            print(f"\n❌ 错误: {str(e)}")
-            import traceback
-            traceback.print_exc()
-
-    def run_auto(self, task_id, user_answers):
-        """
-        自动化运行工作流（使用预设答案）
-        """
-        try:
-            # 启动工作流
-            self.start_workflow(task_id)
-
-            # 循环回答问题
-            for i, answer in enumerate(user_answers, 1):
-                if self.current_step_id is None:
-                    print("\n✅ 工作流已结束")
-                    break
-
-                print(f"\n--- 第 {i} 轮对话 ---")
-                time.sleep(1)
-
-                result = self.chat(answer)
-
-                # 检查是否完成
-                data = result.get("data") or {}
-                if data.get("nextStepId") is None:
-                    print("\n✅ 工作流完成！")
-                    break
-
-            # 写入 JSON 日志
-            try:
-                self._write_json_log()
-            except Exception as e:
-                print(f"⚠️  警告: JSON 日志写入失败: {str(e)}")
-
-            print("\n" + "="*60)
-            print("🎉 工作流测试结束")
-            print("="*60)
-
-        except Exception as e:
-            print(f"\n❌ 错误: {str(e)}")
-            import traceback
-            traceback.print_exc()
 
     def run_with_llm(self, task_id):
         """
@@ -1125,7 +469,9 @@ class WorkflowTester:
                 result = self.chat(generated_answer)
 
                 # 检查返回结果，如果 text 为 null 且 nextStepId 为 null，代表输出结束
+                # 检查返回结果，如果 text 为 null 且 nextStepId 为 null，代表输出结束
                 data = result.get("data") or {}
+                if data.get("text") is None and data.get("nextStepId") is None:
                 if data.get("text") is None and data.get("nextStepId") is None:
                     print("\n✅ 工作流完成！")
                     break
@@ -1133,11 +479,7 @@ class WorkflowTester:
                 round_num += 1
                 time.sleep(1)  # 稍微延迟，避免请求过快
 
-            # 写入 JSON 日志
-            try:
-                self._write_json_log()
-            except Exception as e:
-                print(f"⚠️  警告: JSON 日志写入失败: {str(e)}")
+            self._finalize_workflow()
 
             print("\n" + "="*60)
             print("🎉 工作流测试结束")
