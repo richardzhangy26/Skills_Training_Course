@@ -60,6 +60,7 @@ class WorkflowTester(WorkflowTesterBase):
         self.model_type = os.getenv("MODEL_TYPE", "doubao_post")  # doubao_sdk, doubao_post, deepseek_sdk
         self.doubao_client = None
         self.deepseek_client = None
+        self.deepseek_client = None
         self.doubao_model = os.getenv("DOUBAO_MODEL", "doubao-seed-1-6-251015")
         self.deepseek_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 
@@ -403,6 +404,7 @@ class WorkflowTester(WorkflowTesterBase):
             return answer
         except Exception as e:
             print(f"❌ 调用 {self.model_type} 模型失败: {str(e)}")
+            print(f"❌ 调用 {self.model_type} 模型失败: {str(e)}")
             return None
 
     def run_with_llm(self, task_id):
@@ -467,7 +469,9 @@ class WorkflowTester(WorkflowTesterBase):
                 result = self.chat(generated_answer)
 
                 # 检查返回结果，如果 text 为 null 且 nextStepId 为 null，代表输出结束
+                # 检查返回结果，如果 text 为 null 且 nextStepId 为 null，代表输出结束
                 data = result.get("data") or {}
+                if data.get("text") is None and data.get("nextStepId") is None:
                 if data.get("text") is None and data.get("nextStepId") is None:
                     print("\n✅ 工作流完成！")
                     break
