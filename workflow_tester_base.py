@@ -254,6 +254,97 @@ class WorkflowTesterBase:
             return self.student_profiles[self.DEFAULT_PROFILE_KEY]
         return next(iter(self.student_profiles.values()), {})
 
+    # ---- JSON logging helpers (optional) ----
+    def _get_log_format_preference(self) -> str:
+        """Get preferred log format from env or prompt.
+
+        Returns: "txt" | "json" | "both"
+        """
+        env_format = os.getenv("LOG_FORMAT", "").lower()
+        if env_format in ["txt", "json", "both"]:
+            print(f"📋 使用环境变量设置的日志格式: {env_format.upper()}")
+            return env_format
+
+        print("\n请选择日志格式：")
+        print("1. 仅 TXT 格式（默认）")
+        print("2. 仅 JSON 格式")
+        print("3. TXT + JSON 两种格式")
+
+        choice = input("\n请输入选项 (1/2/3，默认 1): ").strip() or "1"
+        format_map = {"1": "txt", "2": "json", "3": "both"}
+        selected_format = format_map.get(choice, "txt")
+        print(f"✅ 已选择日志格式: {selected_format.upper()}")
+        return selected_format
+
+    def _collect_stage_data(self, step_id: str, round_num: int, role: str, content: str):
+        """Collect stage messages into self.json_stages."""
+        if not getattr(self, "json_log_enabled", False):
+            return
+
+        if step_id not in self.json_stages:
+            stage_name = self.step_name_mapping.get(step_id, step_id)
+            self.json_stages[step_id] = {
+                "stage_index": len(self.json_stages) + 1,
+                "stage_name": stage_name,
+                "step_id": step_id,
+                "messages": [],
+            }
+
+        self.json_stages[step_id]["messages"].append(
+            {"round": round_num, "role": role, "content": content}
+        )
+
+    def _get_current_model_name(self) -> str:
+        """Subclasses may override."""
+        return getattr(self, "doubao_model", None) or getattr(self, "llm_model", None) or "unknown"
+
+    def _build_json_structure(self) -> Dict[str, Any]:
+        """Build the JSON dialogue structure."""
+        workflow_end_time = datetime.now()
+        profile_info = self._get_student_profile_info()
+
+        model_type = getattr(self, "model_type", None)
+        model_name = None
+        try:
+            model_name = self._get_current_model_name()
+        except Exception:
+            model_name = None
+
+        kb_file = str(self.log_context_path) if self.log_context_path else None
+        dialogue_file = None
+
+        metadata = {
+            "task_id": self.task_id,
+            "student_profile": self.student_profile_key or self.DEFAULT_PROFILE_KEY,
+            "student_profile_label": profile_info.get("label", "未知"),
+            "workflow_start_time": self.workflow_start_time.strftime("%Y-%m-%d %H:%M:%S")
+            if self.workflow_start_time
+            else None,
+            "workflow_end_time": workflow_end_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "total_rounds": self.dialogue_round,
+            "total_steps": len(self.json_stages),
+            "knowledge_base_file": kb_file,
+            "dialogue_samples_file": dialogue_file,
+        }
+        if model_type is not None:
+            metadata["model_type"] = model_type
+        if model_name is not None:
+            metadata["model_name"] = model_name
+
+        return {"metadata": metadata, "stages": list(self.json_stages.values())}
+
+    def _write_json_log(self):
+        """Write JSON log to disk."""
+        if not getattr(self, "json_log_enabled", False) or not self.json_log_path:
+            return
+        try:
+            json_data = self._build_json_structure()
+            with open(self.json_log_path, "w", encoding="utf-8") as f:
+                json.dump(json_data, f, ensure_ascii=False, indent=2)
+            print(f"✅ JSON 日志已保存: {self.json_log_path}")
+        except Exception as e:
+            print(f"⚠️  警告: 保存 JSON 日志失败: {str(e)}")
+
     def set_student_profile(self, profile_key: str):
         title = self.PROFILE_SELECT_TITLE
         if profile_key not in self.student_profiles:
@@ -602,4 +693,3 @@ class WorkflowTesterBase:
             import traceback
 
             traceback.print_exc()
-
