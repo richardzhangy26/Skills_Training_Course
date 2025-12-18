@@ -1119,7 +1119,7 @@ class WorkflowTester(WorkflowTesterBase):
         """
         使用 Doubao 模型自动生成回答并运行工作流
         """
-        if not self.doubao_client:
+        if not self.doubao_client and self.model_type == "doubao_sdk":
             print("\n❌ Doubao 客户端未初始化，请检查 ARK_API_KEY 环境变量")
             return
 
@@ -1232,11 +1232,11 @@ if __name__ == "__main__":
     print("1. Doubao (OpenAI SDK)")
     print("2. Doubao (POST API / LLM-Service)")
 
-    model_choice = input("\n请输入选项 (1/2，默认 1): ").strip()
-    if model_choice == "2":
-        tester.model_type = "doubao_post"
-    else:
+    model_choice = input("\n请输入选项 (1/2，默认 2): ").strip()
+    if model_choice == "1":
         tester.model_type = "doubao_sdk"
+    else:
+        tester.model_type = "doubao_post"
 
     # 重新初始化客户端
     tester._initialize_doubao_client()
