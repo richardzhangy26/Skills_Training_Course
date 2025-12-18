@@ -634,10 +634,19 @@ class WorkflowTester(WorkflowTesterBase):
         self.base_timeout = 60  # 基础超时时间（秒）
         self.retry_backoff = 2  # 重试退避因子
 
-        # 初始化 Doubao 客户端
+        # 模型配置
+        self.model_type = os.getenv("MODEL_TYPE", "doubao_sdk")  # doubao_sdk, doubao_post
         self.doubao_client = None
         self.doubao_model = os.getenv("DOUBAO_MODEL", "doubao-seed-1-6-251015")
-        self.model_type = "doubao_sdk"
+
+        # POST 调用配置
+        self.llm_api_url = os.getenv(
+            "LLM_API_URL",
+            "http://llm-service.polymas.com/api/openai/v1/chat/completions",
+        )
+        self.llm_api_key = os.getenv("LLM_API_KEY", "")
+        self.llm_model = os.getenv("LLM_MODEL", "Doubao-1.5-pro-32k")
+        self.llm_service_code = os.getenv("LLM_SERVICE_CODE", "SI_Ability")
 
         # 回放模式相关属性
         self.replay_engine = None
@@ -649,14 +658,68 @@ class WorkflowTester(WorkflowTesterBase):
 
     def _initialize_doubao_client(self):
         """初始化 Doubao 客户端"""
-        api_key = os.getenv("ARK_API_KEY")
-        base_url = os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+        print(f"🔧 模型类型: {self.model_type}")
 
-        if api_key:
-            try:
-                self.doubao_client = OpenAI(api_key=api_key, base_url=base_url)
-            except Exception as e:
-                print(f"⚠️  警告: 初始化 Doubao 客户端失败: {str(e)}")
+        if self.model_type == "doubao_post":
+            print(f"   - 使用 Doubao POST API 调用模式")
+            print(f"   - API URL: {self.llm_api_url}")
+            print(f"   - Model: {self.llm_model}")
+            print(f"   - Service Code: {self.llm_service_code}")
+            if not self.llm_api_key:
+                print("⚠️  警告: LLM_API_KEY 未设置")
+
+        elif self.model_type == "doubao_sdk":
+            api_key = os.getenv("ARK_API_KEY")
+            base_url = os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+
+            if api_key:
+                try:
+                    self.doubao_client = OpenAI(api_key=api_key, base_url=base_url)
+                    print(f"   - 使用 Doubao OpenAI SDK 调用模式")
+                    print(f"   - Model: {self.doubao_model}")
+                except Exception as e:
+                    print(f"⚠️  警告: 初始化 Doubao 客户端失败: {str(e)}")
+            else:
+                print("⚠️  警告: ARK_API_KEY 未设置")
+        else:
+            print(f"⚠️  警告: 未知的模型类型: {self.model_type}")
+
+    def _call_doubao_post(self, messages, temperature=0.7, max_tokens=1000):
+        """使用 HTTP POST 方式调用 Doubao API"""
+        headers = {
+            "Content-Type": "application/json",
+            "service-code": self.llm_service_code,
+        }
+
+        if self.llm_api_key:
+            headers["api-key"] = self.llm_api_key
+
+        payload = {
+            "model": self.llm_model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "top_p": 0.9,
+            "frequency_penalty": 0.3,
+            "presence_penalty": 0.2
+        }
+
+        try:
+            response = requests.post(
+                self.llm_api_url,
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result["choices"][0]["message"]["content"].strip()
+        except requests.exceptions.RequestException as e:
+            print(f"❌ HTTP POST 调用失败: {str(e)}")
+            return None
+        except (KeyError, IndexError) as e:
+            print(f"❌ 解析响应失败: {str(e)}")
+            return None
 
     def _retry_request(self, request_func, *args, **kwargs):
         """
@@ -820,8 +883,12 @@ class WorkflowTester(WorkflowTesterBase):
 
     def generate_answer_with_doubao(self, question):
         """使用 Doubao 模型生成回答"""
-        if not self.doubao_client:
+        # 检查是否有可用的调用方式
+        if self.model_type == "doubao_sdk" and not self.doubao_client:
             print("❌ Doubao 客户端未初始化")
+            return None
+        elif self.model_type == "doubao_post" and not self.llm_api_url:
+            print("❌ POST API URL 未配置")
             return None
 
         try:
@@ -880,20 +947,28 @@ class WorkflowTester(WorkflowTesterBase):
 
             user_message = "\n".join(sections)
 
-            response = self.doubao_client.chat.completions.create(
-                model=self.doubao_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
-                temperature=0.7,
-                top_p=0.9
-            )
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
 
-            answer = response.choices[0].message.content
+            # 根据配置选择调用方式
+            if self.model_type == "doubao_post":
+                print("🔄 使用 Doubao POST API 调用...")
+                answer = self._call_doubao_post(messages, temperature=0.7, max_tokens=1000)
+            else:  # doubao_sdk
+                print("🔄 使用 Doubao OpenAI SDK 调用...")
+                response = self.doubao_client.chat.completions.create(
+                    model=self.doubao_model,
+                    messages=messages,
+                    temperature=0.7,
+                    top_p=0.9
+                )
+                answer = response.choices[0].message.content
+
             return answer
         except Exception as e:
-            print(f"❌ 调用 Doubao 模型失败: {str(e)}")
+            print(f"❌ 调用 {self.model_type} 模型失败: {str(e)}")
             return None
 
     def run_semi_interactive(self, task_id, breakpoint_round: int = 0):
@@ -908,7 +983,7 @@ class WorkflowTester(WorkflowTesterBase):
             task_id: 任务ID
             breakpoint_round: 断点轮数，0表示不设断点
         """
-        if not self.doubao_client:
+        if not self.doubao_client and self.model_type == "doubao_sdk":
             print("\n❌ Doubao 客户端未初始化，请检查 ARK_API_KEY 环境变量")
             return
 
@@ -1151,7 +1226,21 @@ if __name__ == "__main__":
 
     # 选择日志格式
     tester.log_format = tester._get_log_format_preference()
-    
+
+    # 选择 LLM 模型
+    print("\n请选择 LLM 模型：")
+    print("1. Doubao (OpenAI SDK)")
+    print("2. Doubao (POST API / LLM-Service)")
+
+    model_choice = input("\n请输入选项 (1/2，默认 1): ").strip()
+    if model_choice == "2":
+        tester.model_type = "doubao_post"
+    else:
+        tester.model_type = "doubao_sdk"
+
+    # 重新初始化客户端
+    tester._initialize_doubao_client()
+
     # 选择运行模式
     print("\n请选择运行方式：")
     print("1. 半交互式运行（推荐）- 回车自动回答，输入内容则手动回答")
