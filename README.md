@@ -188,3 +188,17 @@ python auto_script_train_5characters.py
 - **学生画像不生效**：当存在 `student_profiles.custom.json` 时优先读取该文件，请确认 JSON 格式正确且 `enabled: true`。
 
 如需扩展更多脚本或接口，请直接在 `auto_script_train*.py` 中添加逻辑并补充本 README。欢迎提交 Issue/PR 反馈。
+
+---
+
+## 技能实训构建工具 (Skill Training Build)
+
+自动化生成能力训练任务（Training Task）的脚本节点（Steps）和流转逻辑（Flows）。
+
+*   **路径**: `skill_training_build/`
+*   **功能**: 
+    *   将 Markdown 脚本文件自动转换为平台上的训练任务。
+    *   自动创建脚本节点、配置模型角色。
+    *   自动连接流程（目前只支持顺序流，条件流后续再增加）。
+
+详细使用说明请参考：[Skill Training Build README](./skill_training_build/README.md)
