@@ -149,8 +149,9 @@ class WorkflowTesterBase:
 
     def _log_run_card(self, step_id: str, payload: Dict[str, Any], response_data: Dict[str, Any]):
         step_name = self._get_step_display_name(step_id)
+        # 同时记录 step_name 和 step_id，便于阅读和回放
         log_lines = [
-            f"Step: {step_name}",
+            f"Step: {step_name} | step_id: {step_id}",
             f"请求载荷: {json.dumps(payload, ensure_ascii=False)}",
             f"响应内容: {json.dumps(response_data, ensure_ascii=False)}",
             "-" * 40,
@@ -168,7 +169,8 @@ class WorkflowTesterBase:
             return
         step_name = self._get_step_display_name(step_id)
         round_info = f" | 第 {self.dialogue_round} 轮" if self.dialogue_round else ""
-        header = f"Step: {step_name}{round_info} | 来源: {source}"
+        # 同时记录 step_name 和 step_id，便于阅读和回放
+        header = f"Step: {step_name} | step_id: {step_id}{round_info} | 来源: {source}"
         lines = [header]
         if user_text:
             lines.append(f"用户: {user_text}")
@@ -422,14 +424,46 @@ class WorkflowTesterBase:
             return False
 
     def load_knowledge_base(self, kb_path: str) -> bool:
-        """Load knowledge base Markdown file."""
+        """Load knowledge base file. Supports .md, .docx formats."""
         try:
             path = Path(kb_path)
             if not path.exists():
                 print(f"❌ 知识库文件不存在: {kb_path}")
                 return False
 
-            self.knowledge_base_content = path.read_text(encoding="utf-8")
+            # 检测文件类型并处理
+            suffix = path.suffix.lower()
+
+            if suffix == ".md":
+                # 直接读取 Markdown 文件
+                self.knowledge_base_content = path.read_text(encoding="utf-8")
+            elif suffix == ".docx":
+                # 自动转换 docx 为 Markdown
+                try:
+                    # 动态导入转换函数
+                    import sys
+                    docx_to_md_path = Path(__file__).parent / "docx_to_md.py"
+                    if docx_to_md_path.exists():
+                        # 将 docx_to_md.py 所在目录添加到 sys.path
+                        sys.path.insert(0, str(docx_to_md_path.parent))
+                        from docx_to_md import docx_to_markdown_content
+                        sys.path.pop(0)  # 移除临时路径
+
+                        self.knowledge_base_content = docx_to_markdown_content(path, extract_images=False)
+                        print(f"✅ 已自动转换 .docx 为 Markdown")
+                    else:
+                        print(f"❌ 未找到 docx_to_md.py，无法转换 .docx 文件")
+                        return False
+                except ImportError:
+                    print(f"❌ 缺少依赖库，请安装: pip install python-docx")
+                    return False
+            elif suffix == ".doc":
+                print(f"❌ 暂不支持 .doc 格式，请先转换为 .docx 或 .md 格式")
+                return False
+            else:
+                # 尝试作为文本文件读取
+                self.knowledge_base_content = path.read_text(encoding="utf-8")
+
             print(
                 f"✅ 知识库已加载: {kb_path} (大小: {len(self.knowledge_base_content)} 字符)"
             )
