@@ -104,7 +104,8 @@ class DialogueLogParser:
     @staticmethod
     def _parse_header(header: str) -> tuple:
         """解析头部信息"""
-        # 示例: [2025-11-28 16:01:21] Step GnxX4RzREzTrXNmRGxq0 | 第 1 轮 | 来源: chat
+        # 新格式: [2025-11-28 16:01:21] Step: 步骤名称 | step_id: GnxX4RzREzTrXNmRGxq0 | 第 1 轮 | 来源: chat
+        # 旧格式: [2025-11-28 16:01:21] Step GnxX4RzREzTrXNmRGxq0 | 第 1 轮 | 来源: chat
         timestamp = ""
         step_id = ""
         round_num = None
@@ -117,12 +118,25 @@ class DialogueLogParser:
                 if end_idx > 0:
                     timestamp = header[1:end_idx].strip()
 
-            # 提取步骤ID
-            step_start = header.find('Step ')
-            if step_start > 0:
-                step_end = header.find(' |', step_start)
-                if step_end > 0:
-                    step_id = header[step_start + 5:step_end].strip()
+            # 优先尝试新格式：提取 step_id: xxx
+            step_id_marker = 'step_id: '
+            step_id_start = header.find(step_id_marker)
+            if step_id_start > 0:
+                # 新格式
+                step_id_value_start = step_id_start + len(step_id_marker)
+                step_id_end = header.find(' |', step_id_value_start)
+                if step_id_end > 0:
+                    step_id = header[step_id_value_start:step_id_end].strip()
+                else:
+                    # step_id 可能在末尾
+                    step_id = header[step_id_value_start:].strip()
+            else:
+                # 兼容旧格式：Step xxx |
+                step_start = header.find('Step ')
+                if step_start > 0:
+                    step_end = header.find(' |', step_start)
+                    if step_end > 0:
+                        step_id = header[step_start + 5:step_end].strip()
 
             # 提取轮次
             round_start = header.find('第 ')
@@ -783,8 +797,10 @@ class WorkflowTester(WorkflowTesterBase):
 
     def _log_run_card(self, step_id, payload, response_data):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        step_name = self._get_step_display_name(step_id)
+        # 同时记录 step_name 和 step_id，便于阅读和回放
         log_lines = [
-            f"[{timestamp}] Step {step_id}",
+            f"[{timestamp}] Step: {step_name} | step_id: {step_id}",
             f"请求载荷: {json.dumps(payload, ensure_ascii=False)}",
             f"响应内容: {json.dumps(response_data, ensure_ascii=False)}",
             "-" * 80,
@@ -795,8 +811,10 @@ class WorkflowTester(WorkflowTesterBase):
         if user_text is None and ai_text is None:
             return
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        step_name = self._get_step_display_name(step_id)
         round_info = f" | 第 {self.dialogue_round} 轮" if self.dialogue_round else ""
-        header = f"[{timestamp}] Step {step_id}{round_info} | 来源: {source}"
+        # 同时记录 step_name 和 step_id，便于阅读和回放
+        header = f"[{timestamp}] Step: {step_name} | step_id: {step_id}{round_info} | 来源: {source}"
         lines = [header]
         if user_text:
             lines.append(f"用户: {user_text}")
@@ -905,9 +923,24 @@ class WorkflowTester(WorkflowTesterBase):
                 "",
             ]
 
+            # 添加问题类型识别（优先级最高）
+            sections.extend([
+                "## 问题类型识别（优先级最高）",
+                "如果当前问题属于以下类型，请优先直接回答，不需要强制体现性格特点：",
+                "1. **确认式问题**: 如'你准备好了吗？请回复是或否'、'确认的话请回复是'",
+                "   → 直接回答'是'、'好的'、'确认'等",
+                "2. **选择式问题**: 如'你选择A还是B？'、'请选择1/2/3'",
+                "   → 直接说出选项，如'我选择A'、'选1'",
+                "3. **角色确认问题**: 如'你是学生还是老师？'",
+                "   → 直接回答角色，如'学生'",
+                "",
+                "**判断标准**: 如果问题中包含'请回复'、'请选择'、'是或否'、'A/B/C'等明确指示，则为封闭式问题。",
+                "",
+            ])
+
             if self.dialogue_samples_content:
                 sections.extend([
-                    "## 档位示例对话 (如有匹配请优先引用或改写)",
+                    "## 档位示例对话 (如有匹配请优先引用或改写，优先级最高)",
                     self.dialogue_samples_content,
                     "",
                 ])
@@ -934,15 +967,12 @@ class WorkflowTester(WorkflowTesterBase):
                 "## 当前问题",
                 question,
                 "",
-                "## 输出要求",
-                "1. **字数限制**: 回答必须严格控制在50字以内。",
-                "2. **确认式问题**: 如'你准备好了吗？请回复是或否'、'确认的话请回复是'等，直接回答'是'、'好的'、'确认'等简短词汇。",
-                "3. **选择式问题**: 如'你选择A还是B？'、'请选择1/2/3'等，直接回复选项，如'A'、'1'等。",
-                "4. 回答需与所选学生档位的语气、思路保持一致。",
-                "5. 如果示例对话中存在高度相关的回答，请优先引用或在其基础上微调。",
-                "6. 若示例未覆盖此问题，可自行生成，但需符合档位特征。",
-                "7. 仅返回学生回答内容，不要额外解释。",
-                "8. 保持简洁，避免冗余表达。"
+                "## 输出要求（按优先级执行）",
+                "**优先级1**: 如果是封闭式问题（确认式/选择式/角色确认），直接简短回答",
+                "**优先级2**: 如果示例对话中有高度相关的回答，请优先引用或改写",
+                "**优先级3**: 如果是开放式问题，再适度融入学生档位特点",
+                "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在50字以内。",
+                ""
             ])
 
             user_message = "\n".join(sections)
@@ -1262,10 +1292,8 @@ if __name__ == "__main__":
         print("=" * 60)
 
         # 可选：让用户选择学生档位
-        print("\n是否选择学生档位？（直接回车使用默认'优秀学生'）")
-        select_profile = input("选择档位？(y/n，默认 n): ").strip().lower()
-        if select_profile == "y":
-            tester.prompt_student_profile()
+        print("\n请选择学生档位？（直接回车使用默认2.'需要引导的学生'）")
+        tester.prompt_student_profile()
 
         # 可选：设置初始断点
         print("\n是否预设断点？（在第 N 轮自动暂停，直接回车不设断点）")
@@ -1280,6 +1308,17 @@ if __name__ == "__main__":
                     breakpoint_round = 0
             except ValueError:
                 print("⚠️  无效数字，不设置断点")
+
+        # 可选：加载知识库
+        print("\n可选: 是否使用外接知识库或者对话示例文档？")
+        use_kb = input("是否使用知识库或者对话示例文档？(y/n，默认 n): ").strip().lower()
+        if use_kb == "y":
+            kb_path = input("\n请输入对应的 Markdown或者docx 文件的绝对路径: ").strip()
+            if kb_path:
+                if not tester.load_knowledge_base(kb_path):
+                    print("⚠️  知识库加载失败，将以通用模式运行")
+            else:
+                print("⚠️  未提供知识库路径，跳过加载")
 
         tester.run_semi_interactive(task_id, breakpoint_round=breakpoint_round)
 
@@ -1305,10 +1344,11 @@ if __name__ == "__main__":
             else:
                 print("⚠️  未提供路径，跳过加载模拟对话")
 
-        print("\n可选: 是否使用外接知识库？")
-        use_kb = input("是否使用知识库？(y/n，默认 n): ").strip().lower()
+        # 可选：加载知识库
+        print("\n可选: 是否使用外接知识库或者对话示例文档？")
+        use_kb = input("是否使用知识库或者对话示例文档？(y/n，默认 n): ").strip().lower()
         if use_kb == "y":
-            kb_path = input("\n请输入知识库 Markdown 文件的绝对路径: ").strip()
+            kb_path = input("\n请输入对应的 Markdown或者docx 文件的绝对路径: ").strip()
             if kb_path:
                 if not tester.load_knowledge_base(kb_path):
                     print("⚠️  知识库加载失败，将以通用模式运行")
