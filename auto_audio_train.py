@@ -88,7 +88,7 @@ AUDIO_CONFIG = {
 # ============ 日志记录器 ============
 class ConversationLogger:
     def __init__(self, task_id: str):
-        log_dir = Path("./logs")
+        log_dir = Path("./audio_logs")
         log_dir.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_file = log_dir / f"task_{task_id}_{timestamp}.txt"
@@ -261,6 +261,25 @@ class TTSEngine:
                 audio_data += chunk["data"]
         return audio_data
 
+# ============ 学生档位定义 ============
+STUDENT_PROFILES = {
+    "good": {
+        "label": "优秀学生",
+        "description": "理解透彻、表达清晰，回答结构化、条理分明，并主动总结要点。",
+        "style": "语气自信、语言规范，必要时引用题目或材料中的关键信息。",
+    },
+    "medium": {
+        "label": "需要引导的学生",
+        "description": "基本理解问题但不够全面，回答中会暴露疑惑或请求提示。",
+        "style": "语气略显犹豫，能覆盖核心内容，但会提出 1-2 个不确定点或寻求老师建议。",
+    },
+    "bad": {
+        "label": "答非所问的学生",
+        "description": "理解偏差，常常跑题或只复述与问题弱相关的信息。",
+        "style": "语气随意，容易偏离重点或答非所问。",
+    }
+}
+
 # ============ WebSocket客户端 ============
 class TrainingClient:
     def __init__(self):
@@ -283,6 +302,25 @@ class TrainingClient:
         self.round_counter = 0  # 轮次计数器
         self.step_just_started = False  # 标记是否刚进入新步骤
         self.pending_user_message = None  # 缓存用户消息，等待与AI回复一起记录
+
+        # 半交互模式相关
+        self.auto_continue = False  # 全自动模式标志
+
+        # 学生档位配置
+        self.student_profile_key = "medium"  # 默认：需要引导的学生
+
+        # Doubao API 配置
+        self.model_type = os.getenv("MODEL_TYPE", "doubao_post")
+        self.llm_api_url = os.getenv(
+            "LLM_API_URL",
+            "http://llm-service.polymas.com/api/openai/v1/chat/completions"
+        )
+        self.llm_api_key = os.getenv("LLM_API_KEY", "")
+        self.llm_model = os.getenv("LLM_MODEL", "Doubao-1.5-pro-32k")
+        self.llm_service_code = os.getenv("LLM_SERVICE_CODE", "SI_Ability")
+
+        # 对话历史（用于提供上下文）
+        self.conversation_history = []
     
     async def connect(self):
         url = f"{CONFIG['ws_url']}?taskId={CONFIG['task_id']}"
@@ -338,7 +376,132 @@ class TrainingClient:
             await asyncio.sleep(AUDIO_CONFIG["chunk_interval"])
         
         log.info("✅ 音频发送完成")
-    
+
+    def _call_doubao_post(self, messages, temperature=0.7, max_tokens=1000):
+        """
+        使用 HTTP POST 方式调用 Doubao API
+
+        参数:
+            messages: 消息列表 [{"role": "system", "content": "..."}, ...]
+            temperature: 温度参数 (0-1)
+            max_tokens: 最大输出长度
+
+        返回:
+            AI 生成的文本，失败返回 None
+        """
+        headers = {
+            "Content-Type": "application/json",
+            "service-code": self.llm_service_code,
+        }
+
+        if self.llm_api_key:
+            headers["api-key"] = self.llm_api_key
+
+        payload = {
+            "model": self.llm_model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "top_p": 0.9,
+            "frequency_penalty": 0.3,
+            "presence_penalty": 0.2
+        }
+
+        try:
+            response = requests.post(
+                self.llm_api_url,
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result["choices"][0]["message"]["content"].strip()
+        except requests.exceptions.RequestException as e:
+            log.error(f"❌ Doubao API 调用失败: {str(e)}")
+            return None
+        except (KeyError, IndexError) as e:
+            log.error(f"❌ 解析响应失败: {str(e)}")
+            return None
+
+    def generate_ai_answer(self, bot_question: str) -> str:
+        """
+        使用 Doubao API 生成学生回答
+
+        参数:
+            bot_question: Bot 的提问
+
+        返回:
+            AI 生成的学生回答
+        """
+        if not self.llm_api_url or not self.llm_api_key:
+            log.error("❌ Doubao API 未配置")
+            return "好的"
+
+        try:
+            # 获取学生档位信息
+            profile_info = STUDENT_PROFILES.get(self.student_profile_key, STUDENT_PROFILES["medium"])
+
+            # 构建系统提示
+            system_prompt = "你是一名英语口语能力训练助手，需要严格按照给定的学生档位扮演角色。你只能用英语回答。"
+
+            # 构建用户提示
+            sections = [
+                "## 角色设定",
+                f"学生档位: {profile_info['label']}",
+                f"角色特征: {profile_info['description']}",
+                f"表达风格: {profile_info['style']}",
+                "",
+                "## 问题类型识别（优先级最高）",
+                "如果当前问题属于以下类型，请优先直接回答，不需要强制体现性格特点：",
+                "1. **确认式问题**: 如'你准备好了吗？请回复是或否'",
+                "   → 直接回答'yes'、'ok'、'i am ready'等",
+                "2. **选择式问题**: 如'你选择A还是B？'、'请选择1/2/3'",
+                "   → 直接说出选项，如'option A'、'option B'、'option C'等",
+                "",
+            ]
+
+            # 添加对话历史
+            if self.conversation_history:
+                sections.append("## 对话历史（按时间顺序）")
+                for i, turn in enumerate(self.conversation_history[-5:], 1):  # 只保留最近5轮
+                    sections.append(f"第{i}轮:")
+                    sections.append(f"  AI提问: {turn['ai']}")
+                    sections.append(f"  学生回答: {turn['student']}")
+                sections.append("")
+
+            sections.extend([
+                "## 当前问题",
+                bot_question,
+                "",
+                "## 输出要求",
+                "**优先级1**: 如果是封闭式问题（确认式/选择式），直接简短回答",
+                "**优先级2**: 如果是开放式问题，适度融入学生档位特点",
+                "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在30字以内。",
+                ""
+            ])
+
+            user_message = "\n".join(sections)
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
+
+            # 调用 Doubao API
+            log.info("🔄 使用 Doubao POST API 生成回答...")
+            answer = self._call_doubao_post(messages, temperature=0.7, max_tokens=200)
+
+            if answer:
+                return answer
+            else:
+                # 回退到简单回答
+                return "好的，我明白了。"
+
+        except Exception as e:
+            log.error(f"❌ 生成回答失败: {str(e)}")
+            return "好的"
+
     async def speak(self, text: str):
         log.info(f"🎤 准备发送: {text}")
         
@@ -414,9 +577,11 @@ class TrainingClient:
                     # 清空缓存的用户消息
                     self.pending_user_message = None
 
+                    # 保留 current_bot_msg 不清空，供半交互模式的 AI 生成回答使用
+                    # 在 botAnswerStart 时会重新清空
+
                 self.bot_speaking = False
                 self.waiting_response = False
-                self.current_bot_msg = ""
                 
             elif event == "userTextStart":
                 log.info("🎙️ ✅ 开始识别!")
@@ -443,6 +608,7 @@ class TrainingClient:
                 # 关键：收到 stepEnd，从中获取 nextStepId
                 current_step = payload.get("stepName", "")
                 next_step_id = payload.get("nextStepId")
+                next_step_name = payload.get("nextStepName", "")  # 尝试获取下一步骤名称
                 end_type = payload.get("endType", "")
                 step_desc = payload.get("stepDescription", "")
 
@@ -454,8 +620,13 @@ class TrainingClient:
                     log.info(f"➡️ 下一步: {next_step_id}")
                     self.step_id = next_step_id
 
-                    # 重置轮次计数器（进入新步骤）
-                    self.round_counter = 0
+                    # 更新步骤名称（如果服务器没有返回，用step_id作为临时名称）
+                    if next_step_name:
+                        self.step_name = next_step_name
+                    else:
+                        self.step_name = f"Step_{next_step_id}"
+
+                    # 轮次计数器不重置，持续累加
 
                     # 标记新步骤开始
                     self.step_just_started = True
@@ -495,10 +666,128 @@ class TrainingClient:
                     await self.send_heartbeat()
                 except:
                     pass
-    
-    async def interactive_mode(self):
+
+    async def semi_interactive_mode(self):
+        """
+        半交互模式：
+        - 回车 = AI 自动生成回答
+        - 输入内容 = 使用用户输入
+        - continue = 切换到全自动模式
+        - quit = 退出
+        """
         print("\n" + "="*60)
-        print("📢 交互模式 ")
+        print("📢 半交互模式")
+        print("="*60)
+        print("说明：")
+        print("  - [回车] AI 自动生成回答")
+        print("  - [输入文字] 使用你的回答")
+        print("  - [continue] 切换到全自动模式")
+        print("  - [quit] 退出")
+        print("="*60 + "\n")
+
+        while self.is_connected and not self.task_completed:
+            try:
+                if self.auto_continue:
+                    # 全自动模式：直接生成AI回答
+                    print(f"\n🤖 [全自动模式] 正在生成AI回答...")
+                    await asyncio.sleep(1)  # 稍等一下让用户看到 Bot 消息
+
+                    # 生成 AI 回答
+                    ai_answer = self.generate_ai_answer(self.current_bot_msg)
+                    print(f"🤖 AI: {ai_answer}")
+
+                    # 保存对话历史
+                    self.conversation_history.append({
+                        "ai": self.current_bot_msg,
+                        "student": ai_answer
+                    })
+                    # 限制历史长度
+                    if len(self.conversation_history) > 10:
+                        self.conversation_history = self.conversation_history[-10:]
+
+                    await self.speak(ai_answer)
+                else:
+                    # 半交互模式：等待用户输入
+                    print("\n" + "-" * 60)
+                    print("💬 请输入回答:")
+                    print("   [回车] AI 生成 | [输入文字] 手动 | [continue] 全自动 | [quit] 退出")
+                    print("-" * 60)
+
+                    user_input = await asyncio.get_event_loop().run_in_executor(
+                        None, input, ">> "
+                    )
+
+                    user_input = user_input.strip()
+
+                    if user_input.lower() == 'quit':
+                        print("👋 用户主动退出")
+                        break
+
+                    if user_input.lower() == 'continue':
+                        print("\n🚀 切换到全自动模式...")
+                        self.auto_continue = True
+                        # 本轮也自动回答
+                        ai_answer = self.generate_ai_answer(self.current_bot_msg)
+                        print(f"🤖 AI: {ai_answer}")
+
+                        # 保存对话历史
+                        self.conversation_history.append({
+                            "ai": self.current_bot_msg,
+                            "student": ai_answer
+                        })
+                        # 限制历史长度
+                        if len(self.conversation_history) > 10:
+                            self.conversation_history = self.conversation_history[-10:]
+
+                        await self.speak(ai_answer)
+                    elif user_input == "":
+                        # 回车：使用 AI 生成
+                        print(f"\n🤖 正在生成AI回答...")
+                        ai_answer = self.generate_ai_answer(self.current_bot_msg)
+                        print(f"🤖 AI: {ai_answer}")
+
+                        # 保存对话历史
+                        self.conversation_history.append({
+                            "ai": self.current_bot_msg,
+                            "student": ai_answer
+                        })
+                        # 限制历史长度
+                        if len(self.conversation_history) > 10:
+                            self.conversation_history = self.conversation_history[-10:]
+
+                        await self.speak(ai_answer)
+                    else:
+                        # 用户手动输入
+                        print(f"\n👤 用户: {user_input}")
+
+                        # 保存对话历史
+                        self.conversation_history.append({
+                            "ai": self.current_bot_msg,
+                            "student": user_input
+                        })
+                        # 限制历史长度
+                        if len(self.conversation_history) > 10:
+                            self.conversation_history = self.conversation_history[-10:]
+
+                        await self.speak(user_input)
+
+                # 等待响应
+                timeout = 60
+                waited = 0
+                while self.waiting_response and waited < timeout:
+                    await asyncio.sleep(0.5)
+                    waited += 0.5
+
+            except EOFError:
+                break
+
+        if self.task_completed:
+            print("\n🎉 任务已完成！")
+
+    async def interactive_mode(self):
+        """纯手动交互模式（保留原功能）"""
+        print("\n" + "="*60)
+        print("📢 手动交互模式 ")
         print("   ✅ 自动处理 stepEnd → nextStep")
         print("   输入文字按回车发送，quit 退出")
         print("="*60 + "\n")
@@ -527,14 +816,23 @@ class TrainingClient:
         if self.task_completed:
             print("\n🎉 任务已完成！")
     
-    async def run(self):
+    async def run(self, mode='semi'):
+        """
+        运行客户端
+
+        参数:
+            mode: 'semi' = 半交互模式, 'manual' = 纯手动模式
+        """
         await self.connect()
-        
+
         listen_task = asyncio.create_task(self.listen_loop())
         heartbeat_task = asyncio.create_task(self.heartbeat_loop())
-        
+
         try:
-            await self.interactive_mode()
+            if mode == 'manual':
+                await self.interactive_mode()
+            else:
+                await self.semi_interactive_mode()
         except KeyboardInterrupt:
             pass
         finally:
@@ -563,10 +861,40 @@ async def main():
     print("  3. 服务器: stepEnd (包含 nextStepId)")
     print("  4. 客户端: nextStep (确认进入下一步)")
     print("  5. 服务器: botAnswerStart → botAnswerEnd")
-    print()
+
+    # 选择模式
+    print("\n请选择运行模式：")
+    print("1. 半交互模式（推荐）- 回车AI回答，输入手动回答")
+    print("2. 纯手动模式 - 只能手动输入")
+
+    mode_choice = input("\n请输入选项 (1/2，默认 1): ").strip()
 
     client = TrainingClient()
-    await client.run()
+
+    # 如果选择半交互模式，让用户选择学生档位
+    if mode_choice != "2":
+        print("\n请选择学生档位：")
+        print("1. 优秀学生 - 理解透彻、表达清晰")
+        print("2. 需要引导的学生 - 基本理解但略显犹豫（默认）")
+        print("3. 答非所问的学生 - 容易跑题或误解")
+
+        profile_choice = input("\n请输入选项 (1/2/3，默认 2): ").strip()
+
+        profile_map = {
+            "1": "good",
+            "2": "medium",
+            "3": "bad"
+        }
+        client.student_profile_key = profile_map.get(profile_choice, "medium")
+
+        selected_profile = STUDENT_PROFILES[client.student_profile_key]
+        print(f"\n✅ 已选择: {selected_profile['label']}")
+        print(f"   特征: {selected_profile['description']}")
+
+    if mode_choice == "2":
+        await client.run(mode='manual')
+    else:
+        await client.run(mode='semi')
 
 
 if __name__ == "__main__":
