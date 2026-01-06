@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-语音训练平台测试工具 - 正确处理 stepEnd → nextStep 流程
+语音训练平台测试工具 powered by Richard Zhang
 """
 
 import asyncio
@@ -149,8 +149,77 @@ class AudioProcessor:
         self.sample_width = AUDIO_CONFIG["sample_width"]
         self.pcm_chunk_size = AUDIO_CONFIG["pcm_chunk_size"]
         self.frame_header = AUDIO_CONFIG["frame_header"]
-    
+
+        # 检测并选择音频后端
+        self.backend = self._detect_audio_backend()
+        log.info(f"🎵 音频后端: {self.backend}")
+
+    def _detect_audio_backend(self) -> str:
+        """检测可用的音频后端"""
+        backend_preference = os.getenv("AUDIO_BACKEND", "auto").lower()
+
+        if backend_preference == "pydub":
+            return "pydub"
+        elif backend_preference == "miniaudio":
+            return "miniaudio"
+
+        # auto 模式：优先 miniaudio
+        try:
+            import miniaudio
+            import samplerate
+            return "miniaudio"
+        except ImportError:
+            log.warning("⚠️ miniaudio 不可用，回退到 pydub")
+            return "pydub"
+
     def mp3_to_pcm(self, mp3_data: bytes) -> bytes:
+        """
+        将 MP3 转换为 PCM
+        支持两种后端：
+        - miniaudio: 无需 ffmpeg (推荐)
+        - pydub: 需要 ffmpeg (备选)
+        """
+        if self.backend == "miniaudio":
+            return self._mp3_to_pcm_miniaudio(mp3_data)
+        else:
+            return self._mp3_to_pcm_pydub(mp3_data)
+
+    def _mp3_to_pcm_miniaudio(self, mp3_data: bytes) -> bytes:
+        """使用 miniaudio + samplerate，无需 ffmpeg"""
+        try:
+            import miniaudio
+            import numpy as np
+
+            # 解码 MP3
+            decoded = miniaudio.decode(mp3_data, output_format=miniaudio.SampleFormat.SIGNED16)
+
+            audio_array = np.frombuffer(decoded.samples, dtype=np.int16)
+
+            # 转单声道
+            if decoded.nchannels == 2:
+                audio_array = audio_array.reshape(-1, 2).mean(axis=1).astype(np.int16)
+            elif decoded.nchannels != 1:
+                raise ValueError(f"不支持的声道数: {decoded.nchannels}")
+
+            # 重采样
+            if decoded.sample_rate != self.sample_rate:
+                import samplerate
+                # samplerate 需要归一化的浮点数组 [-1.0, 1.0]
+                audio_float = audio_array.astype(np.float32) / 32768.0
+                ratio = self.sample_rate / decoded.sample_rate
+                audio_resampled = samplerate.resample(audio_float, ratio, 'sinc_fastest')
+                audio_array = (audio_resampled * 32768.0).astype(np.int16)
+
+            return audio_array.tobytes()
+
+        except Exception as e:
+            log.error(f"❌ miniaudio 转换失败: {e}，尝试回退到 pydub")
+            # 回退到 pydub
+            self.backend = "pydub"
+            return self._mp3_to_pcm_pydub(mp3_data)
+
+    def _mp3_to_pcm_pydub(self, mp3_data: bytes) -> bytes:
+        """使用 pydub + ffmpeg (备选方案)"""
         from pydub import AudioSegment
         audio = AudioSegment.from_mp3(io.BytesIO(mp3_data))
         audio = audio.set_frame_rate(self.sample_rate)
