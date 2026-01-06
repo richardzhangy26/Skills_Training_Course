@@ -8,21 +8,72 @@ import websockets
 import json
 import logging
 import io
+import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
-import csv
+from dotenv import load_dotenv
+import requests
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 log = logging.getLogger(__name__)
 
 # ============ 配置 ============
+# 加载环境变量
+load_dotenv()
+
 CONFIG = {
     "ws_url": "wss://cloudapi.polymas.com/ai-tools/ws/v2/trainFlow",
-    "task_id": "QgDjBQP5L1t1Xypm4D51",
-    "user_id": "y4QK2KvFCo",
-    "school_id": "c6EL6hPNdS",
+    "task_id": os.getenv("TASK_ID"),
+    "user_id": None,  # 稍后通过 API 获取
+    "school_id": None,  # 稍后通过 API 获取
 }
+
+def get_user_info():
+    """
+    调用 API 获取用户和学校信息
+    失败时退出程序并提示错误
+    """
+    url = "https://cloudapi.polymas.com/console/v1/get-current-user-detail"
+
+    authorization = os.getenv("AUTHORIZATION")
+    cookie = os.getenv("COOKIE")
+
+    if not authorization or not cookie:
+        print("❌ 错误：缺少 AUTHORIZATION 或 COOKIE 环境变量")
+        print("请在 .env 文件中配置这些参数")
+        sys.exit(1)
+
+    headers = {
+        "Authorization": authorization,
+        "Cookie": cookie,
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(url, headers=headers)
+        response.raise_for_status()  # 检查 HTTP 错误
+
+        data = response.json()
+
+        if data.get("code") != 200 or not data.get("success"):
+            print(f"❌ API 调用失败：{data.get('msg', '未知错误')}")
+            sys.exit(1)
+
+        user_id = data["data"]["userNid"]
+        school_id = data["data"]["schoolInfo"]["nid"]
+
+        return user_id, school_id
+
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 网络请求失败：{e}")
+        print("请检查网络连接和认证信息（AUTHORIZATION, COOKIE）")
+        sys.exit(1)
+    except (KeyError, TypeError) as e:
+        print(f"❌ API 响应格式错误：{e}")
+        print("响应数据格式不符合预期")
+        sys.exit(1)
 
 AUDIO_CONFIG = {
     "sample_rate": 16000,
@@ -36,26 +87,54 @@ AUDIO_CONFIG = {
 
 # ============ 日志记录器 ============
 class ConversationLogger:
-    def __init__(self):
+    def __init__(self, task_id: str):
         log_dir = Path("./logs")
         log_dir.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_file = log_dir / f"conversation_{timestamp}.csv"
-        
-        with open(self.log_file, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['时间', '类型', '角色', '内容', 'historyId', 'stepName'])
-    
-    def log(self, event_type: str, role: str, content: str, history_id: str = "", step_name: str = ""):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        with open(self.log_file, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow([timestamp, event_type, role, content, history_id, step_name])
-        
-        if role == "Bot":
-            print(f"\n🤖 Bot: {content}")
-        elif role == "User":
-            print(f"\n👤 User: {content}")
+        self.log_file = log_dir / f"task_{task_id}_{timestamp}.txt"
+
+        # 保存task_id和创建时间用于头部显示
+        self.task_id = task_id
+        self.creation_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 创建日志文件并写入头部
+        with open(self.log_file, 'w', encoding='utf-8') as f:
+            f.write("对话记录\n")
+            f.write(f"日志创建时间: {self.creation_time}\n")
+            f.write(f"task_id: {task_id}\n")
+            f.write("="*60 + "\n")
+
+    def log(self, role: str, content: str, step_name: str, step_id: str, round_num: int, source: str):
+        """
+        记录对话日志
+
+        参数:
+            role: 角色 ("AI" 或 "用户")
+            content: 对话内容
+            step_name: 步骤名称
+            step_id: 步骤ID
+            round_num: 轮次号（0表示无轮次，如 runCard 的初始消息）
+            source: 来源 ("runCard" 或 "chat")
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 构建第一行
+        first_line = f"[{timestamp}] Step: {step_name} | step_id: {step_id}"
+        if round_num > 0:
+            first_line += f" | 第 {round_num} 轮"
+        first_line += f" | 来源: {source}"
+
+        # 写入日志文件
+        with open(self.log_file, 'a', encoding='utf-8') as f:
+            f.write(first_line + "\n")
+            f.write(f"{role}: {content}\n")
+            f.write("-"*80 + "\n")
+
+        # 终端输出
+        if role == "AI":
+            print(f"\n🤖 AI: {content}")
+        elif role == "用户":
+            print(f"\n👤 用户: {content}")
 
 # ============ 音频处理 ============
 class AudioProcessor:
@@ -112,10 +191,10 @@ class TTSEngine:
 class TrainingClient:
     def __init__(self):
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
-        self.logger = ConversationLogger()
+        self.logger = ConversationLogger(CONFIG["task_id"])  # 传入 task_id
         self.tts = TTSEngine()
         self.audio = AudioProcessor()
-        
+
         self.session_id = None
         self.step_id = None
         self.step_name = None
@@ -125,6 +204,10 @@ class TrainingClient:
         self.current_bot_msg = ""
         self.current_history_id = ""
         self.task_completed = False
+
+        # 新增状态变量
+        self.round_counter = 0  # 轮次计数器
+        self.step_just_started = False  # 标记是否刚进入新步骤
     
     async def connect(self):
         url = f"{CONFIG['ws_url']}?taskId={CONFIG['task_id']}"
@@ -220,6 +303,7 @@ class TrainingClient:
                 self.step_name = payload.get("stepName")
                 log.info(f"📱 会话: {self.session_id}")
                 log.info(f"📍 步骤: {self.step_name} ({self.step_id})")
+                self.step_just_started = True  # 标记新步骤开始
                 await self.start_script()
                 
             elif event == "botAnswerStart":
@@ -234,8 +318,23 @@ class TrainingClient:
                 
             elif event == "botAnswerEnd":
                 if self.current_bot_msg:
-                    self.logger.log("botAnswer", "Bot", self.current_bot_msg, 
-                                   self.current_history_id, self.step_name)
+                    # 确定来源
+                    source = "runCard" if self.step_just_started else "chat"
+
+                    # 记录日志
+                    self.logger.log(
+                        role="AI",
+                        content=self.current_bot_msg,
+                        step_name=self.step_name,
+                        step_id=self.step_id,
+                        round_num=self.round_counter,
+                        source=source
+                    )
+
+                    # 重置 step_just_started 标志
+                    if self.step_just_started:
+                        self.step_just_started = False
+
                 self.bot_speaking = False
                 self.waiting_response = False
                 self.current_bot_msg = ""
@@ -249,7 +348,20 @@ class TrainingClient:
             elif event == "userTextEnd":
                 text = payload.get("text", "")
                 history_id = payload.get("historyId", "")
-                self.logger.log("userText", "User", text, history_id, self.step_name)
+
+                # 轮次计数增加
+                self.round_counter += 1
+
+                # 记录用户消息
+                self.logger.log(
+                    role="用户",
+                    content=text,
+                    step_name=self.step_name,
+                    step_id=self.step_id,
+                    round_num=self.round_counter,
+                    source="chat"
+                )
+
                 log.info(f"✅ 识别完成: {text}")
                 
             elif event == "userAudioEnd":
@@ -261,14 +373,21 @@ class TrainingClient:
                 next_step_id = payload.get("nextStepId")
                 end_type = payload.get("endType", "")
                 step_desc = payload.get("stepDescription", "")
-                
+
                 log.info(f"📍 步骤结束: {current_step}")
                 log.info(f"   结束类型: {end_type}")
                 log.info(f"   步骤描述: {step_desc[:50]}...")
-                
+
                 if next_step_id:
                     log.info(f"➡️ 下一步: {next_step_id}")
                     self.step_id = next_step_id
+
+                    # 重置轮次计数器（进入新步骤）
+                    self.round_counter = 0
+
+                    # 标记新步骤开始
+                    self.step_just_started = True
+
                     # 发送 nextStep 确认
                     await self.send_next_step(next_step_id)
                 else:
@@ -304,7 +423,7 @@ class TrainingClient:
     
     async def interactive_mode(self):
         print("\n" + "="*60)
-        print("📢 交互模式 v11")
+        print("📢 交互模式 ")
         print("   ✅ 自动处理 stepEnd → nextStep")
         print("   输入文字按回车发送，quit 退出")
         print("="*60 + "\n")
@@ -349,9 +468,20 @@ class TrainingClient:
 
 
 async def main():
+    # 先获取用户信息
     print("\n" + "="*60)
-    print("🎓 语音训练平台测试工具 v11")
+    print("🎓 口语能力训练平台测试工具")
     print("="*60)
+    print("\n正在获取用户信息...")
+
+    user_id, school_id = get_user_info()
+    CONFIG["user_id"] = user_id
+    CONFIG["school_id"] = school_id
+
+    print(f"✅ 用户ID: {user_id}")
+    print(f"✅ 学校ID: {school_id}")
+    print(f"✅ 任务ID: {CONFIG['task_id']}")
+
     print("\n流程:")
     print("  1. 用户发送音频")
     print("  2. 服务器: userTextStart → userTextEnd → userAudioEnd")
@@ -359,7 +489,7 @@ async def main():
     print("  4. 客户端: nextStep (确认进入下一步)")
     print("  5. 服务器: botAnswerStart → botAnswerEnd")
     print()
-    
+
     client = TrainingClient()
     await client.run()
 
