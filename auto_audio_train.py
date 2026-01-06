@@ -306,6 +306,12 @@ class TrainingClient:
         # 半交互模式相关
         self.auto_continue = False  # 全自动模式标志
 
+        # 超时重试相关
+        self.last_sent_text = None           # 记录最后发送的消息，用于重试
+        self.max_retries = 3                 # 最大重试次数
+        self.base_timeout = 90               # 基础超时时间（1.5分钟）
+        self.heartbeat_without_response = 0  # 无响应的心跳计数
+
         # 学生档位配置
         self.student_profile_key = "medium"  # 默认：需要引导的学生
 
@@ -503,6 +509,7 @@ class TrainingClient:
             return "好的"
 
     async def speak(self, text: str):
+        self.last_sent_text = text  # 记录发送内容，用于重试
         log.info(f"🎤 准备发送: {text}")
         
         while self.bot_speaking:
@@ -547,8 +554,10 @@ class TrainingClient:
             elif event == "botAnswerStart":
                 self.bot_speaking = True
                 self.current_bot_msg = ""
+                self.waiting_response = False  # Bot开始回复，响应已收到
+                self.heartbeat_without_response = 0  # 重置心跳计数
                 log.info("🤖 Bot开始回复...")
-                
+
             elif event == "botAnswer":
                 msg = payload.get("msg", "")
                 self.current_history_id = payload.get("historyId", "")
@@ -582,7 +591,8 @@ class TrainingClient:
 
                 self.bot_speaking = False
                 self.waiting_response = False
-                
+                self.heartbeat_without_response = 0  # 重置心跳计数
+
             elif event == "userTextStart":
                 log.info("🎙️ ✅ 开始识别!")
                 
@@ -657,13 +667,44 @@ class TrainingClient:
                 await self.handle_message(message)
         except websockets.ConnectionClosed:
             self.is_connected = False
-    
+
+    async def wait_for_response_with_retry(self, text: str) -> bool:
+        """等待服务器响应，90秒超时后自动重试"""
+        for attempt in range(self.max_retries + 1):
+            timeout = self.base_timeout  # 90秒
+            waited = 0
+
+            if attempt > 0:
+                log.warning(f"⚠️ 第 {attempt} 次重试...")
+                self.waiting_response = True
+                await self.speak(text)  # 重新发送
+
+            while self.waiting_response and waited < timeout:
+                await asyncio.sleep(0.5)
+                waited += 0.5
+
+            if not self.waiting_response:
+                return True  # 成功收到响应
+
+            log.warning(f"⏰ 等待 {timeout} 秒无响应")
+
+        log.error(f"❌ 服务器无响应，已重试 {self.max_retries} 次")
+        self.waiting_response = False  # 重置状态，允许继续
+        return False
+
     async def heartbeat_loop(self):
         while self.is_connected:
             await asyncio.sleep(30)
             if self.is_connected:
                 try:
                     await self.send_heartbeat()
+                    # 监控无响应的心跳次数
+                    if self.waiting_response:
+                        self.heartbeat_without_response += 1
+                        if self.heartbeat_without_response >= 3:  # 90秒无响应
+                            log.warning(f"⚠️ 服务器已 {self.heartbeat_without_response * 30} 秒无响应")
+                    else:
+                        self.heartbeat_without_response = 0
                 except:
                     pass
 
@@ -771,12 +812,10 @@ class TrainingClient:
 
                         await self.speak(user_input)
 
-                # 等待响应
-                timeout = 60
-                waited = 0
-                while self.waiting_response and waited < timeout:
-                    await asyncio.sleep(0.5)
-                    waited += 0.5
+                # 等待响应（支持超时重试）
+                success = await self.wait_for_response_with_retry(self.last_sent_text)
+                if not success:
+                    log.warning("⚠️ 服务器持续无响应，继续下一轮...")
 
             except EOFError:
                 break
@@ -803,12 +842,11 @@ class TrainingClient:
                 
                 if user_input.strip():
                     await self.speak(user_input)
-                    
-                    timeout = 60
-                    waited = 0
-                    while self.waiting_response and waited < timeout:
-                        await asyncio.sleep(0.5)
-                        waited += 0.5
+
+                    # 等待响应（支持超时重试）
+                    success = await self.wait_for_response_with_retry(self.last_sent_text)
+                    if not success:
+                        log.warning("⚠️ 服务器持续无响应，继续下一轮...")
                     
             except EOFError:
                 break
