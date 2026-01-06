@@ -104,17 +104,18 @@ class ConversationLogger:
             f.write(f"task_id: {task_id}\n")
             f.write("="*60 + "\n")
 
-    def log(self, role: str, content: str, step_name: str, step_id: str, round_num: int, source: str):
+    def log(self, role: str, content: str, step_name: str, step_id: str, round_num: int, source: str, user_content: str = None):
         """
         记录对话日志
 
         参数:
             role: 角色 ("AI" 或 "用户")
-            content: 对话内容
+            content: 对话内容（AI的回复）
             step_name: 步骤名称
             step_id: 步骤ID
             round_num: 轮次号（0表示无轮次，如 runCard 的初始消息）
             source: 来源 ("runCard" 或 "chat")
+            user_content: 用户消息内容（可选，仅在同一轮对话时提供）
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -127,14 +128,18 @@ class ConversationLogger:
         # 写入日志文件
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write(first_line + "\n")
-            f.write(f"{role}: {content}\n")
+
+            # 如果有用户消息（chat模式），先写用户消息
+            if user_content:
+                f.write(f"用户: {user_content}\n")
+                print(f"\n👤 用户: {user_content}")
+
+            # 写入AI消息
+            f.write(f"AI: {content}\n")
             f.write("-"*80 + "\n")
 
-        # 终端输出
-        if role == "AI":
-            print(f"\n🤖 AI: {content}")
-        elif role == "用户":
-            print(f"\n👤 用户: {content}")
+        # 终端输出AI消息
+        print(f"🤖 AI: {content}")
 
 # ============ 音频处理 ============
 class AudioProcessor:
@@ -208,6 +213,7 @@ class TrainingClient:
         # 新增状态变量
         self.round_counter = 0  # 轮次计数器
         self.step_just_started = False  # 标记是否刚进入新步骤
+        self.pending_user_message = None  # 缓存用户消息，等待与AI回复一起记录
     
     async def connect(self):
         url = f"{CONFIG['ws_url']}?taskId={CONFIG['task_id']}"
@@ -328,12 +334,16 @@ class TrainingClient:
                         step_name=self.step_name,
                         step_id=self.step_id,
                         round_num=self.round_counter,
-                        source=source
+                        source=source,
+                        user_content=self.pending_user_message if source == "chat" else None
                     )
 
                     # 重置 step_just_started 标志
                     if self.step_just_started:
                         self.step_just_started = False
+
+                    # 清空缓存的用户消息
+                    self.pending_user_message = None
 
                 self.bot_speaking = False
                 self.waiting_response = False
@@ -352,15 +362,8 @@ class TrainingClient:
                 # 轮次计数增加
                 self.round_counter += 1
 
-                # 记录用户消息
-                self.logger.log(
-                    role="用户",
-                    content=text,
-                    step_name=self.step_name,
-                    step_id=self.step_id,
-                    round_num=self.round_counter,
-                    source="chat"
-                )
+                # 缓存用户消息，等待与AI回复一起记录
+                self.pending_user_message = text
 
                 log.info(f"✅ 识别完成: {text}")
                 
@@ -387,6 +390,9 @@ class TrainingClient:
 
                     # 标记新步骤开始
                     self.step_just_started = True
+
+                    # 清空缓存的用户消息（跨步骤不携带）
+                    self.pending_user_message = None
 
                     # 发送 nextStep 确认
                     await self.send_next_step(next_step_id)
