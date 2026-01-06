@@ -20,3 +20,5 @@ log/
 .env
 
 test/
+audio_logs/
+logs/

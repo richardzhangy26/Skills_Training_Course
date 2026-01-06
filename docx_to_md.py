@@ -113,7 +113,7 @@ def docx_to_markdown_content(docx_path: Path, extract_images: bool = False) -> s
                 lines.append("")
                 continue
 
-            style_name = (paragraph.style.name or "").lower()
+            style_name = ((paragraph.style.name or "") if paragraph.style else "").lower()
 
             if "heading 1" in style_name:
                 lines.append(f"# {text}")
@@ -185,7 +185,7 @@ def docx_to_md(docx_file: Path):
                 lines.append("")
                 continue
 
-            style_name = (paragraph.style.name or "").lower()
+            style_name = ((paragraph.style.name or "") if paragraph.style else "").lower()
 
             if "heading 1" in style_name:
                 lines.append(f"# {text}")

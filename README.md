@@ -1,11 +1,12 @@
 # 自动脚本执行工具
 
-本仓库提供两套脚本，帮助自动化联通 **能力训练工作流** 的 API 流程：
+本仓库提供三套脚本，帮助自动化联通 **能力训练工作流** 的 API 流程：
 
 - `auto_script_train.py`：三档学生画像（优秀/普通/跑题）+ 半交互模式 + 日志回放 + Doubao 生成回答。
 - `auto_script_train_5characters.py`：扩展版，包含 5 种学生性格、可并发跑多个角色，并支持 Doubao、DeepSeek 或自建 POST API 三种 LLM 调用方式。
+- `auto_audio_train.py`：基于 WebSocket 的语音训练平台测试工具，支持实时音频流与 TTS 语音合成，集成 Doubao API 自动生成学生回答。
 
-两套脚本复用同一套依赖与配置，可根据测试需求自由选择。
+三套脚本复用同一套依赖与配置，可根据测试需求自由选择。
 
 ---
 
@@ -180,12 +181,89 @@ python auto_script_train_5characters.py
 
 ---
 
+## auto_audio_train.py
+
+### 功能概览
+
+基于 **asyncio + WebSocket** 架构的语音训练平台测试工具，专为实时音频流场景设计：
+
+- 通过 WebSocket 连接到 `wss://cloudapi.polymas.com/ai-tools/ws/v2/trainFlow` 进行实时对话。
+- 使用 **edge-tts** 将文字转为语音（MP3），再转为 PCM 音频帧发送到服务器。
+- 集成 **Doubao POST API**，支持三档学生角色智能回答生成。
+- 内置对话历史记录，提供上下文感知的连贯回答。
+- 支持半交互模式与纯手动模式两种运行方式。
+
+### 运行步骤
+
+```bash
+python auto_audio_train.py
+```
+
+1. **用户信息获取**：脚本会先调用 API 获取 `user_id` 和 `school_id`。
+2. **选择运行模式**：
+   - `1. 半交互模式（推荐）`：
+     - **直接回车**：AI 自动生成符合档位特征的回答
+     - **输入文字**：使用你输入的内容作为回答
+     - **输入 `continue`**：切换到全自动模式，后续所有轮次由 AI 自动回答
+     - **输入 `quit`**：退出程序
+   - `2. 纯手动模式`：只能手动输入文字回答，不支持 AI 生成
+3. **选择学生档位**（仅半交互模式）：
+   - `1. 优秀学生`：理解透彻、表达清晰，回答结构化
+   - `2. 需要引导的学生`（默认）：基本理解但略显犹豫，会请求提示
+   - `3. 答非所问的学生`：容易跑题或误解问题
+4. **WebSocket 连接**：自动连接到训练平台，开始实时对话流程。
+5. **日志记录**：对话日志保存在 `./audio_logs/` 目录下。
+
+### 半交互模式使用示例
+
+**场景 1：快速测试，关键环节手动干预**
+```
+第 1-3 轮：[直接回车] → AI 自动回答基础问题
+第 4 轮：[输入"我认为应该检查设备压力"] → 在关键问题上给出特定答案
+第 5 轮：[输入"continue"] → 后续全部自动运行到结束
+```
+
+**场景 2：测试不同学生档位**
+```
+启动时选择：3. 答非所问的学生
+第 1-5 轮：[直接回车] → AI 生成带有跑题特征的回答
+观察系统如何处理学生误解的情况
+```
+
+
+### 环境变量配置
+
+除了通用的 `AUTHORIZATION`、`COOKIE`、`TASK_ID` 外，还需要：
+
+```ini
+# Doubao POST API 配置（必需）
+MODEL_TYPE=doubao_post
+LLM_API_KEY=sk-xxxxx
+LLM_MODEL=Doubao-1.5-pro-32k
+LLM_API_URL=http://llm-service.polymas.com/api/openai/v1/chat/completions
+LLM_SERVICE_CODE=SI_Ability
+
+# 音频转换后端选择（可选）
+AUDIO_BACKEND=auto  # miniaudio / pydub / auto（默认）
+```
+
+### 注意事项
+
+- **TTS 语音**：默认使用 `en-US-GuyNeural` 语音，生成中文可能会报错。如需生成中文语音，需要修改 `TTSEngine` 类中的 `voice` 参数为中文语音（如 `zh-CN-XiaoxiaoNeural`）。
+- **网络稳定性**：WebSocket 连接需要稳定网络，断线会自动退出。
+- **音频后端**：优先使用 miniaudio（无需 ffmpeg），如果环境中无法安装可回退到 pydub。
+
+---
+
 ## 常见问题
 
 - **接口 401 / 403**：优先检查 `AUTHORIZATION` 和 `COOKIE` 是否过期，必要时抓包重新获取。
 - **Doubao/DeepSeek 无法调用**：确认 `ARK_API_KEY` 或 `DEEPSEEK_API_KEY` 是否正确，同时检查本地网络能否访问对应网关。
 - **日志没有生成**：确保当前用户有写权限，脚本会在项目根目录下创建 `log/`。如需自定义路径，可修改脚本中 `self.log_root`。
 - **学生画像不生效**：当存在 `student_profiles.custom.json` 时优先读取该文件，请确认 JSON 格式正确且 `enabled: true`。
+- **TTS 语音合成失败**（`NoAudioReceived` 错误）：默认英文语音不支持中文文本，需修改 `auto_audio_train.py` 第 252 行，将 `voice` 参数改为中文语音，例如 `zh-CN-XiaoxiaoNeural`（女声）或 `zh-CN-YunxiNeural`（男声）。
+- **WebSocket 连接失败**：检查网络连接和防火墙设置，确保可以访问 `wss://cloudapi.polymas.com`。
+- **音频处理错误**：优先安装 `miniaudio` 和 `samplerate`（`pip install miniaudio samplerate`），如无法安装则需要系统安装 ffmpeg 后使用 pydub。
 
 如需扩展更多脚本或接口，请直接在 `auto_script_train*.py` 中添加逻辑并补充本 README。欢迎提交 Issue/PR 反馈。
 

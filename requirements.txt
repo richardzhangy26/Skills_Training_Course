@@ -13,6 +13,17 @@ openai>=1.0.0,<2.0.0
 # 异步编程
 asyncio>=3.4.3
 
+# WebSocket客户端 (用于实时音频训练)
+websockets>=12.0,<13.0
+
+# 音频处理 (优先使用 miniaudio，无需 ffmpeg；pydub 作为备选)
+miniaudio>=1.59,<2.0.0           # 主要方案，无需 ffmpeg
+samplerate>=0.1.0,<1.0.0         # 专业音频重采样
+pydub>=0.25.0,<1.0.0             # 备选方案（需要 ffmpeg）
+
+# 文字转语音 (用于生成语音)
+edge-tts>=6.1.0,<7.0.0
+
 # 以下为标准库，无需安装：
 # - json
 # - os
