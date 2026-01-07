@@ -18,7 +18,36 @@ python auto_script_train.py
 
 # Extended version with 5 student personalities and multi-role concurrency
 python auto_script_train_5characters.py
+
+# WebSocket-based audio training platform tester
+python auto_audio_train.py
 ```
+
+### Skill Training Build (Markdown → Platform)
+
+```bash
+# Interactive mode (recommended)
+cd skill_training_build
+python create_task_from_markdown.py
+
+# With parameters
+python create_task_from_markdown.py <markdown_file_path> <task_id>
+```
+
+Creates script nodes and flow logic from Markdown training scripts:
+- Parses stage data (prompts, opening lines, model configs)
+- Auto-creates nodes via API
+- Auto-connects Start → Step 1 → Step 2 → ... → End
+- See `skill_training_build/README.md` for Markdown format
+
+### Homework Review
+
+```bash
+cd homework_review
+python homework_reviewer.py
+```
+
+Uploads homework files and submits them for AI review.
 
 ### Environment Setup
 
@@ -50,6 +79,14 @@ The `.claude/skills/` directory contains automated skills that generate training
 - Student profiles: S1 (silent), S2 (cooperative), S3 (perfectionist), S4 (disruptive), S5 (creative)
 - Supports concurrent multi-role execution for stress testing
 - Configurable LLM backends: Doubao SDK, Doubao POST API, DeepSeek SDK
+
+**`auto_audio_train.py`** - WebSocket-based audio training tester
+- Real-time audio streaming via WebSocket (`wss://cloudapi.polymas.com/ai-tools/ws/v2/trainFlow`)
+- TTS integration: edge-tts converts text → MP3 → PCM audio frames
+- Supports semi-interactive and manual modes
+- Three student profiles: excellent, needs guidance, off-topic
+- Logs conversations to `./audio_logs/`
+- **Important**: Default English voice (`en-US-GuyNeural`) doesn't support Chinese text. Change to `zh-CN-XiaoxiaoNeural` (line 252) for Chinese TTS.
 
 **`workflow_tester_base.py`** - Base class providing:
 - API interface to training platform (`queryScriptStepList`, `runCard`, `chat`)
