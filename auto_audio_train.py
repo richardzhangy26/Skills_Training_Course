@@ -10,6 +10,8 @@ import logging
 import io
 import os
 import sys
+import math
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
@@ -288,6 +290,9 @@ class TrainingClient:
         self.tts = TTSEngine()
         self.audio = AudioProcessor()
 
+        # WebSocket 发送互斥锁：避免音频帧与控制消息（nextStep/heartBeat 等）交错发送
+        self._ws_send_lock = asyncio.Lock()
+
         self.session_id = None
         self.step_id = None
         self.step_name = None
@@ -308,9 +313,22 @@ class TrainingClient:
 
         # 超时重试相关
         self.last_sent_text = None           # 记录最后发送的消息，用于重试
-        self.max_retries = 3                 # 最大重试次数
-        self.base_timeout = 90               # 基础超时时间（1.5分钟）
+        self.max_retries = int(os.getenv("MAX_RETRIES", "3"))  # 最大重试次数
+        self.base_timeout = float(os.getenv("BASE_TIMEOUT", "90"))  # 基础超时时间（秒）
         self.heartbeat_without_response = 0  # 无响应的心跳计数
+
+        # 音频发送控制：用于在 userAudioEnd/stepEnd/botAnswerStart 时提前停止发送，避免跨步骤串音触发再次识别
+        self._audio_stop_event: Optional[asyncio.Event] = None
+        self._audio_sending = False
+        self._audio_sending_done = asyncio.Event()
+        self._audio_sending_done.set()
+        self._next_step_task: Optional[asyncio.Task] = None
+
+        # Bot 回复超时控制：避免 botAnswerStart 后一直不结束导致永远不重试
+        self.bot_idle_timeout = float(os.getenv("BOT_IDLE_TIMEOUT", "45"))  # bot无输出超时（秒）
+        self.bot_total_timeout = float(os.getenv("BOT_TOTAL_TIMEOUT", "240"))  # bot回复总时长上限（秒）
+        self.bot_answer_started_at: Optional[float] = None
+        self.last_bot_activity_at: Optional[float] = None
 
         # 学生档位配置
         self.student_profile_key = "medium"  # 默认：需要引导的学生
@@ -350,7 +368,8 @@ class TrainingClient:
     
     async def send_json(self, event: str, payload: dict):
         msg = json.dumps({"event": event, "payload": payload})
-        await self.ws.send(msg)
+        async with self._ws_send_lock:
+            await self.ws.send(msg)
         log.info(f"📤 {event}: {json.dumps(payload, ensure_ascii=False)}")
     
     async def start_script(self):
@@ -369,19 +388,48 @@ class TrainingClient:
     async def send_heartbeat(self):
         await self.send_json("heartBeat", {})
     
+    def _request_stop_audio_sending(self, reason: str):
+        stop_event = self._audio_stop_event
+        if stop_event and not stop_event.is_set():
+            stop_event.set()
+            log.info(f"🛑 停止发送音频: {reason}")
+
     async def send_audio_frames(self, pcm_data: bytes):
-        frames = self.audio.create_frames(pcm_data)
-        audio_frames = len(frames) - AUDIO_CONFIG["silence_frames"]
-        
-        log.info(f"📤 发送: {audio_frames} 音频帧 + {AUDIO_CONFIG['silence_frames']} 静音帧")
-        
-        for frame in frames:
-            if not self.is_connected:
-                break
-            await self.ws.send(frame)
-            await asyncio.sleep(AUDIO_CONFIG["chunk_interval"])
-        
-        log.info("✅ 音频发送完成")
+        # 为本次发送创建 stop 事件（用于提前终止）
+        self._audio_stop_event = asyncio.Event()
+        stop_event = self._audio_stop_event
+
+        self._audio_sending = True
+        self._audio_sending_done.clear()
+
+        chunk_size = AUDIO_CONFIG["pcm_chunk_size"]
+        audio_frame_count = int(math.ceil(len(pcm_data) / chunk_size)) if pcm_data else 0
+
+        log.info(f"📤 发送: {audio_frame_count} 音频帧 + {AUDIO_CONFIG['silence_frames']} 静音帧(最多)")
+
+        try:
+            async with self._ws_send_lock:
+                # 先发送语音内容帧
+                for i in range(0, len(pcm_data), chunk_size):
+                    if not self.is_connected or stop_event.is_set():
+                        break
+
+                    pcm_chunk = pcm_data[i:i + chunk_size]
+                    await self.ws.send(self.audio.create_frame(pcm_chunk))
+                    await asyncio.sleep(AUDIO_CONFIG["chunk_interval"])
+
+                # 再发送静音帧（允许提前停止）
+                for _ in range(AUDIO_CONFIG["silence_frames"]):
+                    if not self.is_connected or stop_event.is_set():
+                        break
+
+                    await self.ws.send(self.audio.create_silence_frame())
+                    await asyncio.sleep(AUDIO_CONFIG["chunk_interval"])
+
+        finally:
+            self._audio_sending = False
+            self._audio_sending_done.set()
+            log.info("✅ 音频发送完成")
 
     def _call_doubao_post(self, messages, temperature=0.7, max_tokens=1000):
         """
@@ -502,11 +550,11 @@ class TrainingClient:
                 return answer
             else:
                 # 回退到简单回答
-                return "好的，我明白了。"
+                return "ok, i understand."
 
         except Exception as e:
             log.error(f"❌ 生成回答失败: {str(e)}")
-            return "好的"
+            return "ok, i understand."
 
     async def speak(self, text: str):
         self.last_sent_text = text  # 记录发送内容，用于重试
@@ -554,14 +602,20 @@ class TrainingClient:
             elif event == "botAnswerStart":
                 self.bot_speaking = True
                 self.current_bot_msg = ""
-                self.waiting_response = False  # Bot开始回复，响应已收到
+                # 注意：不要在这里设置 waiting_response = False
+                # 应该等到 botAnswerEnd 时才认为响应完成，确保 current_bot_msg 已完整接收
                 self.heartbeat_without_response = 0  # 重置心跳计数
+                self._request_stop_audio_sending("botAnswerStart")
+                now = time.monotonic()
+                self.bot_answer_started_at = now
+                self.last_bot_activity_at = now
                 log.info("🤖 Bot开始回复...")
 
             elif event == "botAnswer":
                 msg = payload.get("msg", "")
                 self.current_history_id = payload.get("historyId", "")
                 self.current_bot_msg += msg
+                self.last_bot_activity_at = time.monotonic()
                 
             elif event == "botAnswerEnd":
                 if self.current_bot_msg:
@@ -592,6 +646,8 @@ class TrainingClient:
                 self.bot_speaking = False
                 self.waiting_response = False
                 self.heartbeat_without_response = 0  # 重置心跳计数
+                self.bot_answer_started_at = None
+                self.last_bot_activity_at = time.monotonic()
 
             elif event == "userTextStart":
                 log.info("🎙️ ✅ 开始识别!")
@@ -613,6 +669,7 @@ class TrainingClient:
                 
             elif event == "userAudioEnd":
                 log.info(f"🔗 音频已保存")
+                self._request_stop_audio_sending("userAudioEnd")
                 
             elif event == "stepEnd":
                 # 关键：收到 stepEnd，从中获取 nextStepId
@@ -621,6 +678,9 @@ class TrainingClient:
                 next_step_name = payload.get("nextStepName", "")  # 尝试获取下一步骤名称
                 end_type = payload.get("endType", "")
                 step_desc = payload.get("stepDescription", "")
+
+                # step 结束说明服务器已经不再需要当前音频流，停止继续发送避免跨步骤触发识别
+                self._request_stop_audio_sending("stepEnd")
 
                 log.info(f"📍 步骤结束: {current_step}")
                 log.info(f"   结束类型: {end_type}")
@@ -634,7 +694,7 @@ class TrainingClient:
                     if next_step_name:
                         self.step_name = next_step_name
                     else:
-                        self.step_name = f"Step_{next_step_id}"
+                        self.step_name = current_step
 
                     # 轮次计数器不重置，持续累加
 
@@ -644,8 +704,10 @@ class TrainingClient:
                     # 清空缓存的用户消息（跨步骤不携带）
                     self.pending_user_message = None
 
-                    # 发送 nextStep 确认
-                    await self.send_next_step(next_step_id)
+                    # 发送 nextStep 确认（等待音频发送结束后再发，避免音频串到下一步触发再次识别）
+                    if self._next_step_task and not self._next_step_task.done():
+                        self._next_step_task.cancel()
+                    self._next_step_task = asyncio.create_task(self._send_next_step_safely(next_step_id))
                 else:
                     log.info("🏁 任务完成，没有下一步了！")
                     self.task_completed = True
@@ -654,9 +716,14 @@ class TrainingClient:
                 log.info("🎉 整个任务已完成！")
                 self.task_completed = True
                 self.waiting_response = False
+                self._request_stop_audio_sending("taskEnd")
                 
             elif event == "error":
                 log.error(f"❌ 错误: {payload}")
+                # 出错时尽量解锁等待状态，避免永远卡在 bot_speaking
+                self.bot_speaking = False
+                self.bot_answer_started_at = None
+                self.last_bot_activity_at = time.monotonic()
                 
         except json.JSONDecodeError:
             pass
@@ -668,28 +735,60 @@ class TrainingClient:
         except websockets.ConnectionClosed:
             self.is_connected = False
 
+    async def _send_next_step_safely(self, step_id: str):
+        """
+        等待当前音频发送结束后再发送 nextStep。
+        避免在发送音频帧过程中切步，导致剩余音频被当作下一步输入触发再次识别/卡死。
+        """
+        try:
+            await asyncio.wait_for(self._audio_sending_done.wait(), timeout=10)
+        except asyncio.TimeoutError:
+            log.warning("⚠️ 等待音频发送结束超时，仍尝试发送 nextStep")
+        await self.send_next_step(step_id)
+
     async def wait_for_response_with_retry(self, text: str) -> bool:
-        """等待服务器响应，90秒超时后自动重试"""
-        for attempt in range(self.max_retries + 1):
-            timeout = self.base_timeout  # 90秒
-            waited = 0
+        """等待服务器响应，超时后自动重试（但如果 Bot 正在回复则继续等待）"""
+        retry_count = 0
 
-            if attempt > 0:
-                log.warning(f"⚠️ 第 {attempt} 次重试...")
-                self.waiting_response = True
-                await self.speak(text)  # 重新发送
+        while retry_count <= self.max_retries:
+            timeout = self.base_timeout
+            start_wait = time.monotonic()
 
-            while self.waiting_response and waited < timeout:
+            while True:
                 await asyncio.sleep(0.5)
-                waited += 0.5
 
-            if not self.waiting_response:
-                return True  # 成功收到响应
+                # 响应已完成（botAnswerEnd 触发）
+                if not self.waiting_response:
+                    return True
 
-            log.warning(f"⏰ 等待 {timeout} 秒无响应")
+                now = time.monotonic()
+
+                # Bot 正在回复：如果长时间无输出/总时长过长，判定卡住，允许重试
+                if self.bot_speaking:
+                    if self.last_bot_activity_at and (now - self.last_bot_activity_at) >= self.bot_idle_timeout:
+                        log.warning(f"⚠️ Bot 已 {int(now - self.last_bot_activity_at)} 秒无输出，判定卡住")
+                        self.bot_speaking = False
+                        break
+                    if self.bot_answer_started_at and (now - self.bot_answer_started_at) >= self.bot_total_timeout:
+                        log.warning(f"⚠️ Bot 回复超过 {int(now - self.bot_answer_started_at)} 秒仍未结束，判定卡住")
+                        self.bot_speaking = False
+                        break
+                    continue
+
+                # 还没进入 botAnswerStart：按基础超时判断
+                if (now - start_wait) >= timeout:
+                    break
+
+            log.warning(f"⏰ 等待 {int(timeout)} 秒无响应")
+            retry_count += 1
+
+            if retry_count <= self.max_retries:
+                log.warning(f"⚠️ 第 {retry_count} 次重试...")
+                self.waiting_response = True
+                await self.speak(text)
 
         log.error(f"❌ 服务器无响应，已重试 {self.max_retries} 次")
-        self.waiting_response = False  # 重置状态，允许继续
+        self.waiting_response = False
         return False
 
     async def heartbeat_loop(self):
@@ -906,6 +1005,7 @@ async def main():
     print("2. 纯手动模式 - 只能手动输入")
 
     mode_choice = input("\n请输入选项 (1/2，默认 1): ").strip()
+    # mode_choice = "1"
 
     client = TrainingClient()
 
@@ -917,6 +1017,7 @@ async def main():
         print("3. 答非所问的学生 - 容易跑题或误解")
 
         profile_choice = input("\n请输入选项 (1/2/3，默认 2): ").strip()
+        # profile_choice = "2"
 
         profile_map = {
             "1": "good",
