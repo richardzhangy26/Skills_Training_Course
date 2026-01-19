@@ -1033,7 +1033,7 @@ class WorkflowTester(WorkflowTesterBase):
                     print("\n✅ 工作流完成！没有更多步骤了。")
                     break
 
-                if round_num > 50:
+                if round_num > 80:
                     print(f"\n⚠️  警告：已达到最大对话轮数（{round_num}轮），自动退出防止无限循环")
                     break
 
@@ -1171,7 +1171,7 @@ class WorkflowTester(WorkflowTesterBase):
                     break
 
                 # 安全检查：防止无限循环
-                if round_num > 50:
+                if round_num > 80:
                     print(f"\n⚠️  警告：已达到最大对话轮数（{round_num}轮），自动退出防止无限循环")
                     break
 
