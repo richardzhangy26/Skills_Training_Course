@@ -500,6 +500,25 @@ class WorkflowTesterBase:
             print(f"❌ 网络连接失败: {str(e)}")
             return False
 
+    def _query_first_step_from_flow(self, task_id: str) -> Optional[str]:
+        """通过 flowList 接口获取第一个步骤 ID（更可靠）"""
+        url = f"{self.base_url}/teacher-course/abilityTrain/queryScriptStepFlowList"
+        payload = {"trainTaskId": task_id}
+
+        timeout = getattr(self, "base_timeout", 60)
+        try:
+            response = self._post_json(url, payload, timeout=timeout)
+            result = response.json()
+
+            if result.get("code") == 200 and result.get("success"):
+                data = result.get("data") or []
+                if data:
+                    # data[0].scriptStepEndId 是开始节点连接的第一个真实步骤
+                    return data[0].get("scriptStepEndId")
+        except Exception:
+            pass  # 失败时回退到原有逻辑
+        return None
+
     def query_script_step_list(self, task_id: str) -> str:
         """Get step list and return the first real stepId."""
         url = f"{self.base_url}/teacher-course/abilityTrain/queryScriptStepList"
@@ -531,8 +550,14 @@ class WorkflowTesterBase:
                     if self.step_name_mapping:
                         print(f"✅ 已加载 {len(self.step_name_mapping)} 个步骤名称映射")
 
-                first_idx = 2 if len(data) > 2 else 0
-                first_step_id = data[first_idx].get("stepId")
+                # 优先通过 flowList 接口获取正确的第一个步骤
+                first_step_id = self._query_first_step_from_flow(task_id)
+
+                # 回退逻辑：如果 flowList 失败，使用原有方式
+                if not first_step_id:
+                    first_idx = 2 if len(data) > 2 else 0
+                    first_step_id = data[first_idx].get("stepId")
+
                 first_step_name = self._get_step_display_name(first_step_id)
                 print(f"✅ 获取到第一个步骤: {first_step_name} ({first_step_id})")
                 return first_step_id
@@ -572,6 +597,14 @@ class WorkflowTesterBase:
                 if self.question_text:
                     print(f"\n📝 AI 说: {self.question_text}")
                     self._log_dialogue_entry(step_id, ai_text=self.question_text, source="runCard")
+
+                # 处理交互轮数为0的情况：needSkipStep=true 时自动跳到下一步
+                need_skip = data.get("needSkipStep", False)
+                next_step_id = data.get("nextStepId")
+                if need_skip and next_step_id:
+                    print(f"\n⏭️  当前步骤无需交互，自动跳转到下一步骤: {next_step_id}")
+                    self.current_step_id = next_step_id
+                    return self.run_card(task_id, next_step_id, self.session_id)
 
                 return result
 
