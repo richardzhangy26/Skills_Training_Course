@@ -269,6 +269,38 @@ AUDIO_BACKEND=auto  # miniaudio / pydub / auto（默认）
 
 ---
 
+## 作业批改工具 (Homework Review)
+
+自动化作业上传与 AI 批改工具，支持上传作业文件并调用智能体进行自动批改。
+
+*   **路径**: `homework_review/`
+*   **功能**:
+    *   上传作业文件（支持 PDF、Word、图片等格式）
+    *   调用 AI 智能体自动批改作业
+    *   输出批改结果
+
+### 环境变量配置
+![InstanceId获取](./README/InstanceId获取.png)
+```ini
+# 平台认证信息
+AUTHORIZATION=eyJ0eXAiOiJKV1Q...  # JWT token
+COOKIE=hike-polymas-identity=1;...  # 完整 cookie 字符串
+
+# 作业批改智能体实例 ID
+INSTANCE_NID=xxx
+```
+
+### 运行方式
+
+```bash
+cd homework_review
+python homework_reviewer.py
+```
+
+详细使用说明请参考：[Homework Review README](./homework_review/README.md)
+
+---
+
 ## 技能实训构建工具 (Skill Training Build)
 
 自动化生成能力训练任务（Training Task）的脚本节点（Steps）和流转逻辑（Flows）。
@@ -280,3 +312,5 @@ AUDIO_BACKEND=auto  # miniaudio / pydub / auto（默认）
     *   自动连接流程（目前只支持顺序流，条件流后续再增加）。
 
 详细使用说明请参考：[Skill Training Build README](./skill_training_build/README.md)
+
+# Change Log
