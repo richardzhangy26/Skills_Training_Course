@@ -3,6 +3,7 @@ import json
 import json.decoder
 import os
 import tempfile
+import time
 import uuid
 from collections import defaultdict
 from datetime import datetime
@@ -44,6 +45,31 @@ def load_env_config():
     raise FileNotFoundError("未找到.env配置文件，请在当前目录或上级目录创建.env文件")
 
 
+def safe_json_loads(value):
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
+def extract_writing_requirement(detail: dict) -> str:
+    business_config = safe_json_loads(detail.get("businessConfig"))
+    writing_requirement = ""
+    if isinstance(business_config, dict):
+        composition = business_config.get("compositionRequirement") or {}
+        writing_requirement = composition.get("writingRequirement") or ""
+        if not writing_requirement:
+            requirement_file = composition.get("requirementFile") or {}
+            writing_requirement = requirement_file.get("content") or ""
+    if not writing_requirement:
+        writing_requirement = detail.get("desc") or ""
+    return writing_requirement
+
+
 def fetch_instance_details(instance_nid: str):
     """通过 agent/details 接口获取作业信息"""
     url = "https://cloudapi.polymas.com/agents/v1/agent/details"
@@ -76,38 +102,47 @@ def fetch_instance_details(instance_nid: str):
         )
         result = response.json()
     except json.decoder.JSONDecodeError:
-        print(f"❌ 获取USER_ID失败，状态码：{response.status_code}")
+        print(f"❌ 获取作业信息失败，状态码：{response.status_code}")
         print("响应内容（非JSON格式，可能为服务端错误页）：", response.text)
         return None
     except Exception as e:
-        print(f"❌ 获取USER_ID异常：{str(e)}")
+        print(f"❌ 获取作业信息异常：{str(e)}")
         return None
 
     if not result.get('success'):
-        print(f"❌ 获取USER_ID失败：{result.get('msg')}")
+        print(f"❌ 获取作业信息失败：{result.get('msg')}")
         return None
 
     instance_details = result.get('data', {}).get('instanceDetails', [])
     if not instance_details:
-        print("❌ 获取USER_ID失败：instanceDetails 为空")
+        print("❌ 获取作业信息失败：instanceDetails 为空")
         return None
 
     detail = instance_details[0] or {}
     user_id = detail.get('userId')
+    agent_id = detail.get('agentNid') or detail.get('agentId')
     if not user_id:
-        print("❌ 获取USER_ID失败：响应中未找到 userId")
+        print("❌ 获取作业信息失败：响应中未找到 userId")
         return None
+    if not agent_id:
+        print("❌ 获取作业信息失败：响应中未找到 agentNid")
+        return None
+
+    writing_requirement = extract_writing_requirement(detail)
 
     return {
         "user_id": user_id,
+        "agent_id": agent_id,
         "instance_name": detail.get("instanceName", ""),
         "desc": detail.get("desc", ""),
+        "writing_requirement": writing_requirement,
+        "version": detail.get("version") or 2,
     }
 
 
-def ensure_user_id():
-    """通过接口获取 USER_ID（仅当前进程使用，不写回.env）"""
-    instance_nid = os.getenv('INSTANCE_NID', '').strip()
+def ensure_instance_context():
+    """通过接口获取实例信息（仅当前进程使用，不写回.env）"""
+    instance_nid = os.getenv('INSTANCE_NID', '').strip().strip('"').strip("'")
     if not instance_nid:
         print("❌ 未找到INSTANCE_NID环境变量，请在.env文件中配置INSTANCE_NID")
         return None
@@ -116,8 +151,27 @@ def ensure_user_id():
     if not details:
         return None
 
-    print(f"✅ 已获取USER_ID: {details['user_id']}")
-    return details
+    user_id = details.get("user_id") or os.getenv("USER_ID", "").strip().strip('"').strip("'")
+    agent_id = details.get("agent_id") or os.getenv("AGENT_ID", "").strip().strip('"').strip("'")
+    if not user_id:
+        print("❌ 未获取到 userId，请检查 INSTANCE_NID 是否正确")
+        return None
+    if not agent_id:
+        print("❌ 未获取到 agentId，请检查 INSTANCE_NID 是否正确")
+        return None
+
+    print(f"✅ 已获取USER_ID: {user_id}")
+    print(f"✅ 已获取AGENT_ID: {agent_id}")
+
+    return {
+        "instance_nid": instance_nid,
+        "user_id": user_id,
+        "agent_id": agent_id,
+        "writing_requirement": details.get("writing_requirement", ""),
+        "version": details.get("version") or 2,
+        "instance_name": details.get("instance_name", ""),
+        "desc": details.get("desc", ""),
+    }
 
 
 def upload_file(file_path):
@@ -208,14 +262,17 @@ def upload_file(file_path):
         return None
 
 
-def execute_agent(file_list, user_id: Optional[str] = None):
-    """
-    调用 agent API 执行作业批改
+def is_success_response(result: dict) -> bool:
+    if not isinstance(result, dict):
+        return False
+    if "success" in result:
+        return bool(result.get("success"))
+    return result.get("code") == 200
 
-    Args:
-        file_list: 包含 fileName 和 fileUrl 的字典列表
-    """
-    url = "https://cloudapi.polymas.com/agents/v1/execute/agent"
+
+def fetch_task_result(task_id: str, context: dict):
+    """轮询获取任务结果"""
+    url = "https://cloudapi.polymas.com/agents/v1/get/task"
 
     authorization = os.getenv('AUTHORIZATION')
     cookie = os.getenv('COOKIE')
@@ -231,13 +288,204 @@ def execute_agent(file_list, user_id: Optional[str] = None):
     }
 
     payload = {
+        "taskId": task_id,
         "metadata": {
-            "instanceNid": os.getenv("INSTANCE_NID",""),
-            "version": 1,
+            "instanceNid": context.get("instance_nid", "")
+        }
+    }
+
+    try:
+        response = requests.post(
+            url,
+            headers=headers,
+            data=json.dumps(payload, ensure_ascii=False).encode('utf-8')
+        )
+        try:
+            result = response.json()
+        except json.decoder.JSONDecodeError:
+            return False, {
+                "status_code": response.status_code,
+                "text": response.text
+            }
+
+        return is_success_response(result), result
+
+    except Exception as e:
+        return False, {"error": str(e)}
+
+
+def poll_task_until_complete(task_id: str, context: dict, interval_seconds: int = 2, timeout_seconds: int = 180):
+    start_time = time.monotonic()
+    last_result = None
+
+    while True:
+        success, result = fetch_task_result(task_id, context)
+        last_result = result
+
+        if success and isinstance(result, dict):
+            data = result.get("data") or {}
+            if isinstance(data, dict):
+                if data.get("artifacts"):
+                    return True, result
+                status = data.get("status") or {}
+                state = status.get("state")
+                if state == "completed":
+                    return True, result
+                if state in {"failed", "error", "cancelled"}:
+                    return False, result
+        else:
+            return False, result
+
+        if time.monotonic() - start_time >= timeout_seconds:
+            return False, {
+                "error": "任务超时",
+                "taskId": task_id,
+                "last_response": last_result
+            }
+
+        time.sleep(interval_seconds)
+
+
+def normalize_text_input(raw_data) -> Optional[str]:
+    parsed = raw_data
+    if isinstance(raw_data, str):
+        try:
+            parsed = json.loads(raw_data)
+        except json.JSONDecodeError:
+            return raw_data
+
+    if isinstance(parsed, dict) and "content" in parsed:
+        items = parsed.get("content") or []
+        return json.dumps(_normalize_content_items(items), ensure_ascii=False)
+
+    if isinstance(parsed, list):
+        return json.dumps(_normalize_content_items(parsed), ensure_ascii=False)
+
+    if isinstance(parsed, dict):
+        return json.dumps(parsed, ensure_ascii=False)
+
+    return str(parsed) if parsed is not None else None
+
+
+def _normalize_content_items(items) -> list:
+    normalized = []
+    if not isinstance(items, list):
+        return normalized
+
+    for item in items:
+        if isinstance(item, dict):
+            normalized.append(
+                {
+                    "itemId": item.get("itemId") or item.get("item_id") or "",
+                    "itemName": item.get("itemName") or item.get("item_name") or "",
+                    "stuAnswerContent": item.get("stuAnswerContent")
+                    or item.get("stu_answer_content")
+                    or item.get("content")
+                    or "",
+                }
+            )
+        else:
+            normalized.append(
+                {
+                    "itemId": "",
+                    "itemName": "",
+                    "stuAnswerContent": str(item),
+                }
+            )
+
+    return normalized
+
+
+def homework_file_analysis(file_info: dict, context: dict):
+    """调用 homeworkFileAnalysis 接口解析作业文件"""
+    url = "https://cloudapi.polymas.com/agents/v1/file/homeworkFileAnalysis"
+
+    authorization = os.getenv('AUTHORIZATION')
+    cookie = os.getenv('COOKIE')
+    if not authorization:
+        return False, {"error": "未找到AUTHORIZATION环境变量，请在.env文件中配置AUTHORIZATION"}, None
+    if not cookie:
+        return False, {"error": "未找到COOKIE环境变量，请在.env文件中配置COOKIE"}, None
+
+    headers = {
+        "Content-Type": "application/json; charset=utf-8",
+        "Authorization": authorization,
+        "Cookie": cookie
+    }
+
+    payload = {
+        "agentId": context.get("agent_id", ""),
+        "instanceNid": context.get("instance_nid", ""),
+        "userNid": context.get("user_id", ""),
+        "version": context.get("version") or 2,
+        "writingRequirement": context.get("writing_requirement", ""),
+        "activeMode": "upload",
+        "editorContent": "",
+        "fileList": [file_info],
+    }
+
+    try:
+        response = requests.post(
+            url,
+            headers=headers,
+            data=json.dumps(payload, ensure_ascii=False).encode('utf-8')
+        )
+
+        try:
+            result = response.json()
+        except json.decoder.JSONDecodeError:
+            return False, {
+                "status_code": response.status_code,
+                "text": response.text
+            }, None
+
+        if not is_success_response(result):
+            return False, result, None
+
+        text_input = normalize_text_input(result.get("data"))
+        if not text_input:
+            return False, {"error": "解析成功但未提取到可用的 textInput", "response": result}, None
+
+        return True, result, text_input
+
+    except Exception as e:
+        return False, {"error": str(e)}, None
+
+
+def execute_agent_text(text_input: str, context: dict):
+    """调用 agent API 执行作业批改（TEXT_INPUT）"""
+    url = "https://cloudapi.polymas.com/agents/v1/execute/agent"
+
+    authorization = os.getenv('AUTHORIZATION')
+    cookie = os.getenv('COOKIE')
+    if not authorization:
+        return False, {"error": "未找到AUTHORIZATION环境变量，请在.env文件中配置AUTHORIZATION"}
+    if not cookie:
+        return False, {"error": "未找到COOKIE环境变量，请在.env文件中配置COOKIE"}
+
+    headers = {
+        "Content-Type": "application/json; charset=utf-8",
+        "Authorization": authorization,
+        "Cookie": cookie
+    }
+
+    user_id = context.get("user_id") or os.getenv("USER_ID", "")
+    instance_nid = context.get("instance_nid") or os.getenv("INSTANCE_NID", "")
+    if not user_id:
+        return False, {"error": "未获取到userId，请检查INSTANCE_NID"}
+    if not instance_nid:
+        return False, {"error": "未获取到instanceNid，请检查INSTANCE_NID"}
+
+    if not isinstance(text_input, str):
+        text_input = json.dumps(text_input, ensure_ascii=False)
+
+    payload = {
+        "metadata": {
             "dimension": "NONE",
-            "userIds": [
-                user_id if user_id else os.getenv("USER_ID","")
-            ]
+            "instanceNid": instance_nid,
+            "userIds": [user_id],
+            "version": context.get("version") or 2,
+            "async": True
         },
         "sendParams": {
             "message": {
@@ -246,8 +494,10 @@ def execute_agent(file_list, user_id: Optional[str] = None):
                     {
                         "kind": "data",
                         "data": {
-                            "submitType": "FILE_UPLOAD",
-                            "fileList": file_list
+                            "writingRequirement": context.get("writing_requirement", ""),
+                            "fileList": None,
+                            "textInput": text_input,
+                            "submitType": "TEXT_INPUT"
                         }
                     }
                 ]
@@ -270,13 +520,25 @@ def execute_agent(file_list, user_id: Optional[str] = None):
                 "text": response.text
             }
 
-        success_flag = result.get('success')
-        if success_flag is None:
-            success_flag = result.get('code') == 200
-        return bool(success_flag), result
+        return is_success_response(result), result
 
     except Exception as e:
         return False, {"error": str(e)}
+
+
+def execute_agent_text_with_poll(text_input: str, context: dict, interval_seconds: int = 2, timeout_seconds: int = 180):
+    success, result = execute_agent_text(text_input, context)
+    if not success:
+        return False, result
+
+    data = result.get("data") if isinstance(result, dict) else None
+    if isinstance(data, dict) and data.get("kind") == "task":
+        task_id = data.get("id")
+        if not task_id:
+            return False, {"error": "未获取到taskId", "response": result}
+        return poll_task_until_complete(task_id, context, interval_seconds, timeout_seconds)
+
+    return success, result
 
 
 def normalize_input_path(path_str: str) -> Path:
@@ -293,6 +555,21 @@ def collect_files_from_folder(folder_path: Path):
     if not folder_path.exists() or not folder_path.is_dir():
         return []
     return sorted([p for p in folder_path.iterdir() if p.is_file() and not p.name.startswith('.')])
+
+
+def save_analysis_result(output_dir: Path, file_info: dict, result: dict, text_input: str):
+    """保存 homeworkFileAnalysis 结果"""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / "analysis.json"
+    payload = {
+        "fileName": file_info.get("fileName"),
+        "fileUrl": file_info.get("fileUrl"),
+        "savedAt": datetime.now().isoformat(timespec="seconds"),
+        "textInput": text_input,
+        "response": result
+    }
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+    return output_path
 
 
 def save_result(output_dir: Path, file_info: dict, attempt_index: int, attempt_total: int, success: bool, result: dict):
@@ -366,10 +643,17 @@ def generate_pdf_report(result: dict, output_path: Path):
         return False
 
 
+def can_generate_pdf(result: dict) -> bool:
+    if not isinstance(result, dict):
+        return False
+    data = result.get("data")
+    return isinstance(data, dict) and "artifacts" in data
+
+
 def save_output(output_dir: Path, file_info: dict, attempt_index: int, attempt_total: int, success: bool, result: dict, output_format: str):
     """根据输出格式保存结果"""
     if output_format == "pdf":
-        if not success:
+        if not success or not can_generate_pdf(result):
             reason = result.get("msg") or result.get("error")
             status_code = result.get("status_code")
             code = result.get("code")
@@ -384,7 +668,7 @@ def save_output(output_dir: Path, file_info: dict, attempt_index: int, attempt_t
             if reason:
                 extra.append(f"reason={reason}")
             detail = f" ({', '.join(extra)})" if extra else ""
-            print(f"⚠️ 结果失败，跳过PDF生成: {file_info.get('fileName')}{detail}")
+            print(f"⚠️ 结果失败或不支持PDF，跳过PDF生成: {file_info.get('fileName')}{detail}")
             return None
         output_path = output_dir / f"attempt_{attempt_index:02d}.pdf"
         ok = generate_pdf_report(result, output_path)
@@ -546,14 +830,19 @@ async def async_upload_file(file_path: str, semaphore: asyncio.Semaphore):
         return await asyncio.to_thread(upload_file, file_path)
 
 
-async def async_execute_agent(file_info: dict, user_id: Optional[str], semaphore: asyncio.Semaphore):
+async def async_homework_analysis(file_info: dict, context: dict, semaphore: asyncio.Semaphore):
     async with semaphore:
-        return await asyncio.to_thread(execute_agent, [file_info], user_id)
+        return await asyncio.to_thread(homework_file_analysis, file_info, context)
 
 
-async def evaluate_and_save(file_path: Path, file_info: dict, user_id: Optional[str], output_dir: Path, attempt_index: int, attempt_total: int, output_format: str, semaphore: asyncio.Semaphore):
+async def async_execute_agent_text(text_input: str, context: dict, semaphore: asyncio.Semaphore):
+    async with semaphore:
+        return await asyncio.to_thread(execute_agent_text_with_poll, text_input, context)
+
+
+async def evaluate_and_save(file_path: Path, file_info: dict, text_input: str, context: dict, output_dir: Path, attempt_index: int, attempt_total: int, output_format: str, semaphore: asyncio.Semaphore):
     print(f"⏳ 批改中: {file_info['fileName']} ({attempt_index}/{attempt_total})")
-    success, result = await async_execute_agent(file_info, user_id, semaphore)
+    success, result = await async_execute_agent_text(text_input, context, semaphore)
     output_path = save_output(output_dir, file_info, attempt_index, attempt_total, success, result, output_format)
     if output_path:
         print(f"✅ 完成: {file_info['fileName']} ({attempt_index}/{attempt_total}) -> {output_path}")
@@ -568,7 +857,7 @@ async def evaluate_and_save(file_path: Path, file_info: dict, user_id: Optional[
     }
 
 
-async def run_batch(file_paths, attempts: int, user_id: Optional[str], output_root: Optional[Path], output_format: str, max_concurrency: int = 5):
+async def run_batch(file_paths, attempts: int, context: dict, output_root: Optional[Path], output_format: str, max_concurrency: int = 5):
     semaphore = asyncio.Semaphore(max_concurrency)
 
     upload_tasks = [async_upload_file(str(path), semaphore) for path in file_paths]
@@ -585,26 +874,57 @@ async def run_batch(file_paths, attempts: int, user_id: Optional[str], output_ro
 
     print(f"\n✅ 成功上传 {len(file_infos)} 个文件，共 {len(file_paths)} 个")
 
-    tasks = []
-    for path, file_info in file_infos:
+    analysis_tasks = [async_homework_analysis(file_info, context, semaphore) for _, file_info in file_infos]
+    analysis_results = await asyncio.gather(*analysis_tasks)
+
+    prepared_files = []
+    for (path, file_info), (success, analysis_result, text_input) in zip(file_infos, analysis_results):
+        if not success or not text_input:
+            reason = "解析失败"
+            if isinstance(analysis_result, dict):
+                reason = analysis_result.get("msg") or analysis_result.get("error") or reason
+            print(f"❌ 解析失败: {file_info.get('fileName')} ({reason})")
+            continue
+
         file_root = output_root if output_root else (path.parent / "review_results")
         file_output_dir = file_root / path.stem
         file_output_dir.mkdir(parents=True, exist_ok=True)
+        analysis_path = save_analysis_result(file_output_dir, file_info, analysis_result, text_input)
+        print(f"✅ 解析完成: {file_info.get('fileName')} -> {analysis_path}")
+
+        prepared_files.append((path, file_info, text_input, file_output_dir))
+
+    if not prepared_files:
+        print("\n❌ 没有成功解析的文件，无法执行批改")
+        return
+
+    tasks = []
+    for path, file_info, text_input, file_output_dir in prepared_files:
         for attempt_index in range(1, attempts + 1):
             tasks.append(
-                evaluate_and_save(path, file_info, user_id, file_output_dir, attempt_index, attempts, output_format, semaphore)
+                evaluate_and_save(
+                    path,
+                    file_info,
+                    text_input,
+                    context,
+                    file_output_dir,
+                    attempt_index,
+                    attempts,
+                    output_format,
+                    semaphore
+                )
             )
 
     results = await asyncio.gather(*tasks)
     success_count = sum(1 for item in results if item and item.get("success"))
     print(f"\n✅ 已完成 {len(results)} 次测评（成功 {success_count}）")
-    generate_excel_summary(results, [item[0] for item in file_infos], attempts, output_root)
+    generate_excel_summary(results, [item[0] for item in prepared_files], attempts, output_root)
 
 
 def main():
     """主函数：处理用户交互和文件上传"""
     print("=" * 60)
-    print("作业批改系统 - 文件上传与批改")
+    print("作业批改系统 - v2 (上传 -> 解析 -> 批改)")
     print("=" * 60)
 
     # 加载环境配置
@@ -614,14 +934,13 @@ def main():
         print(f"\n❌ {e}")
         return
 
-    # 自动获取 USER_ID（不写回.env）
-    details = ensure_user_id()
-    if not details:
+    # 自动获取实例信息（不写回.env）
+    context = ensure_instance_context()
+    if not context:
         return
-    user_id = details["user_id"]
 
-    instance_name = (details.get("instance_name") or "").strip()
-    desc = (details.get("desc") or "").strip()
+    instance_name = (context.get("instance_name") or "").strip()
+    desc = (context.get("desc") or "").strip()
     if instance_name or desc:
         print("\n📌 作业信息：")
         if instance_name:
@@ -677,13 +996,13 @@ def main():
 
     print("\n请选择报告格式：")
     print("1) JSON 报告（默认,生成速度快）")
-    print("2) PDF 报告（生成慢，但是好看）")
+    print("2) PDF 报告（需要完整评分结果）")
     report_choice = input("请输入选项 (1/2): ").strip().lower()
     output_format = "pdf" if report_choice in {"2", "pdf"} else "json"
 
     print(f"\n📂 共需要上传 {len(file_paths)} 个文件，每个文件测评 {attempts} 次，输出格式: {output_format}\n")
 
-    asyncio.run(run_batch(file_paths, attempts, user_id, output_root, output_format))
+    asyncio.run(run_batch(file_paths, attempts, context, output_root, output_format))
 
 
 if __name__ == "__main__":
