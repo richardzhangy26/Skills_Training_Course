@@ -294,8 +294,10 @@ INSTANCE_NID=xxx
 
 ```bash
 cd homework_review
-python homework_reviewer.py
+python homework_reviewer_v2.py
 ```
+
+如需使用旧流程可运行：`python homework_reviewer.py`
 
 详细使用说明请参考：[Homework Review README](./homework_review/README.md)
 
