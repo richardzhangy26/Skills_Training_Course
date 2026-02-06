@@ -28,8 +28,16 @@ INSTANCE_NID=xxx
    python homework_reviewer.py
    ```
 
+3. 输入要批改的文件或文件夹路径，程序会自动识别类型：
 
-3. 按提示输入要批改的作业文件或者文件夹路径（支持 PDF、Word、图片等格式）
+   - **文件夹路径**：自动扫描文件夹中的所有文件，结果保存到 `文件夹/review_results/`（推荐）
+   - **单个文件路径**：直接上传该文件，结果保存到 `文件所在目录/review_results/`
+   - **多个路径（逗号分隔）**：支持文件和文件夹混合输入，如 `/path/to/file1.png,/path/to/folder`
+
+   ```
+   路径: /path/to/homework_folder
+   📁 检测到文件夹，已扫描到 12 个文件
+   ```
 
 * 文件夹中含有多个学生档位的答案 （推荐） 
 ![文件夹上传](../README/文件夹上传.png)
