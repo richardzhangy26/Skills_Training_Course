@@ -277,7 +277,8 @@ AUDIO_BACKEND=auto  # miniaudio / pydub / auto（默认）
 *   **功能**:
     *   上传作业文件（支持 PDF、Word、图片等格式）
     *   调用 AI 智能体自动批改作业
-    *   输出批改结果
+    *   自动检测智能体类型（题卷/语言写作/论文报告）
+    *   输出批改结果（JSON 或 PDF）
 
 ### 环境变量配置
 ![InstanceId获取](./README/InstanceId获取.png)
@@ -296,6 +297,11 @@ INSTANCE_NID=xxx
 cd homework_review
 python homework_reviewer_v2.py
 ```
+
+输入文件或文件夹路径，程序自动识别：
+- **文件夹**：扫描所有文件，结果保存到 `文件夹/review_results/`
+- **单个文件**：直接上传，结果保存到 `文件所在目录/review_results/`
+- **逗号分隔多路径**：文件与文件夹可混合输入
 
 如需使用旧流程可运行：`python homework_reviewer.py`
 
