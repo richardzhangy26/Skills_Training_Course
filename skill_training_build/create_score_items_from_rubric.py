@@ -40,8 +40,8 @@ from dotenv import load_dotenv
 def load_env_config():
     current_dir = Path(__file__).parent
     env_paths = [
-        current_dir / ".env",
         current_dir.parent / ".env",
+        current_dir / ".env",
         Path.cwd() / ".env",
     ]
     for path in env_paths:
