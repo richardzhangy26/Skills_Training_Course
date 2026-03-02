@@ -33,6 +33,9 @@ homework_review/document
 .DS_Store
 **/.DS_Store
 
+# IDE files
+.trae/
+
 # Temporary and log files
 *.log
 conversation_log.json
