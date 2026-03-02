@@ -25,7 +25,9 @@ log/
 test/
 audio_logs/
 logs/
-__pycache__
+__pycache__/
+*.pyc
+*.pyo
 .temp
 homework_review/document
 
