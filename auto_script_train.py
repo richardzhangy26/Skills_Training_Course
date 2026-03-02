@@ -1328,7 +1328,14 @@ if __name__ == "__main__":
 
     elif choice == "3":
         print("\n🤖 使用 Doubao 模型自主回答模式")
-        tester.prompt_student_profile()
+        # 支持通过环境变量指定学生档位，实现完全自动化
+        env_profile = os.getenv("STUDENT_PROFILE")
+        if env_profile and env_profile in tester.STUDENT_PROFILES:
+            tester.student_profile_key = env_profile
+            profile_label = tester.STUDENT_PROFILES[env_profile].get("label", env_profile)
+            print(f"✅ 从环境变量读取学生档位: {profile_label} ({env_profile})")
+        else:
+            tester.prompt_student_profile()
 
         dialogue_path = input("\n可选: 输入学生档位模拟对话 Markdown 路径（直接回车跳过）: ").strip()
         if dialogue_path:
