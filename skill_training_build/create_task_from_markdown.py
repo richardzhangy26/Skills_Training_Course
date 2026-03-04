@@ -14,8 +14,8 @@ def load_env_config():
     """Load .env configuration."""
     current_dir = Path(__file__).parent
     env_paths = [
-        current_dir / '.env',
         current_dir.parent / '.env',
+        current_dir / '.env',
         Path.cwd() / '.env'
     ]
     for path in env_paths:
@@ -247,7 +247,7 @@ def create_script_step(train_task_id, step_data, position):
             "stepName": step_data.get('stepName', ''),
             "description": step_data.get('description', ''),
             "prologue": step_data.get('prologue', ''),
-            "modelId": step_data.get('modelId') or os.getenv('DEFAULT_MODEL_ID') or 'Doubao-Seed-1.6-flash',
+            "modelId": step_data.get('modelId') or os.getenv('DEFAULT_MODEL_ID') or 'Doubao-Seed-1.6',
             "llmPrompt": step_data.get('llmPrompt', ''),
             "trainerName": step_data.get('trainerName', ''),
             "interactiveRounds": step_data.get('interactiveRounds', 0),
@@ -441,6 +441,17 @@ def delete_existing_steps_and_flows(train_task_id, steps, flows):
                 ok = False
     return ok
 
+def find_flow_to_step(flows, target_step_id):
+    """找到指向目标节点的流程（target_step_id 作为终点）"""
+    for flow in flows:
+        if flow.get('scriptStepEndId') == target_step_id:
+            return flow
+    return None
+
+def find_flows_from_step(flows, source_step_id):
+    """找到从源节点出发的所有流程"""
+    return [f for f in flows if f.get('scriptStepStartId') == source_step_id]
+
 def main():
     load_env_config()
     
@@ -504,9 +515,38 @@ def main():
             start_node_id, end_node_id = extract_start_end_ids(step_list)
             if not start_node_id or not end_node_id:
                 print("⚠️ 删除后未找到 SCRIPT_START 或 SCRIPT_END 节点。")
+            # 重置插入模式变量
+            insert_after_step_id = None
+            insert_after_step_name = None
         else:
-            print("ℹ️ 已保留现有节点，停止以避免重复创建。")
-            return
+            # 显示现有节点列表供用户选择
+            print("\n📋 现有节点列表:")
+            for i, item in enumerate(existing_steps):
+                name = item.get('stepDetailDTO', {}).get('stepName', '未命名步骤')
+                print(f"  [{i+1}] {name}")
+            print(f"  [0] 在 START 节点后插入（作为第一个节点）")
+
+            # 获取用户选择
+            while True:
+                choice = input("\n请选择要在哪个节点后面插入新节点 (输入编号): ").strip()
+                try:
+                    idx = int(choice)
+                    if 0 <= idx <= len(existing_steps):
+                        break
+                    print(f"⚠️ 请输入 0 到 {len(existing_steps)} 之间的数字")
+                except ValueError:
+                    print("⚠️ 请输入有效的数字")
+
+            if idx == 0:
+                insert_after_step_id = start_node_id
+                insert_after_step_name = "START"
+            else:
+                insert_after_step_id = existing_steps[idx-1].get('stepId')
+                insert_after_step_name = existing_steps[idx-1].get('stepDetailDTO', {}).get('stepName', '未命名步骤')
+
+    else:
+        insert_after_step_id = None
+        insert_after_step_name = None
 
     # 2. Parse
     print(f"📖 Parsing {target_md}...")
@@ -514,8 +554,12 @@ def main():
     if not steps:
         print("❌ No steps found in markdown.")
         return
-    
+
     print(f"Found {len(steps)} steps.")
+
+    # 显示插入确认信息
+    if insert_after_step_id:
+        print(f"✅ 将在「{insert_after_step_name}」后面插入 {len(steps)} 个新节点")
 
     # 3. Create Nodes
     # Map: Step Index (0-based) -> New Step ID
@@ -556,40 +600,78 @@ def main():
             return
 
     # 4. Create Flows
-    print("\n🔗 Creating Flows (Sequential Match)...")
-    
-    # 4.1 Link START -> Step 1
-    if start_node_id and len(steps) > 0:
-        print(f"   Linking Task Start ({start_node_id}) -> Step 1 ({steps[0].get('stepName')})")
-        # User requested no flow condition for start -> step1
-        create_script_flow(train_task_id, start_node_id, created_steps_map[0], "", "")
-    
-    # 4.2 Link Step 1 -> Step 2 -> ... -> Step N
-    for i in range(len(steps) - 1):
-        current_step_id = created_steps_map.get(i)
-        next_step_id = created_steps_map.get(i+1)
-        
-        source_step_detail = steps[i]
-        target_step_detail = steps[i+1]
-        
-        # Condition from current step, fallback to target stepName
-        condition = source_step_detail.get('flowCondition') or target_step_detail.get('stepName', '下一步')
-        transition_prompt = source_step_detail.get('transitionPrompt', '')
+    print("\n🔗 Creating Flows...")
 
-        print(f"   Linking Step {i+1} ({source_step_detail.get('stepName')}) -> Step {i+2} ({target_step_detail.get('stepName')}) with Condition: '{condition}'")
-        create_script_flow(train_task_id, current_step_id, next_step_id, condition, transition_prompt)
+    if insert_after_step_id:
+        # 插入模式：在指定节点后添加并行分支（不删除原有流程）
+        # 1. 获取原流程的条件和过渡提示词（用于第一个新连接）
+        outgoing_flows = find_flows_from_step(flow_list, insert_after_step_id)
+        first_condition = ""
+        first_transition = ""
+        if outgoing_flows:
+            first_condition = outgoing_flows[0].get('flowCondition', '')
+            first_transition = outgoing_flows[0].get('transitionPrompt', '')
 
-    # 4.3 Link Step N -> END
-    if end_node_id and len(steps) > 0:
+        # 2. 创建 insert_after_step_id -> 第一个新节点的连接
+        first_new_step_id = created_steps_map[0]
+        first_new_name = steps[0].get('stepName', '新节点')
+        print(f"   Linking {insert_after_step_name} -> {first_new_name} (并行分支)")
+        create_script_flow(train_task_id, insert_after_step_id, first_new_step_id, first_condition, first_transition)
+
+        # 3. 连接新节点之间的流程 (1 -> 2 -> ... -> N)
+        for i in range(len(steps) - 1):
+            current_step_id = created_steps_map.get(i)
+            next_step_id = created_steps_map.get(i+1)
+            source_step_detail = steps[i]
+            target_step_detail = steps[i+1]
+            condition = source_step_detail.get('flowCondition') or target_step_detail.get('stepName', '下一步')
+            transition_prompt = source_step_detail.get('transitionPrompt', '')
+            print(f"   Linking {source_step_detail.get('stepName')} -> {target_step_detail.get('stepName')}")
+            create_script_flow(train_task_id, current_step_id, next_step_id, condition, transition_prompt)
+
+        # 4. 连接最后一个新节点 -> END（并行分支直接结束）
         last_idx = len(steps) - 1
-        last_step_id = created_steps_map.get(last_idx)
+        last_new_step_id = created_steps_map.get(last_idx)
         last_step_detail = steps[last_idx]
-        # User requested '训练结束' for the last flow
         condition = last_step_detail.get('flowCondition') or "训练结束"
         transition_prompt = last_step_detail.get('transitionPrompt', '')
-        
-        print(f"   Linking Step {len(steps)} ({last_step_detail.get('stepName')}) -> Task End ({end_node_id})")
-        create_script_flow(train_task_id, last_step_id, end_node_id, condition, transition_prompt)
+        print(f"   Linking {last_step_detail.get('stepName')} -> Task End (并行分支)")
+        create_script_flow(train_task_id, last_new_step_id, end_node_id, condition, transition_prompt)
+
+    else:
+        # 全新创建模式：原有逻辑不变
+        # 4.1 Link START -> Step 1
+        if start_node_id and len(steps) > 0:
+            print(f"   Linking Task Start ({start_node_id}) -> Step 1 ({steps[0].get('stepName')})")
+            # User requested no flow condition for start -> step1
+            create_script_flow(train_task_id, start_node_id, created_steps_map[0], "", "")
+
+        # 4.2 Link Step 1 -> Step 2 -> ... -> Step N
+        for i in range(len(steps) - 1):
+            current_step_id = created_steps_map.get(i)
+            next_step_id = created_steps_map.get(i+1)
+
+            source_step_detail = steps[i]
+            target_step_detail = steps[i+1]
+
+            # Condition from current step, fallback to target stepName
+            condition = source_step_detail.get('flowCondition') or target_step_detail.get('stepName', '下一步')
+            transition_prompt = source_step_detail.get('transitionPrompt', '')
+
+            print(f"   Linking Step {i+1} ({source_step_detail.get('stepName')}) -> Step {i+2} ({target_step_detail.get('stepName')}) with Condition: '{condition}'")
+            create_script_flow(train_task_id, current_step_id, next_step_id, condition, transition_prompt)
+
+        # 4.3 Link Step N -> END
+        if end_node_id and len(steps) > 0:
+            last_idx = len(steps) - 1
+            last_step_id = created_steps_map.get(last_idx)
+            last_step_detail = steps[last_idx]
+            # User requested '训练结束' for the last flow
+            condition = last_step_detail.get('flowCondition') or "训练结束"
+            transition_prompt = last_step_detail.get('transitionPrompt', '')
+
+            print(f"   Linking Step {len(steps)} ({last_step_detail.get('stepName')}) -> Task End ({end_node_id})")
+            create_script_flow(train_task_id, last_step_id, end_node_id, condition, transition_prompt)
 
     print("\n✅ Task Generation Complete.")
 
