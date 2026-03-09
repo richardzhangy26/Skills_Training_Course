@@ -120,7 +120,7 @@ def step_generate_backgrounds(md_path: Path) -> bool:
 # ===========================================================================
 
 
-def step_import_to_platform(md_path: Path, task_id: str) -> bool:
+def step_import_to_platform(md_path: Path, task_id: str, delete_existing: bool = False) -> bool:
     """Import the training script to Polymas platform."""
     import_script = (
         PROJECT_ROOT / "skill_training_build" / "create_task_from_markdown.py"
@@ -139,6 +139,38 @@ def step_import_to_platform(md_path: Path, task_id: str) -> bool:
         return False
 
     cmd = [sys.executable, str(import_script), str(md_path), task_id]
+
+    # If delete_existing is True, we need to handle the interactive prompt
+    # by providing "y" as input
+    if delete_existing:
+        _print_banner("📦 Step 2/3: 导入训练剧本到平台 (自动删除现有节点)")
+        print(f"▶ {' '.join(str(c) for c in cmd)}\n")
+
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                cwd=str(PROJECT_ROOT / "skill_training_build"),
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+            # Provide "y" for the delete confirmation prompt
+            stdout, _ = proc.communicate(input="y\n", timeout=600)
+            print(stdout)
+            if proc.returncode != 0:
+                print(f"\n❌ 平台导入失败 (exit code {proc.returncode})")
+                return False
+            print("\n✅ 平台导入完成 (已删除旧节点)")
+            return True
+        except subprocess.TimeoutExpired:
+            print("\n❌ 平台导入超时 (>600s)")
+            return False
+        except Exception as e:
+            print(f"\n❌ 平台导入出错: {e}")
+            return False
+
+    # Standard import without auto-delete
     return _run_subprocess(
         cmd,
         "📦 Step 2/3: 导入训练剧本到平台",
@@ -216,6 +248,7 @@ def run_pipeline(
     skip_bg: bool = False,
     skip_import: bool = False,
     skip_test: bool = False,
+    delete_existing: bool = False,
 ) -> bool:
     """
     Execute the full pipeline.
@@ -229,6 +262,7 @@ def run_pipeline(
     print(f"  跳过背景图: {'是' if skip_bg else '否'}")
     print(f"  跳过导入:   {'是' if skip_import else '否'}")
     print(f"  跳过测试:   {'是' if skip_test else '否'}")
+    print(f"  删除旧节点: {'是' if delete_existing else '否'}")
 
     all_ok = True
 
@@ -242,7 +276,7 @@ def run_pipeline(
 
     # ---- Step 2: Import to platform ----
     if not skip_import:
-        if not step_import_to_platform(md_path, task_id):
+        if not step_import_to_platform(md_path, task_id, delete_existing):
             print("\n❌ 平台导入失败，中止 Pipeline。")
             return False
     else:
@@ -297,6 +331,9 @@ def main():
 
   # 自定义测试档位
   python run_pipeline.py 训练剧本配置.md --task-id abc123 --profiles good,bad
+
+  # 删除现有节点后重新导入
+  python run_pipeline.py 训练剧本配置.md --task-id abc123 --delete-existing
         """,
     )
 
@@ -320,6 +357,7 @@ def main():
     parser.add_argument("--skip-bg", action="store_true", help="跳过背景图生成")
     parser.add_argument("--skip-import", action="store_true", help="跳过平台导入")
     parser.add_argument("--skip-test", action="store_true", help="跳过自动测试")
+    parser.add_argument("--delete-existing", action="store_true", help="删除平台上现有节点后重新导入")
 
     args = parser.parse_args()
 
@@ -351,6 +389,7 @@ def main():
         skip_bg=args.skip_bg,
         skip_import=args.skip_import,
         skip_test=args.skip_test,
+        delete_existing=args.delete_existing,
     )
 
     sys.exit(0 if success else 1)

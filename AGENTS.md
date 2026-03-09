@@ -130,3 +130,10 @@ pip install -r requirements.txt
 - [homework_review/AGENTS.md](./homework_review/AGENTS.md) - 作业批改
 - [evaluation/AGENTS.md](./evaluation/AGENTS.md) - 对话质量评测
 - [.claude/skills/AGENTS.md](./.claude/skills/AGENTS.md) - Claude Code技能系统
+
+---
+
+## PROJECT SKILLS
+
+- workflow-test-debugger: 工作流测试诊断助手。用于排查 `task_id` 运行失败、`run_card/chat` 跳转异常、`needSkipStep` 自动跳步、日志缺失、认证问题、学生画像配置问题。 (file: /Users/zhangyichi/工作/能力训练/project_skills/workflow-test-debugger/SKILL.md)
+- training-script-generator-v2: 能力训练剧本创建器。用于将实训任务文档、课程说明或草稿整理成项目可用的 `训练剧本配置.md`，包含阶段划分、状态机跳转、开场白、反剧透提示词。 (file: /Users/zhangyichi/工作/能力训练/.agent/skills/training-script-generator-v2/SKILL.md)
