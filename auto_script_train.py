@@ -634,6 +634,12 @@ class WorkflowTester(WorkflowTesterBase):
             "description": "理解偏差，常常跑题或只复述与问题弱相关的信息。",
             "style": "语气随意，容易偏离重点或答非所问。",
             "fallback_hint": "即使需要自己生成，也要保持轻微跑题或误解的特征。"
+        },
+        "doctor": {
+            "label": "医生",
+            "description": "专业的医生，回答问题时会考虑患者的情况和健康问题。",
+            "style": "语气专业、语言专业，必要时引用相关知识或建议。尽量不要使用太口头话的用语。",
+            "fallback_hint": "若模拟对话中没有合适示例，可根据患者情况组织回答。"
         }
     }
 
@@ -1310,15 +1316,10 @@ if __name__ == "__main__":
                 print("⚠️  无效数字，不设置断点")
 
         # 可选：加载知识库
-        print("\n可选: 是否使用外接知识库或者对话示例文档？")
-        use_kb = input("是否使用知识库或者对话示例文档？(y/n，默认 n): ").strip().lower()
-        if use_kb == "y":
-            kb_path = input("\n请输入对应的 Markdown或者docx 文件的绝对路径: ").strip()
-            if kb_path:
-                if not tester.load_knowledge_base(kb_path):
-                    print("⚠️  知识库加载失败，将以通用模式运行")
-            else:
-                print("⚠️  未提供知识库路径，跳过加载")
+        kb_path = input("\n可选: 输入知识库或对话示例文档路径（直接回车跳过）: ").strip()
+        if kb_path:
+            if not tester.load_knowledge_base(kb_path):
+                print("⚠️  知识库加载失败，将以通用模式运行")
 
         tester.run_semi_interactive(task_id, breakpoint_round=breakpoint_round)
 
@@ -1333,27 +1334,23 @@ if __name__ == "__main__":
 
     elif choice == "3":
         print("\n🤖 使用 Doubao 模型自主回答模式")
-        tester.prompt_student_profile()
+        # 支持通过环境变量指定学生档位，实现完全自动化
+        env_profile = os.getenv("STUDENT_PROFILE")
+        if env_profile and env_profile in tester.STUDENT_PROFILES:
+            tester.student_profile_key = env_profile
+            profile_label = tester.STUDENT_PROFILES[env_profile].get("label", env_profile)
+            print(f"✅ 从环境变量读取学生档位: {profile_label} ({env_profile})")
+        else:
+            tester.prompt_student_profile()
 
-        print("\n可选: 是否提供学生档位模拟对话 Markdown？")
-        use_dialogue_md = input("是否加载模拟对话？(y/n，默认 n): ").strip().lower()
-        if use_dialogue_md == "y":
-            dialogue_path = input("\n请输入 Markdown 文件的绝对路径: ").strip()
-            if dialogue_path:
-                tester.load_student_dialogues(dialogue_path)
-            else:
-                print("⚠️  未提供路径，跳过加载模拟对话")
+        dialogue_path = input("\n可选: 输入学生档位模拟对话 Markdown 路径（直接回车跳过）: ").strip()
+        if dialogue_path:
+            tester.load_student_dialogues(dialogue_path)
 
-        # 可选：加载知识库
-        print("\n可选: 是否使用外接知识库或者对话示例文档？")
-        use_kb = input("是否使用知识库或者对话示例文档？(y/n，默认 n): ").strip().lower()
-        if use_kb == "y":
-            kb_path = input("\n请输入对应的 Markdown或者docx 文件的绝对路径: ").strip()
-            if kb_path:
-                if not tester.load_knowledge_base(kb_path):
-                    print("⚠️  知识库加载失败，将以通用模式运行")
-            else:
-                print("⚠️  未提供知识库路径，跳过加载")
+        kb_path = input("\n可选: 输入知识库或对话示例文档路径（直接回车跳过）: ").strip()
+        if kb_path:
+            if not tester.load_knowledge_base(kb_path):
+                print("⚠️  知识库加载失败，将以通用模式运行")
 
         print("\n开始工作流...")
         tester.run_with_doubao(task_id)
@@ -1399,24 +1396,14 @@ if __name__ == "__main__":
         # 启用回放模式
         tester.enable_replay_mode(log_path, similarity_threshold)
 
-        print("\n可选: 是否提供学生档位模拟对话 Markdown？")
-        use_dialogue_md = input("是否加载模拟对话？(y/n，默认 n): ").strip().lower()
-        if use_dialogue_md == "y":
-            dialogue_path = input("\n请输入 Markdown 文件的绝对路径: ").strip()
-            if dialogue_path:
-                tester.load_student_dialogues(dialogue_path)
-            else:
-                print("⚠️  未提供路径，跳过加载模拟对话")
+        dialogue_path = input("\n可选: 输入学生档位模拟对话 Markdown 路径（直接回车跳过）: ").strip()
+        if dialogue_path:
+            tester.load_student_dialogues(dialogue_path)
 
-        print("\n可选: 是否使用外接知识库？")
-        use_kb = input("是否使用知识库？(y/n，默认 n): ").strip().lower()
-        if use_kb == "y":
-            kb_path = input("\n请输入知识库 Markdown 文件的绝对路径: ").strip()
-            if kb_path:
-                if not tester.load_knowledge_base(kb_path):
-                    print("⚠️  知识库加载失败，将以通用模式运行")
-            else:
-                print("⚠️  未提供知识库路径，跳过加载")
+        kb_path = input("\n可选: 输入知识库 Markdown 文件路径（直接回车跳过）: ").strip()
+        if kb_path:
+            if not tester.load_knowledge_base(kb_path):
+                print("⚠️  知识库加载失败，将以通用模式运行")
 
         print("\n开始工作流...")
         tester.run_with_doubao(task_id)
