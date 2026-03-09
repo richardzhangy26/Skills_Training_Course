@@ -190,6 +190,7 @@ python auto_script_train_5characters.py
 - 通过 WebSocket 连接到 `wss://cloudapi.polymas.com/ai-tools/ws/v2/trainFlow` 进行实时对话。
 - 使用 **edge-tts** 将文字转为语音（MP3），再转为 PCM 音频帧发送到服务器。
 - 集成 **Doubao POST API**，支持三档学生角色智能回答生成。
+- 支持在启动时加载**对话记录文件**与**知识库文件**，并按“对话记录 > 知识库 > 当前会话历史”的优先级生成回答。
 - 内置对话历史记录，提供上下文感知的连贯回答。
 - 支持半交互模式与纯手动模式两种运行方式。
 
@@ -211,8 +212,11 @@ python auto_audio_train.py
    - `1. 优秀学生`：理解透彻、表达清晰，回答结构化
    - `2. 需要引导的学生`（默认）：基本理解但略显犹豫，会请求提示
    - `3. 答非所问的学生`：容易跑题或误解问题
-4. **WebSocket 连接**：自动连接到训练平台，开始实时对话流程。
-5. **日志记录**：对话日志保存在 `./audio_logs/` 目录下。
+4. **可选加载上下文**（仅半交互模式）：
+   - 对话记录路径（支持 `md/txt/docx/*_dialogue.json`）
+   - 知识库路径（支持 `md/txt/docx`）
+5. **WebSocket 连接**：自动连接到训练平台，开始实时对话流程。
+6. **日志记录**：对话日志保存在 `./audio_logs/` 目录下。
 
 ### 半交互模式使用示例
 
@@ -245,13 +249,25 @@ LLM_SERVICE_CODE=SI_Ability
 
 # 音频转换后端选择（可选）
 AUDIO_BACKEND=auto  # miniaudio / pydub / auto（默认）
+
+# TTS 配置（可选，默认 edge 失败自动降级到 Polymas）
+TTS_PROVIDER=auto   # auto / edge / polymas
+TTS_API_URL=https://llm-service.polymas.com/api/openai/v1/audio/speech/stream
+TTS_API_KEY=        # 不填则回退 LLM_API_KEY
+TTS_MODEL=tts-1
+TTS_VOICE=alloy
+TTS_SPEED=1.0
+TTS_RESPONSE_FORMAT=mp3
+TTS_TIMEOUT=20
+TTS_MAX_RETRIES=2
 ```
 
 ### 注意事项
 
-- **TTS 语音**：默认使用 `en-US-GuyNeural` 语音，生成中文可能会报错。如需生成中文语音，需要修改 `TTSEngine` 类中的 `voice` 参数为中文语音（如 `zh-CN-XiaoxiaoNeural`）。
+- **TTS 语音**：默认先使用 `edge-tts`（`en-US-GuyNeural`），失败后会自动降级到 Polymas TTS。若主要是中文场景，建议将 `TTSEngine` 的 `voice` 改为中文音色（如 `zh-CN-XiaoxiaoNeural`）。
 - **网络稳定性**：WebSocket 连接需要稳定网络，断线会自动退出。
 - **音频后端**：优先使用 miniaudio（无需 ffmpeg），如果环境中无法安装可回退到 pydub。
+- **上下文优先级**：Doubao 生成回答时，优先参考“对话记录”，其次“知识库”，最后才是当前会话历史与学生档位特征。
 
 ---
 
@@ -261,7 +277,7 @@ AUDIO_BACKEND=auto  # miniaudio / pydub / auto（默认）
 - **Doubao/DeepSeek 无法调用**：确认 `ARK_API_KEY` 或 `DEEPSEEK_API_KEY` 是否正确，同时检查本地网络能否访问对应网关。
 - **日志没有生成**：确保当前用户有写权限，脚本会在项目根目录下创建 `log/`。如需自定义路径，可修改脚本中 `self.log_root`。
 - **学生画像不生效**：当存在 `student_profiles.custom.json` 时优先读取该文件，请确认 JSON 格式正确且 `enabled: true`。
-- **TTS 语音合成失败**（`NoAudioReceived` 错误）：默认英文语音不支持中文文本，需修改 `auto_audio_train.py` 第 252 行，将 `voice` 参数改为中文语音，例如 `zh-CN-XiaoxiaoNeural`（女声）或 `zh-CN-YunxiNeural`（男声）。
+- **TTS 语音合成失败**（含 `403` / `NoAudioReceived`）：脚本会自动尝试 `edge-tts -> Polymas TTS`。若仍失败，优先检查 `TTS_API_KEY/LLM_API_KEY` 与 `TTS_API_URL`，中文场景建议改为中文 `voice`。
 - **WebSocket 连接失败**：检查网络连接和防火墙设置，确保可以访问 `wss://cloudapi.polymas.com`。
 - **音频处理错误**：优先安装 `miniaudio` 和 `samplerate`（`pip install miniaudio samplerate`），如无法安装则需要系统安装 ffmpeg 后使用 pydub。
 
