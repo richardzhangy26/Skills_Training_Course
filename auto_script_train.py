@@ -634,6 +634,12 @@ class WorkflowTester(WorkflowTesterBase):
             "description": "理解偏差，常常跑题或只复述与问题弱相关的信息。",
             "style": "语气随意，容易偏离重点或答非所问。",
             "fallback_hint": "即使需要自己生成，也要保持轻微跑题或误解的特征。"
+        },
+        "doctor": {
+            "label": "医生",
+            "description": "专业的医生，回答问题时会考虑患者的情况和健康问题。",
+            "style": "语气专业、语言专业，必要时引用相关知识或建议。尽量不要使用太口头话的用语。",
+            "fallback_hint": "若模拟对话中没有合适示例，可根据患者情况组织回答。"
         }
     }
 

@@ -12,9 +12,10 @@ import os
 import sys
 import math
 import time
+import importlib.util
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 import requests
 
@@ -166,13 +167,13 @@ class AudioProcessor:
             return "miniaudio"
 
         # auto 模式：优先 miniaudio
-        try:
-            import miniaudio
-            import samplerate
+        has_miniaudio = importlib.util.find_spec("miniaudio") is not None
+        has_samplerate = importlib.util.find_spec("samplerate") is not None
+        if has_miniaudio and has_samplerate:
             return "miniaudio"
-        except ImportError:
-            log.warning("⚠️ miniaudio 不可用，回退到 pydub")
-            return "pydub"
+
+        log.warning("⚠️ miniaudio/samplerate 不可用，回退到 pydub")
+        return "pydub"
 
     def mp3_to_pcm(self, mp3_data: bytes) -> bytes:
         """
@@ -253,15 +254,139 @@ class AudioProcessor:
 class TTSEngine:
     def __init__(self, voice: str = "en-US-GuyNeural"):
         self.voice = voice
-    
-    async def synthesize(self, text: str) -> bytes:
+        self.provider = os.getenv("TTS_PROVIDER", "auto").lower()
+        self.polymas_tts_url = os.getenv(
+            "TTS_API_URL",
+            "https://llm-service.polymas.com/api/openai/v1/audio/speech/stream"
+        )
+        self.polymas_api_key = os.getenv("TTS_API_KEY") or os.getenv("LLM_API_KEY", "")
+        self.polymas_model = os.getenv("TTS_MODEL", "tts-1")
+        self.polymas_voice = os.getenv("TTS_VOICE", "alloy")
+        self.polymas_speed = float(os.getenv("TTS_SPEED", "1.0"))
+        self.polymas_response_format = os.getenv("TTS_RESPONSE_FORMAT", "mp3")
+        self.tts_timeout = float(os.getenv("TTS_TIMEOUT", "20"))
+        self.tts_max_retries = max(1, int(os.getenv("TTS_MAX_RETRIES", "2")))
+        self.llm_service_code = os.getenv("LLM_SERVICE_CODE", "")
+
+        if self.provider not in {"auto", "edge", "polymas"}:
+            log.warning(f"⚠️ 未知 TTS_PROVIDER={self.provider}，回退到 auto")
+            self.provider = "auto"
+
+        log.info(
+            "🔊 TTS配置: provider=%s, fallback_url=%s, model=%s, voice=%s, retries=%s",
+            self.provider,
+            self.polymas_tts_url,
+            self.polymas_model,
+            self.polymas_voice,
+            self.tts_max_retries,
+        )
+
+    def _provider_chain(self) -> List[str]:
+        if self.provider == "edge":
+            return ["edge"]
+        if self.provider == "polymas":
+            return ["polymas"]
+        return ["edge", "polymas"]
+
+    def _log_tts_error(self, provider: str, attempt: int, error: Exception):
+        try:
+            from aiohttp.client_exceptions import WSServerHandshakeError
+        except Exception:
+            WSServerHandshakeError = None
+
+        if WSServerHandshakeError and isinstance(error, WSServerHandshakeError):
+            log.warning(
+                "⚠️ TTS失败 provider=%s attempt=%s type=ws_handshake status=%s msg=%s",
+                provider, attempt, getattr(error, "status", "unknown"), str(error)
+            )
+        elif isinstance(error, (requests.exceptions.Timeout, asyncio.TimeoutError)):
+            log.warning(
+                "⚠️ TTS失败 provider=%s attempt=%s type=timeout msg=%s",
+                provider, attempt, str(error)
+            )
+        elif isinstance(error, requests.exceptions.HTTPError):
+            status = error.response.status_code if error.response is not None else "unknown"
+            log.warning(
+                "⚠️ TTS失败 provider=%s attempt=%s type=http status=%s msg=%s",
+                provider, attempt, status, str(error)
+            )
+        else:
+            log.warning(
+                "⚠️ TTS失败 provider=%s attempt=%s type=generic msg=%s",
+                provider, attempt, str(error)
+            )
+
+    async def _synthesize_with_edge(self, text: str) -> bytes:
         import edge_tts
+
         communicate = edge_tts.Communicate(text, self.voice)
-        audio_data = b""
+        audio_data = bytearray()
         async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_data += chunk["data"]
-        return audio_data
+            if chunk.get("type") == "audio":
+                audio_data.extend(chunk.get("data", b""))
+
+        if not audio_data:
+            raise ValueError("edge_tts 返回空音频")
+        return bytes(audio_data)
+
+    async def _synthesize_with_polymas(self, text: str) -> bytes:
+        if not self.polymas_api_key:
+            raise ValueError("Polymas TTS 缺少 api-key（TTS_API_KEY 或 LLM_API_KEY）")
+
+        headers = {
+            "Content-Type": "application/json",
+            "api-key": self.polymas_api_key,
+        }
+        if self.llm_service_code:
+            headers["service-code"] = self.llm_service_code
+
+        payload = {
+            "model": self.polymas_model,
+            "input": text,
+            "voice": self.polymas_voice,
+            "speed": self.polymas_speed,
+            "response_format": self.polymas_response_format,
+        }
+
+        response = await asyncio.to_thread(
+            requests.post,
+            self.polymas_tts_url,
+            headers=headers,
+            json=payload,
+            timeout=self.tts_timeout,
+        )
+        response.raise_for_status()
+
+        audio_bytes = response.content or b""
+        if not audio_bytes:
+            raise ValueError("Polymas TTS 返回空音频")
+        return audio_bytes
+
+    async def synthesize(self, text: str) -> bytes:
+        if not text or not text.strip():
+            raise ValueError("TTS 输入文本为空")
+
+        providers = self._provider_chain()
+        last_error = None
+
+        for provider in providers:
+            for attempt in range(1, self.tts_max_retries + 1):
+                try:
+                    if provider == "edge":
+                        audio_data = await self._synthesize_with_edge(text)
+                    else:
+                        audio_data = await self._synthesize_with_polymas(text)
+
+                    log.info(
+                        "✅ TTS成功 provider=%s attempt=%s bytes=%s",
+                        provider, attempt, len(audio_data)
+                    )
+                    return audio_data
+                except Exception as error:
+                    last_error = error
+                    self._log_tts_error(provider, attempt, error)
+
+        raise RuntimeError(f"TTS 全部失败 providers={providers}") from last_error
 
 # ============ 学生档位定义 ============
 STUDENT_PROFILES = {
@@ -345,6 +470,174 @@ class TrainingClient:
 
         # 对话历史（用于提供上下文）
         self.conversation_history = []
+        self.reference_dialogue_content: Optional[str] = None
+        self.knowledge_base_content: Optional[str] = None
+        self.reference_dialogue_path: Optional[str] = None
+        self.knowledge_base_path: Optional[str] = None
+
+    def _append_conversation_history(self, ai_text: str, student_text: str):
+        self.conversation_history.append({
+            "ai": ai_text,
+            "student": student_text,
+        })
+        if len(self.conversation_history) > 10:
+            self.conversation_history = self.conversation_history[-10:]
+
+    def _read_text_file(self, path: Path) -> str:
+        return path.read_text(encoding="utf-8")
+
+    def _convert_docx_to_markdown(self, path: Path) -> str:
+        docx_to_md_path = Path(__file__).parent / "docx_to_md.py"
+        if not docx_to_md_path.exists():
+            raise FileNotFoundError("未找到 docx_to_md.py，无法解析 .docx 文件")
+
+        sys.path.insert(0, str(docx_to_md_path.parent))
+        try:
+            from docx_to_md import docx_to_markdown_content  # type: ignore
+            return docx_to_markdown_content(path, extract_images=False)
+        finally:
+            sys.path.pop(0)
+
+    def _truncate_context(self, text: str, limit: int, label: str) -> str:
+        if len(text) <= limit:
+            return text
+        log.warning(f"⚠️ {label}内容过长，已截断: {len(text)} -> {limit}")
+        return text[:limit].rstrip() + "\n[...已截断]"
+
+    def _parse_dialogue_json_to_pairs(self, data: dict) -> List[Dict[str, str]]:
+        pairs: List[Dict[str, str]] = []
+
+        # 优先解析 workflow_tester_base 导出的结构：stages[].messages[]
+        if isinstance(data, dict) and isinstance(data.get("stages"), list):
+            for stage in data.get("stages", []):
+                if not isinstance(stage, dict):
+                    continue
+                last_ai = ""
+                for message in stage.get("messages", []) or []:
+                    if not isinstance(message, dict):
+                        continue
+                    role = str(message.get("role", "")).strip().lower()
+                    content = str(message.get("content", "")).strip()
+                    if not content:
+                        continue
+                    if role in {"assistant", "ai", "bot"}:
+                        last_ai = content
+                    elif role in {"user", "student", "human"} and last_ai:
+                        pairs.append({"ai": last_ai, "student": content})
+
+            if pairs:
+                return pairs
+
+        # 兜底解析：常见列表格式 [{ai/student}, {question/answer}, ...]
+        candidate_lists: List[Any] = []
+        if isinstance(data, list):
+            candidate_lists.append(data)
+        elif isinstance(data, dict):
+            for key in ["dialogues", "conversation", "conversations", "pairs", "messages", "data"]:
+                if isinstance(data.get(key), list):
+                    candidate_lists.append(data[key])
+
+        ai_keys = ["ai", "assistant", "question", "prompt", "bot", "teacher_question"]
+        student_keys = ["student", "user", "answer", "response", "reply"]
+
+        for items in candidate_lists:
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+
+                ai_text = ""
+                student_text = ""
+
+                for key in ai_keys:
+                    value = item.get(key)
+                    if isinstance(value, str) and value.strip():
+                        ai_text = value.strip()
+                        break
+
+                for key in student_keys:
+                    value = item.get(key)
+                    if isinstance(value, str) and value.strip():
+                        student_text = value.strip()
+                        break
+
+                if ai_text and student_text:
+                    pairs.append({"ai": ai_text, "student": student_text})
+
+        return pairs
+
+    def _format_dialogue_pairs_for_prompt(self, pairs: List[Dict[str, str]]) -> str:
+        lines: List[str] = []
+        for idx, pair in enumerate(pairs, 1):
+            ai_text = pair.get("ai", "").strip()
+            student_text = pair.get("student", "").strip()
+            if not ai_text or not student_text:
+                continue
+            lines.append(f"第{idx}轮:")
+            lines.append(f"  AI提问: {ai_text}")
+            lines.append(f"  学生回答: {student_text}")
+        return "\n".join(lines)
+
+    def load_reference_dialogue(self, path_str: str) -> bool:
+        try:
+            path = Path(path_str).expanduser()
+            if not path.exists():
+                log.warning(f"⚠️ 对话记录文件不存在: {path_str}")
+                return False
+
+            suffix = path.suffix.lower()
+            content = ""
+
+            if suffix == ".json":
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                pairs = self._parse_dialogue_json_to_pairs(data)
+                if not pairs:
+                    log.warning("⚠️ JSON 对话记录未提取到有效问答对")
+                    return False
+                log.info(f"✅ JSON 对话记录提取成功: {len(pairs)} 组问答")
+                content = self._format_dialogue_pairs_for_prompt(pairs)
+            elif suffix == ".docx":
+                content = self._convert_docx_to_markdown(path)
+            else:
+                content = self._read_text_file(path)
+
+            content = self._truncate_context(content, limit=8000, label="对话记录")
+            self.reference_dialogue_content = content
+            self.reference_dialogue_path = str(path.resolve())
+            log.info(
+                f"✅ 已加载对话记录: {self.reference_dialogue_path} (大小: {len(content)} 字符)"
+            )
+            return True
+        except json.JSONDecodeError as exc:
+            log.warning(f"⚠️ 对话记录 JSON 解析失败: {exc}")
+            return False
+        except Exception as exc:
+            log.warning(f"⚠️ 加载对话记录失败: {exc}")
+            return False
+
+    def load_knowledge_base(self, path_str: str) -> bool:
+        try:
+            path = Path(path_str).expanduser()
+            if not path.exists():
+                log.warning(f"⚠️ 知识库文件不存在: {path_str}")
+                return False
+
+            suffix = path.suffix.lower()
+            if suffix == ".docx":
+                content = self._convert_docx_to_markdown(path)
+            else:
+                content = self._read_text_file(path)
+
+            content = self._truncate_context(content, limit=12000, label="知识库")
+            self.knowledge_base_content = content
+            self.knowledge_base_path = str(path.resolve())
+            log.info(
+                f"✅ 已加载知识库: {self.knowledge_base_path} (大小: {len(content)} 字符)"
+            )
+            return True
+        except Exception as exc:
+            log.warning(f"⚠️ 加载知识库失败: {exc}")
+            return False
     
     async def connect(self):
         url = f"{CONFIG['ws_url']}?taskId={CONFIG['task_id']}"
@@ -493,6 +786,13 @@ class TrainingClient:
             return "好的"
 
         try:
+            log.info(
+                "🧠 本轮上下文: 对话记录=%s, 知识库=%s, 当前会话历史=%s轮",
+                "启用" if self.reference_dialogue_content else "关闭",
+                "启用" if self.knowledge_base_content else "关闭",
+                len(self.conversation_history[-5:]),
+            )
+
             # 获取学生档位信息
             profile_info = STUDENT_PROFILES.get(self.student_profile_key, STUDENT_PROFILES["medium"])
 
@@ -515,7 +815,21 @@ class TrainingClient:
                 "",
             ]
 
-            # 添加对话历史
+            if self.reference_dialogue_content:
+                sections.extend([
+                    "## 优先级最高：参考对话记录（如有匹配请优先引用或改写）",
+                    self.reference_dialogue_content,
+                    "",
+                ])
+
+            if self.knowledge_base_content:
+                sections.extend([
+                    "## 次优先级：参考知识库（对话记录无匹配时优先依据知识库）",
+                    self.knowledge_base_content,
+                    "",
+                ])
+
+            # 添加当前会话历史（最近5轮）
             if self.conversation_history:
                 sections.append("## 对话历史（按时间顺序）")
                 for i, turn in enumerate(self.conversation_history[-5:], 1):  # 只保留最近5轮
@@ -528,9 +842,10 @@ class TrainingClient:
                 "## 当前问题",
                 bot_question,
                 "",
-                "## 输出要求",
-                "**优先级1**: 如果是封闭式问题（确认式/选择式），直接简短回答",
-                "**优先级2**: 如果是开放式问题，适度融入学生档位特点",
+                "## 输出要求（按优先级执行）",
+                "**优先级1**: 如果对话记录中存在语义高度相关回答，优先引用或改写其结论和表达风格",
+                "**优先级2**: 对话记录无匹配时，优先依据知识库作答，不要编造不存在的信息",
+                "**优先级3**: 若前两者都不足，再结合学生档位特征回答；封闭式问题保持简短直接",
                 "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在30字以内。",
                 ""
             ])
@@ -556,7 +871,7 @@ class TrainingClient:
             log.error(f"❌ 生成回答失败: {str(e)}")
             return "ok, i understand."
 
-    async def speak(self, text: str):
+    async def speak(self, text: str) -> bool:
         self.last_sent_text = text  # 记录发送内容，用于重试
         log.info(f"🎤 准备发送: {text}")
         
@@ -575,11 +890,14 @@ class TrainingClient:
             await self.send_audio_frames(pcm_data)
             
             log.info("⏳ 等待响应...")
+            return True
             
         except Exception as e:
+            self.waiting_response = False
             log.error(f"❌ 错误: {e}")
             import traceback
             traceback.print_exc()
+            return False
     
     async def handle_message(self, message):
         if isinstance(message, bytes):
@@ -657,7 +975,6 @@ class TrainingClient:
                 
             elif event == "userTextEnd":
                 text = payload.get("text", "")
-                history_id = payload.get("historyId", "")
 
                 # 轮次计数增加
                 self.round_counter += 1
@@ -668,7 +985,7 @@ class TrainingClient:
                 log.info(f"✅ 识别完成: {text}")
                 
             elif event == "userAudioEnd":
-                log.info(f"🔗 音频已保存")
+                log.info("🔗 音频已保存")
                 self._request_stop_audio_sending("userAudioEnd")
                 
             elif event == "stepEnd":
@@ -784,8 +1101,11 @@ class TrainingClient:
 
             if retry_count <= self.max_retries:
                 log.warning(f"⚠️ 第 {retry_count} 次重试...")
-                self.waiting_response = True
-                await self.speak(text)
+                retry_ok = await self.speak(text)
+                if not retry_ok:
+                    log.warning("⚠️ 重试发送失败，跳过本轮")
+                    self.waiting_response = False
+                    return False
 
         log.error(f"❌ 服务器无响应，已重试 {self.max_retries} 次")
         self.waiting_response = False
@@ -804,8 +1124,8 @@ class TrainingClient:
                             log.warning(f"⚠️ 服务器已 {self.heartbeat_without_response * 30} 秒无响应")
                     else:
                         self.heartbeat_without_response = 0
-                except:
-                    pass
+                except (websockets.ConnectionClosed, OSError, RuntimeError) as err:
+                    log.warning(f"⚠️ 心跳发送失败: {err}")
 
     async def semi_interactive_mode(self):
         """
@@ -829,7 +1149,7 @@ class TrainingClient:
             try:
                 if self.auto_continue:
                     # 全自动模式：直接生成AI回答
-                    print(f"\n🤖 [全自动模式] 正在生成AI回答...")
+                    print("\n🤖 [全自动模式] 正在生成AI回答...")
                     await asyncio.sleep(1)  # 稍等一下让用户看到 Bot 消息
 
                     # 生成 AI 回答
@@ -837,15 +1157,9 @@ class TrainingClient:
                     print(f"🤖 AI: {ai_answer}")
 
                     # 保存对话历史
-                    self.conversation_history.append({
-                        "ai": self.current_bot_msg,
-                        "student": ai_answer
-                    })
-                    # 限制历史长度
-                    if len(self.conversation_history) > 10:
-                        self.conversation_history = self.conversation_history[-10:]
+                    self._append_conversation_history(self.current_bot_msg, ai_answer)
 
-                    await self.speak(ai_answer)
+                    speak_ok = await self.speak(ai_answer)
                 else:
                     # 半交互模式：等待用户输入
                     print("\n" + "-" * 60)
@@ -871,45 +1185,31 @@ class TrainingClient:
                         print(f"🤖 AI: {ai_answer}")
 
                         # 保存对话历史
-                        self.conversation_history.append({
-                            "ai": self.current_bot_msg,
-                            "student": ai_answer
-                        })
-                        # 限制历史长度
-                        if len(self.conversation_history) > 10:
-                            self.conversation_history = self.conversation_history[-10:]
+                        self._append_conversation_history(self.current_bot_msg, ai_answer)
 
-                        await self.speak(ai_answer)
+                        speak_ok = await self.speak(ai_answer)
                     elif user_input == "":
                         # 回车：使用 AI 生成
-                        print(f"\n🤖 正在生成AI回答...")
+                        print("\n🤖 正在生成AI回答...")
                         ai_answer = self.generate_ai_answer(self.current_bot_msg)
                         print(f"🤖 AI: {ai_answer}")
 
                         # 保存对话历史
-                        self.conversation_history.append({
-                            "ai": self.current_bot_msg,
-                            "student": ai_answer
-                        })
-                        # 限制历史长度
-                        if len(self.conversation_history) > 10:
-                            self.conversation_history = self.conversation_history[-10:]
+                        self._append_conversation_history(self.current_bot_msg, ai_answer)
 
-                        await self.speak(ai_answer)
+                        speak_ok = await self.speak(ai_answer)
                     else:
                         # 用户手动输入
                         print(f"\n👤 用户: {user_input}")
 
                         # 保存对话历史
-                        self.conversation_history.append({
-                            "ai": self.current_bot_msg,
-                            "student": user_input
-                        })
-                        # 限制历史长度
-                        if len(self.conversation_history) > 10:
-                            self.conversation_history = self.conversation_history[-10:]
+                        self._append_conversation_history(self.current_bot_msg, user_input)
 
-                        await self.speak(user_input)
+                        speak_ok = await self.speak(user_input)
+
+                if not speak_ok:
+                    log.warning("⚠️ 本轮 TTS 失败，跳过并继续下一轮")
+                    continue
 
                 # 等待响应（支持超时重试）
                 success = await self.wait_for_response_with_retry(self.last_sent_text)
@@ -940,7 +1240,10 @@ class TrainingClient:
                     break
                 
                 if user_input.strip():
-                    await self.speak(user_input)
+                    speak_ok = await self.speak(user_input)
+                    if not speak_ok:
+                        log.warning("⚠️ 本轮 TTS 失败，跳过并继续下一轮")
+                        continue
 
                     # 等待响应（支持超时重试）
                     success = await self.wait_for_response_with_retry(self.last_sent_text)
@@ -973,7 +1276,9 @@ class TrainingClient:
         except KeyboardInterrupt:
             pass
         finally:
+            listen_task.cancel()
             heartbeat_task.cancel()
+            await asyncio.gather(listen_task, heartbeat_task, return_exceptions=True)
             await self.disconnect()
 
 
@@ -1029,6 +1334,30 @@ async def main():
         selected_profile = STUDENT_PROFILES[client.student_profile_key]
         print(f"\n✅ 已选择: {selected_profile['label']}")
         print(f"   特征: {selected_profile['description']}")
+
+        dialogue_path = input(
+            "\n可选: 输入对话记录路径（md/txt/docx/*_dialogue.json，直接回车跳过）: "
+        ).strip()
+        if dialogue_path:
+            if client.load_reference_dialogue(dialogue_path):
+                print(
+                    f"✅ 对话记录已加载: {client.reference_dialogue_path} "
+                    f"(大小: {len(client.reference_dialogue_content or '')} 字符)"
+                )
+            else:
+                print("⚠️ 对话记录加载失败，将忽略该上下文继续运行")
+
+        kb_path = input(
+            "\n可选: 输入知识库路径（md/txt/docx，直接回车跳过）: "
+        ).strip()
+        if kb_path:
+            if client.load_knowledge_base(kb_path):
+                print(
+                    f"✅ 知识库已加载: {client.knowledge_base_path} "
+                    f"(大小: {len(client.knowledge_base_content or '')} 字符)"
+                )
+            else:
+                print("⚠️ 知识库加载失败，将忽略该上下文继续运行")
 
     if mode_choice == "2":
         await client.run(mode='manual')
