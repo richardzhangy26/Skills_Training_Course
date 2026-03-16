@@ -22,8 +22,28 @@
     ```ini
     AUTHORIZATION=你的Authorization Token
     COOKIE=你的Cookie
+    COURSE_ID=所属课程ID
     TASK_ID=默认的任务ID 
     ```
+
+### 新增：先创建基础配置
+
+如果你的输入是完整的“训练剧本配置” Markdown，且还没有平台里的 `TASK_ID`，可以先创建基础配置：
+
+```bash
+# 只创建基础配置，返回新的 trainTaskId
+python create_configuration_from_markdown.py <markdown文件路径>
+
+# 创建基础配置后，继续自动创建所有阶段节点和连线
+python create_configuration_from_markdown.py <markdown文件路径> --with-steps
+```
+
+说明：
+- `COURSE_ID` 必须通过环境变量提供，不走交互输入。
+- 脚本会优先读取基础配置里的 `背景图` 作为任务封面。
+- 如果基础配置背景图为空，会回退到第一阶段的 `背景图`。
+- 创建成功后，会自动把新的 `TASK_ID` 写回项目根目录 `.env`。
+- `--with-steps` 模式会在新建成功后复用 `create_task_from_markdown.py` 的节点导入逻辑。
 
 ## 使用指南
 
@@ -63,6 +83,7 @@ python create_task_from_markdown.py <markdown文件路径> <任务ID>
 ## 目录结构
 
 *   `create_task_from_markdown.py`:  核心生成脚本。
+*   `create_configuration_from_markdown.py`:  先创建训练任务基础配置，可选继续导入节点。
 *   `task_example.md`:  脚本编写模板。
 
 ## AI 语音配置列表
