@@ -1,5 +1,18 @@
 {
   "enabledPlugins": {
     "playwright@claude-plugins-official": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/zhangyichi/工作/能力训练/.claude/tools/hooks/post-write-vts.sh"
+          }
+        ]
+      }
+    ]
   }
 }

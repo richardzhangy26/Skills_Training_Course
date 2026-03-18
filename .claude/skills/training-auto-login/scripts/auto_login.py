@@ -190,6 +190,67 @@ def match_province_by_school(school: str, mappings: dict) -> Optional[str]:
     return None
 
 
+def infer_province_by_llm(school: str, available_provinces: list) -> Optional[str]:
+    """当 JSON 映射中找不到学校时，使用 LLM 推断所属省区。"""
+    import os
+
+    province_list = "\n".join(f"- {p}" for p in available_provinces)
+    prompt = (
+        f"请根据学校名称推断其所在省份，并从下列可选省区中选择最匹配的一个。\n"
+        f"只返回省区名称本身，不要有任何其他文字。\n\n"
+        f"学校名称: {school}\n\n"
+        f"可选省区:\n{province_list}"
+    )
+
+    def _match_answer(answer: str) -> Optional[str]:
+        answer_norm = normalize_space(answer)
+        for province in available_provinces:
+            p_norm = normalize_space(province)
+            if p_norm == answer_norm or p_norm in answer_norm or answer_norm in p_norm:
+                return province
+        return None
+
+    llm_key = os.environ.get("LLM_API_KEY")
+    if llm_key:
+        try:
+            import requests as _req
+            resp = _req.post(
+                os.environ.get("LLM_API_URL", "http://llm-service.polymas.com/api/openai/v1/chat/completions"),
+                headers={"api-key": llm_key, "Content-Type": "application/json"},
+                json={"model": os.environ.get("LLM_MODEL", "Doubao-1.5-pro-32k"),
+                      "messages": [{"role": "user", "content": prompt}], "max_tokens": 50},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            answer = resp.json()["choices"][0]["message"]["content"].strip()
+            matched = _match_answer(answer)
+            if matched:
+                print(f"  ✓ LLM 推断省区: {matched} (回答: {answer})")
+                return matched
+        except Exception as e:
+            print(f"  LLM 省区推断失败 (Polymas): {e}")
+
+    ark_key = os.environ.get("ARK_API_KEY")
+    if ark_key:
+        try:
+            from openai import OpenAI
+            client = OpenAI(base_url="https://ark.cn-beijing.volces.com/api/v3", api_key=ark_key)
+            response = client.chat.completions.create(
+                model=os.environ.get("DOUBAO_MODEL", "doubao-seed-1-6-251015"),
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=50,
+            )
+            answer = response.choices[0].message.content.strip()
+            matched = _match_answer(answer)
+            if matched:
+                print(f"  ✓ LLM 推断省区: {matched} (回答: {answer})")
+                return matched
+        except Exception as e:
+            print(f"  LLM 省区推断失败 (ARK): {e}")
+
+    return None
+
+
 def get_account_by_province(province: str, province_accounts: dict) -> Optional[Tuple[str, str]]:
     """从省区账号字典查询账号密码。"""
     if province in province_accounts:
@@ -1033,7 +1094,11 @@ def main() -> None:
     course_target = None
 
     if args.file_path:
-        course_target = build_course_target(args.file_path, mappings, explicit_course_name=args.course_name or "")
+        # 处理 @/path/to/file 格式（Claude Code 文件引用格式）
+        file_path = args.file_path
+        if file_path.startswith('@'):
+            file_path = file_path[1:]
+        course_target = build_course_target(file_path, mappings, explicit_course_name=args.course_name or "")
         if course_target:
             print(f"识别到课程目录: {course_target.course_root}")
             if course_target.school:
@@ -1062,7 +1127,10 @@ def main() -> None:
             sys.exit(1)
 
     elif args.file_path:
-        school = extract_school_from_path(args.file_path, mappings)
+        file_path = args.file_path
+        if file_path.startswith('@'):
+            file_path = file_path[1:]
+        school = extract_school_from_path(file_path, mappings)
         if school:
             print(f"从路径识别到学校: {school}")
             province = match_province_by_school(school, mappings)
@@ -1071,8 +1139,12 @@ def main() -> None:
             province = course_target.province
 
         if not province:
+            print(f"  JSON 映射未找到 '{school or file_path}'，尝试 LLM 推断省区...")
+            province = infer_province_by_llm(school or file_path, list(province_accounts.keys()))
+
+        if not province:
             print("! 无法从路径自动识别省区")
-            print(f"  路径: {args.file_path}")
+            print(f"  路径: {file_path}")
             print("\n可用选项:")
             print("  1. 使用 --province 参数指定省区")
             print("  2. 使用 --account 和 --password 直接指定账号")
