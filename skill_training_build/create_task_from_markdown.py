@@ -360,6 +360,76 @@ def extract_start_end_ids(step_list):
             end_node_id = item.get('stepId')
     return start_node_id, end_node_id
 
+
+def create_start_end_nodes(train_task_id: str, course_id: str) -> tuple[str, str]:
+    """为任务创建 SCRIPT_START 和 SCRIPT_END 节点"""
+    url = "https://cloudapi.polymas.com/teacher-course/abilityTrain/createScriptStep"
+
+    start_id = generate(size=21)
+    start_payload = {
+        "trainTaskId": train_task_id,
+        "stepId": start_id,
+        "stepDetailDTO": {
+            "nodeType": "SCRIPT_START",
+            "stepName": "defaultStepName",
+            "description": "",
+            "prologue": "",
+            "modelId": "",
+            "llmPrompt": "",
+            "trainerName": "",
+            "scriptStepCover": {},
+            "whiteBoardSwitch": 0,
+            "videoSwitch": 0,
+            "scriptStepResourceList": [],
+            "knowledgeBaseSwitch": 0,
+            "searchEngineSwitch": 0,
+            "trainSubType": "ability"
+        },
+        "positionDTO": {"x": 100, "y": 100},
+        "courseId": course_id,
+        "libraryFolderId": ""
+    }
+
+    end_id = generate(size=21)
+    end_payload = {
+        "trainTaskId": train_task_id,
+        "stepId": end_id,
+        "stepDetailDTO": {
+            "nodeType": "SCRIPT_END",
+            "stepName": "defaultStepName",
+            "description": "",
+            "prologue": "",
+            "modelId": "",
+            "llmPrompt": "",
+            "trainerName": "",
+            "scriptStepCover": {},
+            "whiteBoardSwitch": 0,
+            "videoSwitch": 0,
+            "scriptStepResourceList": [],
+            "knowledgeBaseSwitch": 0,
+            "searchEngineSwitch": 0,
+            "trainSubType": "ability"
+        },
+        "positionDTO": {"x": 900, "y": 100},
+        "courseId": course_id,
+        "libraryFolderId": ""
+    }
+
+    try:
+        resp = requests.post(url, headers=get_headers(), json=start_payload, timeout=20)
+        result = resp.json()
+        if result.get('code') != 200 and not result.get('success'):
+            raise RuntimeError(f"创建 START 节点失败: {result}")
+
+        resp = requests.post(url, headers=get_headers(), json=end_payload, timeout=20)
+        result = resp.json()
+        if result.get('code') != 200 and not result.get('success'):
+            raise RuntimeError(f"创建 END 节点失败: {result}")
+
+        return start_id, end_id
+    except Exception as e:
+        raise RuntimeError(f"创建 START/END 节点失败: {e}")
+
 def query_script_step_flows(train_task_id):
     """Query existing script step flows."""
     url = "https://cloudapi.polymas.com/teacher-course/abilityTrain/queryScriptStepFlowList"
@@ -633,7 +703,14 @@ def main():
     step_list = query_script_steps(train_task_id)
     start_node_id, end_node_id = extract_start_end_ids(step_list)
     if not start_node_id or not end_node_id:
-        print("⚠️ Could not find SCRIPT_START or SCRIPT_END nodes. Flow might be incomplete.")
+        print("🔧 未找到 START/END 节点，正在自动创建...")
+        course_id = os.getenv("COURSE_ID", "")
+        if not course_id:
+            print("❌ 缺少 COURSE_ID 环境变量，无法创建 START/END 节点")
+            return
+        start_node_id, end_node_id = create_start_end_nodes(train_task_id, course_id)
+        print(f"✅ 已创建 START 节点: {start_node_id}")
+        print(f"✅ 已创建 END 节点: {end_node_id}")
     else:
         print(f"✅ Found Start Node: {start_node_id}, End Node: {end_node_id}")
 

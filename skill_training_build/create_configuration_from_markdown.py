@@ -46,6 +46,7 @@ except ImportError:
 
 
 API_URL = "https://cloudapi.polymas.com/teacher-course/abilityTrain/createConfiguration"
+PUBLISH_URL = "https://cloudapi.polymas.com/teacher-course/abilityTrain/publishAbilityTrain"
 ROOT_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 PLACEHOLDER_VALUES = {
     "",
@@ -203,6 +204,78 @@ def create_configuration(
     if result.get("code") == 200 or result.get("success") is True:
         return result.get("data", {}).get("trainTaskId") or train_task_id
     raise RuntimeError(f"创建基础配置失败：{result}")
+
+
+def publish_training(train_task_id: str, course_id: str) -> bool:
+    """
+    发布能力训练任务。
+
+    Returns:
+        bool: 发布成功返回 True（code == 200），否则返回 False
+    """
+    payload = {
+        "courseId": course_id,
+        "trainTaskId": train_task_id,
+        "publishStatus": 1,
+    }
+    response = requests.post(PUBLISH_URL, headers=get_headers(), json=payload, timeout=20)
+    result = response.json()
+    return result.get("code") == 200 or result.get("success") is True
+
+
+def resolve_rubric_path(markdown_path: Path) -> Path | None:
+    """
+    自动发现评价标准 Markdown 文件。
+
+    搜索路径（按优先级）：
+    1. 与训练剧本同目录下的 "评价标准.md"
+    2. 父目录下的 "评价标准.md"
+    """
+    same_dir_path = markdown_path.parent / "评价标准.md"
+    if same_dir_path.exists():
+        return same_dir_path
+
+    parent_dir_path = markdown_path.parent.parent / "评价标准.md"
+    if parent_dir_path.exists():
+        return parent_dir_path
+
+    return None
+
+
+def create_rubric_from_markdown(train_task_id: str, rubric_md_path: Path) -> dict:
+    """
+    从 Markdown 创建评价标准评分项。
+
+    Returns:
+        {"success": int, "total": int, "items": list}
+    """
+    try:
+        from skill_training_build.create_score_items_from_rubric import (
+            parse_rubric_markdown,
+            create_score_item,
+        )
+    except ImportError:
+        from create_score_items_from_rubric import (
+            parse_rubric_markdown,
+            create_score_item,
+        )
+
+    items = parse_rubric_markdown(rubric_md_path)
+    if not items:
+        return {"success": 0, "total": 0, "items": []}
+
+    success_count = 0
+    created_items = []
+
+    for item in items:
+        item_id = create_score_item(train_task_id, item)
+        if item_id:
+            success_count += 1
+            created_items.append({"itemName": item["itemName"], "itemId": item_id})
+        else:
+            created_items.append({"itemName": item["itemName"], "itemId": None})
+
+    return {"success": success_count, "total": len(items), "items": created_items}
 
 
 def create_from_markdown(markdown_path: Path, *, with_steps: bool = False) -> Dict[str, str]:
