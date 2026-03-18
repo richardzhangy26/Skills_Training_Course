@@ -281,6 +281,66 @@ class DimensionCard(Flowable):
         canvas.restoreState()
 
 
+class GradedScoreCard(Flowable):
+    """分档评分卡片 - 用于显示档位范围和标签"""
+
+    def __init__(self, graded_name, label, range_min, range_max,
+                 description, is_current, width=100, height=60):
+        super().__init__()
+        self.graded_name = graded_name
+        self.label = label
+        self.range_min = range_min
+        self.range_max = range_max
+        self.description = description
+        self.is_current = is_current
+        self.width = width
+        self.height = height
+
+    def wrap(self, avail_width, avail_height):
+        return self.width, self.height
+
+    def draw(self):
+        canvas = self.canv
+        canvas.saveState()
+
+        # 根据是否当前档位选择颜色
+        if self.is_current:
+            bg_color = colors.HexColor("#E3F2FD")  # 浅蓝色背景
+            border_color = COLOR_PRIMARY
+            text_color = COLOR_PRIMARY
+        else:
+            bg_color = COLOR_SOFT
+            border_color = COLOR_BORDER
+            text_color = colors.HexColor("#6b7280")
+
+        # 绘制圆角矩形背景
+        canvas.setFillColor(bg_color)
+        canvas.setStrokeColor(border_color)
+        canvas.setLineWidth(2 if self.is_current else 1)
+        canvas.roundRect(0, 0, self.width, self.height, 6, stroke=1, fill=1)
+
+        # 绘制档位名称 (如 "分档1")
+        canvas.setFont(FONT_NAME, 9)
+        canvas.setFillColor(text_color)
+        canvas.drawCentredString(self.width / 2, self.height - 14, self.graded_name)
+
+        # 绘制分数范围
+        range_text = f"{self.range_min}-{self.range_max}分"
+        canvas.setFont(FONT_NAME, 10)
+        canvas.setFillColor(colors.HexColor("#111827"))
+        canvas.drawCentredString(self.width / 2, self.height - 30, range_text)
+
+        # 绘制标签 (如 "差", "良好" 等)
+        canvas.setFont(FONT_NAME, 11)
+        canvas.setFillColor(COLOR_PRIMARY if self.is_current else colors.HexColor("#6b7280"))
+        label_text = self.label
+        if self.is_current:
+            label_text = f"{self.label} ★"
+        canvas.drawCentredString(self.width / 2, self.height - 46, label_text)
+
+        canvas.restoreState()
+
+
 # -------- Layout Builders --------
 
 def build_styles():
@@ -407,6 +467,41 @@ def build_top_section(styles, refined, labels, scores, full_marks, available_wid
     return table
 
 
+def build_graded_top_section(styles, refined, available_width):
+    """分档评分类型的顶部区域 - 不显示雷达图"""
+    score_text = f"<font size='32' color='#2962FF'>{refined['total_score']}</font><font size='12' color='#c0c4cc'>/{refined['full_mark']}</font>"
+    score_para = Paragraph(score_text, styles["score"])
+    ring = ScoreRing(refined["total_score"], size=52)
+    score_row = Table([[score_para, ring]], colWidths=[120, 60])
+    score_row.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("LEFTPADDING", (0,0), (-1,-1), 0), ("RIGHTPADDING", (0,0), (-1,-1), 0)]))
+
+    summary_title = Paragraph("综合评语", styles["section"])
+    summary_text = truncate_text(refined["comment"], 180).replace("**", "")
+    summary_para = Paragraph(escape(summary_text), styles["summary"])
+
+    content = [
+        Paragraph("总得分 Total Score", styles["label"]),
+        Spacer(1, 6),
+        score_row,
+        Spacer(1, 12),
+        summary_title,
+        Spacer(1, 4),
+        summary_para,
+    ]
+
+    table = Table([[content]], colWidths=[available_width])
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    return table
+
+
 def build_dimension_cards(refined, available_width):
     cards = [
         DimensionCard(d["name"], d["score"], d["full"], width=110, height=70)
@@ -416,6 +511,56 @@ def build_dimension_cards(refined, available_width):
     gap = 12
     card_width = (available_width - gap * (num_cols - 1)) / num_cols
     card_height = 70
+
+    widths = []
+    for idx in range(num_cols):
+        widths.append(card_width)
+        if idx < num_cols - 1:
+            widths.append(gap)
+
+    rows = []
+    for start in range(0, len(cards), num_cols):
+        row_cards = cards[start : start + num_cols]
+        row = []
+        for idx in range(num_cols):
+            if idx < len(row_cards):
+                row_cards[idx].width = card_width
+                row.append(row_cards[idx])
+            else:
+                row.append(Spacer(card_width, card_height))
+            if idx < num_cols - 1:
+                row.append(Spacer(gap, card_height))
+        rows.append(row)
+
+    table = Table(rows, colWidths=widths)
+    table.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+    return table
+
+
+def build_graded_score_cards(refined, available_width):
+    """构成分档评分卡片布局"""
+    graded_scores = refined.get("graded_scores", [])
+    if not graded_scores:
+        return Spacer(1, 1)
+
+    cards = [
+        GradedScoreCard(
+            graded_name=g["name"],
+            label=g["label"],
+            range_min=g["range_min"],
+            range_max=g["range_max"],
+            description=g.get("description", ""),
+            is_current=g.get("is_current", False),
+            width=90,
+            height=60
+        )
+        for g in graded_scores
+    ]
+
+    num_cols = 5  # 每行最多5个档位
+    gap = 10
+    card_width = (available_width - gap * (num_cols - 1)) / num_cols
+    card_height = 60
 
     widths = []
     for idx in range(num_cols):
@@ -492,10 +637,20 @@ def build_story(refined, labels, scores, full_marks, doc):
     story.append(build_header(styles, refined, doc.width))
     story.append(Spacer(1, 16))
 
-    story.append(build_top_section(styles, refined, labels, scores, full_marks, doc.width))
-    story.append(Spacer(1, 18))
+    # 根据评分类型选择不同的布局
+    if refined["scoring_type"] == "dimension":
+        # 维度评分类型: 显示雷达图 + 维度卡片
+        story.append(build_top_section(styles, refined, labels, scores, full_marks, doc.width))
+        story.append(Spacer(1, 18))
+        story.append(build_dimension_cards(refined, doc.width))
+    else:
+        # 分档评分类型: 显示总得分 + 档位卡片
+        story.append(build_graded_top_section(styles, refined, doc.width))
+        story.append(Spacer(1, 18))
+        story.append(build_section_header(styles, "分档评分标准", colors.HexColor("#2962FF"), "档"))
+        story.append(Spacer(1, 8))
+        story.append(build_graded_score_cards(refined, doc.width))
 
-    story.append(build_dimension_cards(refined, doc.width))
     story.append(Spacer(1, 20))
 
     story.append(build_section_header(styles, "综合评语", colors.HexColor("#FF5252"), "评"))
@@ -524,33 +679,65 @@ def build_story(refined, labels, scores, full_marks, doc):
 
 def load_data(input_path):
     with open(input_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+        raw = json.load(f)
 
-    core_data = data["data"]["artifacts"][0]["parts"][0]["data"]
-    meta_info = data["data"]["status"]
+    # 支持两种JSON包装结构: data.artifacts 或 response.data.artifacts
+    data = raw.get("data") or raw.get("response", {}).get("data", {})
+    artifacts = data.get("artifacts", [])
+    if not artifacts:
+        raise ValueError("No artifacts found in data")
 
+    core_data = artifacts[0]["parts"][0]["data"]
+    meta_info = data.get("status", {})
+
+    # 统一提取基础数据
     refined = {
-        "total_score": core_data["totalScore"],
-        "full_mark": core_data["fullMark"],
-        "status_state": meta_info["state"],
-        "timestamp": datetime.datetime.fromisoformat(meta_info["timestamp"]).strftime("%Y-%m-%d %H:%M"),
-        "comment": core_data["comprehensiveComment"],
-        "suggestions": core_data["improvementSuggestions"],
+        "total_score": core_data.get("totalScore", 0),
+        "full_mark": core_data.get("fullMark", 100),
+        "status_state": meta_info.get("state", "completed"),
+        "timestamp": datetime.datetime.fromisoformat(meta_info.get("timestamp", datetime.datetime.now().isoformat())).strftime("%Y-%m-%d %H:%M"),
+        "comment": core_data.get("comprehensiveComment", ""),
+        "suggestions": core_data.get("improvementSuggestions", []),
         "dimensions": [],
+        "graded_scores": [],
+        "scoring_type": "dimension",  # 'dimension' | 'graded'
+        "current_score": core_data.get("totalScore", 0),
     }
 
     labels, scores, full_marks = [], [], []
-    for dim in core_data["dimensionScores"]:
-        refined["dimensions"].append(
-            {
-                "name": dim["evaluationDimension"],
-                "score": dim["dimensionScore"],
-                "full": dim["dimensionFullMark"],
+
+    # 处理维度评分 (essay_writing, thesis_writing 类型)
+    if "dimensionScores" in core_data:
+        refined["scoring_type"] = "dimension"
+        for dim in core_data["dimensionScores"]:
+            refined["dimensions"].append(
+                {
+                    "name": dim["evaluationDimension"],
+                    "score": dim["dimensionScore"],
+                    "full": dim["dimensionFullMark"],
+                }
+            )
+            labels.append(dim["evaluationDimension"])
+            scores.append(dim["dimensionScore"])
+            full_marks.append(dim["dimensionFullMark"])
+
+    # 处理分档评分 (心得体会类型)
+    elif "gradedScores" in core_data:
+        refined["scoring_type"] = "graded"
+        current_score = refined["total_score"]
+        for g in core_data["gradedScores"]:
+            graded_item = {
+                "name": g.get("gradedName", ""),
+                "range_min": g.get("gradedRangeMin", 0),
+                "range_max": g.get("gradedRangeMax", 0),
+                "label": g.get("gradedLabel", ""),
+                "description": g.get("gradedDescription", ""),
+                "is_current": False,
             }
-        )
-        labels.append(dim["evaluationDimension"])
-        scores.append(dim["dimensionScore"])
-        full_marks.append(dim["dimensionFullMark"])
+            # 判断当前档位: 分数在档位范围内
+            if graded_item["range_min"] <= current_score <= graded_item["range_max"]:
+                graded_item["is_current"] = True
+            refined["graded_scores"].append(graded_item)
 
     return refined, labels, scores, full_marks
 
