@@ -132,7 +132,9 @@ def parse_markdown(markdown_path):
     
     for line in lines:
         stripped = line.strip()
-        
+        # Normalize full-width colon to ASCII colon for field matching
+        stripped = stripped.replace('：', ':')
+
         # New Step Start
         if stripped.startswith('### 阶段'):
             if current_step:
@@ -278,6 +280,79 @@ def create_script_step(train_task_id, step_data, position):
     except Exception as e:
         print(f"❌ Error creating step: {e}")
         return None
+
+def create_start_end_nodes(train_task_id: str, course_id: str) -> tuple[str, str]:
+    """为任务创建 SCRIPT_START 和 SCRIPT_END 节点"""
+    url = "https://cloudapi.polymas.com/teacher-course/abilityTrain/createScriptStep"
+
+    # 创建 START 节点
+    start_id = generate(size=21)
+    start_payload = {
+        "trainTaskId": train_task_id,
+        "stepId": start_id,
+        "stepDetailDTO": {
+            "nodeType": "SCRIPT_START",
+            "stepName": "defaultStepName",
+            "description": "",
+            "prologue": "",
+            "modelId": "",
+            "llmPrompt": "",
+            "trainerName": "",
+            "scriptStepCover": {},
+            "whiteBoardSwitch": 0,
+            "videoSwitch": 0,
+            "scriptStepResourceList": [],
+            "knowledgeBaseSwitch": 0,
+            "searchEngineSwitch": 0,
+            "trainSubType": "ability"
+        },
+        "positionDTO": {"x": 100, "y": 100},
+        "courseId": course_id,
+        "libraryFolderId": ""
+    }
+
+    # 创建 END 节点
+    end_id = generate(size=21)
+    end_payload = {
+        "trainTaskId": train_task_id,
+        "stepId": end_id,
+        "stepDetailDTO": {
+            "nodeType": "SCRIPT_END",
+            "stepName": "defaultStepName",
+            "description": "",
+            "prologue": "",
+            "modelId": "",
+            "llmPrompt": "",
+            "trainerName": "",
+            "scriptStepCover": {},
+            "whiteBoardSwitch": 0,
+            "videoSwitch": 0,
+            "scriptStepResourceList": [],
+            "knowledgeBaseSwitch": 0,
+            "searchEngineSwitch": 0,
+            "trainSubType": "ability"
+        },
+        "positionDTO": {"x": 900, "y": 100},
+        "courseId": course_id,
+        "libraryFolderId": ""
+    }
+
+    try:
+        # 创建 START
+        resp = requests.post(url, headers=get_headers(), json=start_payload, timeout=20)
+        result = resp.json()
+        if result.get('code') != 200 and not result.get('success'):
+            raise RuntimeError(f"创建 START 节点失败: {result}")
+
+        # 创建 END
+        resp = requests.post(url, headers=get_headers(), json=end_payload, timeout=20)
+        result = resp.json()
+        if result.get('code') != 200 and not result.get('success'):
+            raise RuntimeError(f"创建 END 节点失败: {result}")
+
+        return start_id, end_id
+    except Exception as e:
+        raise RuntimeError(f"创建 START/END 节点失败: {e}")
 
 def create_script_flow(train_task_id, start_id, end_id, condition_text, transition_prompt=""):
     """Create a flow connection between two nodes."""
@@ -733,7 +808,14 @@ def main():
             step_list = query_script_steps(train_task_id)
             start_node_id, end_node_id = extract_start_end_ids(step_list)
             if not start_node_id or not end_node_id:
-                print("⚠️ 删除后未找到 SCRIPT_START 或 SCRIPT_END 节点。")
+                print("🔧 删除后未找到 START/END 节点，正在自动创建...")
+                course_id = os.getenv("COURSE_ID", "")
+                if not course_id:
+                    print("❌ 缺少 COURSE_ID 环境变量，无法创建 START/END 节点")
+                    return
+                start_node_id, end_node_id = create_start_end_nodes(train_task_id, course_id)
+                print(f"✅ 已创建 START 节点: {start_node_id}")
+                print(f"✅ 已创建 END 节点: {end_node_id}")
             # 重置插入模式变量
             insert_after_step_id = None
             insert_after_step_name = None

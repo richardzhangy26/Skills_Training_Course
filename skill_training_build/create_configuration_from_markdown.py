@@ -30,6 +30,10 @@ try:
         query_script_steps,
         upload_cover_image,
     )
+    from skill_training_build.create_score_items_from_rubric import (
+        parse_rubric_markdown,
+        create_score_item,
+    )
 except ImportError:
     from create_task_from_markdown import (
         build_steps_from_markdown,
@@ -42,6 +46,10 @@ except ImportError:
         query_script_step_flows,
         query_script_steps,
         upload_cover_image,
+    )
+    from create_score_items_from_rubric import (
+        parse_rubric_markdown,
+        create_score_item,
     )
 
 
@@ -114,7 +122,7 @@ def resolve_image_path(markdown_path: Path, image_value: str) -> Path:
     return image_path
 
 
-def resolve_cover_image(markdown_path: Path, base_config: BaseConfiguration, steps: List[Dict]) -> Path:
+def resolve_cover_image(markdown_path: Path, base_config: BaseConfiguration, steps: List[Dict], *, required: bool = True) -> Path | None:
     candidates = []
     if not is_placeholder_value(base_config.background_image):
         candidates.append(base_config.background_image)
@@ -129,7 +137,9 @@ def resolve_cover_image(markdown_path: Path, base_config: BaseConfiguration, ste
         if candidate:
             return resolve_image_path(markdown_path, candidate)
 
-    raise ValueError("未找到可用背景图：基础配置背景图为空，且第一阶段背景图也为空。")
+    if required:
+        raise ValueError("未找到可用背景图：基础配置背景图为空，且第一阶段背景图也为空。")
+    return None
 
 
 def require_course_id() -> str:
@@ -231,10 +241,12 @@ def resolve_rubric_path(markdown_path: Path) -> Path | None:
     1. 与训练剧本同目录下的 "评价标准.md"
     2. 父目录下的 "评价标准.md"
     """
+    # 1. 同目录
     same_dir_path = markdown_path.parent / "评价标准.md"
     if same_dir_path.exists():
         return same_dir_path
 
+    # 2. 父目录
     parent_dir_path = markdown_path.parent.parent / "评价标准.md"
     if parent_dir_path.exists():
         return parent_dir_path
@@ -249,17 +261,6 @@ def create_rubric_from_markdown(train_task_id: str, rubric_md_path: Path) -> dic
     Returns:
         {"success": int, "total": int, "items": list}
     """
-    try:
-        from skill_training_build.create_score_items_from_rubric import (
-            parse_rubric_markdown,
-            create_score_item,
-        )
-    except ImportError:
-        from create_score_items_from_rubric import (
-            parse_rubric_markdown,
-            create_score_item,
-        )
-
     items = parse_rubric_markdown(rubric_md_path)
     if not items:
         return {"success": 0, "total": 0, "items": []}
@@ -278,20 +279,40 @@ def create_rubric_from_markdown(train_task_id: str, rubric_md_path: Path) -> dic
     return {"success": success_count, "total": len(items), "items": created_items}
 
 
-def create_from_markdown(markdown_path: Path, *, with_steps: bool = False) -> Dict[str, str]:
+def create_from_markdown(
+    markdown_path: Path,
+    *,
+    with_steps: bool = False,
+    with_rubric: bool = False,
+    rubric_path: Path | None = None,
+    publish: bool = False,
+    cover_image_path: Path | None = None,
+) -> Dict[str, str]:
     markdown_path = Path(markdown_path).expanduser().resolve()
     if not markdown_path.exists():
         raise FileNotFoundError(f"Markdown 文件不存在：{markdown_path}")
 
     steps = parse_markdown(markdown_path)
     base_config = parse_base_configuration(markdown_path)
-    cover_path = resolve_cover_image(markdown_path, base_config, steps)
+
+    # Use externally provided cover, or resolve from markdown
+    cover_path = None
+    if cover_image_path and Path(cover_image_path).exists():
+        cover_path = Path(cover_image_path)
+    else:
+        cover_path = resolve_cover_image(markdown_path, base_config, steps, required=False)
+
     course_id = require_course_id()
 
-    print(f"🖼️ 上传任务背景图：{cover_path.name}")
-    train_task_cover = upload_cover_image(cover_path)
-    if not train_task_cover:
-        raise RuntimeError(f"背景图上传失败：{cover_path}")
+    if cover_path:
+        print(f"🖼️ 上传任务背景图：{cover_path.name}")
+        train_task_cover = upload_cover_image(cover_path)
+        if not train_task_cover:
+            print("⚠️ 背景图上传失败，使用默认封面")
+            train_task_cover = {}
+    else:
+        print("⚠️ 无封面图，使用平台默认封面")
+        train_task_cover = {}
 
     print(f"🚀 创建基础配置：{base_config.train_task_name}")
     train_task_id = create_configuration(base_config, course_id, train_task_cover)
@@ -325,6 +346,24 @@ def create_from_markdown(markdown_path: Path, *, with_steps: bool = False) -> Di
             steps=steps,
         )
 
+    # 2. 配置评价标准（新增）
+    if with_rubric:
+        rubric_md = rubric_path or resolve_rubric_path(markdown_path)
+        if rubric_md and rubric_md.exists():
+            print(f"📊 配置评价标准: {rubric_md.name}")
+            result = create_rubric_from_markdown(train_task_id, rubric_md)
+            print(f"   成功创建 {result['success']}/{result['total']} 个评分项")
+        else:
+            print("⚠️ 未找到评价标准.md，跳过评价标准配置")
+
+    # 3. 发布任务（新增）
+    if publish:
+        print("🚀 发布任务...")
+        if publish_training(train_task_id, course_id):
+            print("✅ 发布成功（code=200）")
+        else:
+            raise RuntimeError("发布失败，响应码非200")
+
     return {
         "trainTaskId": train_task_id,
         "trainTaskName": base_config.train_task_name,
@@ -339,6 +378,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="基础配置创建成功后，继续自动创建阶段节点和连线",
     )
+    parser.add_argument(
+        "--with-rubric",
+        action="store_true",
+        help="基础配置创建成功后，自动配置评价标准（自动发现评价标准.md）",
+    )
+    parser.add_argument(
+        "--rubric-path",
+        type=str,
+        default=None,
+        help="指定评价标准 Markdown 文件路径（默认自动发现）",
+    )
+    parser.add_argument(
+        "--publish",
+        action="store_true",
+        help="配置完成后自动发布任务（要求返回200才算成功）",
+    )
     return parser
 
 
@@ -346,7 +401,14 @@ def main() -> int:
     load_env_config()
     args = build_arg_parser().parse_args()
     try:
-        create_from_markdown(Path(args.markdown_path), with_steps=args.with_steps)
+        rubric_path = Path(args.rubric_path) if args.rubric_path else None
+        create_from_markdown(
+            Path(args.markdown_path),
+            with_steps=args.with_steps,
+            with_rubric=args.with_rubric,
+            rubric_path=rubric_path,
+            publish=args.publish,
+        )
         return 0
     except Exception as exc:
         print(f"❌ {exc}")
