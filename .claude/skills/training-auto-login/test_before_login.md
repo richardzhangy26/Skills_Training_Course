@@ -1,0 +1,45 @@
+- generic [ref=e1]:
+  - generic [ref=e9]:
+    - paragraph [ref=e14]: 对于学校机构的用户，我们推荐使用机构登录或者工号登录。
+    - generic [ref=e15]:
+      - generic [ref=e16] [cursor=pointer]:
+        - img [ref=e17]
+        - text: 通过机构登录
+        - generic [ref=e19]: 新
+      - generic [ref=e20] [cursor=pointer]:
+        - img [ref=e21]
+        - text: 通过微信登录
+      - separator [ref=e23]:
+        - generic [ref=e24]: or
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - tablist [ref=e31]:
+            - tab "账号登录" [ref=e33]
+            - tab "学号登录" [ref=e34]
+            - tab "工号登录" [selected] [ref=e35]
+            - tab "APP扫码" [ref=e36]
+          - generic [ref=e37]:
+            - tabpanel "工号登录"
+        - generic [ref=e39]:
+          - generic [ref=e71]:
+            - img [ref=e73]
+            - generic [ref=e75]:
+              - combobox [ref=e77]
+              - generic [ref=e95]: Polymas实验室
+          - generic [ref=e83]:
+            - img [ref=e85]
+            - textbox "请输入您的教工号" [ref=e88]: JFFJ1001000000
+          - generic [ref=e50]:
+            - img [ref=e52]
+            - generic [ref=e54]:
+              - textbox "请输入密码" [active] [ref=e55]: Zhihuishu@000000
+              - img [ref=e100] [cursor=pointer]
+        - paragraph [ref=e56]:
+          - generic [ref=e59] [cursor=pointer]: 忘记密码
+        - generic [ref=e60]:
+          - generic [ref=e62] [cursor=pointer]:
+            - generic [ref=e63]:
+              - checkbox "我已阅读并同意 《智慧树用户协议》《隐私政策》"
+            - generic [ref=e66]: 我已阅读并同意 《智慧树用户协议》《隐私政策》
+          - generic [ref=e67] [cursor=pointer]: 立即登录
+  - img

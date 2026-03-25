@@ -1,0 +1,17 @@
+# 会话文件
+sessions/
+*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 测试文件
+test_*.py
+*_test.py
+
+# 日志
+*.log

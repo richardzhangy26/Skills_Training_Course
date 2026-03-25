@@ -3,19 +3,36 @@
 训练部署与自动测试 Pipeline
 
 端到端自动化流程：
-1. 为训练剧本的每个阶段生成背景图 (training-background-generator)
-2. 将训练剧本导入到 Polymas 平台 (create_task_from_markdown.py)
-3. 使用「优秀学生」和「中等学生」两个档位自动进行对话测试 (auto_script_train.py)
+Step 0: 创建训练任务（可选）
+        ├── 解析 Markdown 基础配置（任务名称、描述）
+        ├── 生成封面图（使用 Doubao API 或第一阶段背景图）
+        ├── 调用 API 创建训练任务
+        └── 自动将 TASK_ID 写入 .env
+Step 1: 为训练剧本的每个阶段生成背景图 (training-background-generator)
+Step 2: 将训练剧本导入到 Polymas 平台 (create_task_from_markdown.py)
+Step 3: 配置评价标准（独立步骤，在剧本导入后执行）
+Step 4: 发布任务（独立步骤，在所有配置完成后执行）
+Step 5: 使用「优秀学生」和「中等学生」两个档位自动进行对话测试 (auto_script_train.py)
 
 使用方式:
-    python run_pipeline.py <剧本配置.md> [--task-id <任务ID>] [--skip-bg] [--skip-import] [--skip-test] [--profiles good,medium]
+    # 创建新任务并完整部署
+    python run_pipeline.py <剧本配置.md> --create-task --course-id <课程ID>
+
+    # 仅创建任务（不执行后续步骤）
+    python run_pipeline.py <剧本配置.md> --create-only --course-id <课程ID>
+
+    # 使用现有任务部署（向后兼容）
+    python run_pipeline.py <剧本配置.md> --task-id <任务ID>
+
+    # 从环境变量读取 TASK_ID，如果不存在则自动创建
+    python run_pipeline.py <剧本配置.md> --course-id <课程ID>
 
 环境变量 (从项目根目录 .env 加载):
     AUTHORIZATION: Polymas Bearer Token (必需)
     COOKIE: 浏览器 Cookie 字符串 (必需)
-    TASK_ID: 训练任务 ID (可通过 --task-id 覆盖)
-    ARK_API_KEY / DOUBAO_MODEL: Doubao SDK 模式 (默认)
-    LLM_API_KEY / LLM_MODEL / LLM_API_URL: Doubao POST 模式
+    COURSE_ID: 课程 ID (创建新任务时需要，可被 --course-id 覆盖)
+    TASK_ID: 训练任务 ID (使用现有任务时，可被 --task-id 覆盖)
+    ARK_API_KEY / DOUBAO_MODEL: Doubao SDK 模式 (生成封面图时需要)
     MODEL_TYPE: doubao_sdk (默认) 或 doubao_post
     LOG_FORMAT: txt / json / both (默认 both)
 """
@@ -24,10 +41,12 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Dict, Tuple
 
 # ---------------------------------------------------------------------------
 # Resolve project root so we can import project modules and locate scripts.
@@ -52,6 +71,24 @@ except ImportError:
 
 # Add project root to sys.path so we can import WorkflowTester directly
 sys.path.insert(0, str(PROJECT_ROOT))
+
+# Add skill_training_build to path for importing create_configuration_from_markdown
+sys.path.insert(0, str(PROJECT_ROOT / "skill_training_build"))
+
+
+# ===========================================================================
+# Constants
+# ===========================================================================
+
+PLACEHOLDER_VALUES = {
+    "",
+    "待生成",
+    "(待生成)",
+    "（待生成）",
+    "选填",
+    "(选填)",
+    "（选填）",
+}
 
 
 # ===========================================================================
@@ -92,6 +129,307 @@ def _run_subprocess(
         return False
 
 
+def is_placeholder_value(value: str) -> bool:
+    """Check if a value is a placeholder."""
+    normalized = value.strip() if value else ""
+    compact = normalized.replace(" ", "")
+    return compact in PLACEHOLDER_VALUES
+
+
+def normalize_md_value(raw_value: str) -> str:
+    """Normalize markdown field value."""
+    value = raw_value.strip()
+    if not value:
+        return ""
+    value = re.sub(r'（[^）]*选填[^）]*）', '', value)
+    value = re.sub(r'\([^)]*选填[^)]*\)', '', value)
+    value = re.sub(r'（[^）]*默认为空[^）]*）', '', value)
+    value = re.sub(r'\([^)]*默认为空[^)]*\)', '', value)
+    value = value.strip()
+    if not value:
+        return ""
+    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+        value = value[1:-1].strip()
+    if value.startswith(""") and value.endswith("""):
+        value = value[1:-1].strip()
+    return value
+
+
+def extract_base_field(content: str, label: str) -> str:
+    """Extract a field from markdown content."""
+    pattern = re.compile(
+        rf"^\s*-\s*\*\*{re.escape(label)}\*\*\s*[：:]\s*(.+?)\s*$",
+        flags=re.MULTILINE,
+    )
+    match = pattern.search(content)
+    if not match:
+        return ""
+    return normalize_md_value(match.group(1))
+
+
+def parse_base_configuration(markdown_path: Path) -> Tuple[str, str, str]:
+    """
+    Parse base configuration from markdown.
+    Returns: (task_name, description, background_image)
+    """
+    content = markdown_path.read_text(encoding="utf-8")
+    task_name = extract_base_field(content, "任务名称")
+    description = extract_base_field(content, "任务描述")
+    background_image = extract_base_field(content, "背景图")
+
+    return task_name, description, background_image
+
+
+def write_task_id_to_env(task_id: str, env_path: Path | None = None) -> Path:
+    """Write TASK_ID to .env file and update current process environment."""
+    if env_path is None:
+        env_path = PROJECT_ROOT / ".env"
+
+    env_path = Path(env_path)
+    task_line = f'TASK_ID="{task_id}"\n'
+
+    if env_path.exists():
+        original_text = env_path.read_text(encoding="utf-8")
+        lines = original_text.splitlines(keepends=True)
+        kept_lines = [
+            line for line in lines
+            if not re.match(r"^\s*TASK_ID\s*=", line)
+        ]
+        new_text = "".join(kept_lines)
+        if new_text and not new_text.endswith("\n"):
+            new_text += "\n"
+        new_text += task_line
+    else:
+        env_path.parent.mkdir(parents=True, exist_ok=True)
+        new_text = task_line
+
+    env_path.write_text(new_text, encoding="utf-8")
+    os.environ["TASK_ID"] = task_id
+    return env_path
+
+
+# ===========================================================================
+# Step 0: Create Training Task
+# ===========================================================================
+
+
+def generate_cover_prompt(task_name: str, task_description: str) -> str:
+    """Generate cover image prompt based on task info."""
+    # Keywords matching for specific prompt templates
+    prompt_templates = {
+        "离心泵": "工业化工厂，离心泵运行场景，技术人员在仔细检查泵的状态，高清现代化工业设备，蓝色和灰色调，工业气氛浓厚，精密检测仪器，16:9宽屏，电影级质感，光影细节丰富",
+        "汽蚀": "工业现场，泵的故障诊断场景，工程师手持诊断工具，高科技仪器，动态光线，深蓝色和银灰色调，紧张专业的工作氛围，16:9宽屏，科技感十足",
+        "精馏": "化学实验室，精馏装置运行中，液体流动通过冷凝管，蒸馏烧瓶加热，科学仪器精密排列，蓝白调，科技感强，专业教学环境，玻璃仪器闪烁反光，16:9宽屏，细节丰富",
+        "展馆": "现代科技展馆内部，宽敞明亮的展厅，各种创意展示品，参观者在互动体验，科技感强烈，现代建筑风格，柔和的照明，开放式空间，16:9宽屏，沉浸感十足",
+        "非暴力沟通": "温暖的协作工作室，两个人在进行深入沟通交流，放松的氛围，柔和的自然光线，绿植点缀，现代简约风格，友好和谐，16:9宽屏，人性化气氛",
+        "投资": "现代办公会议室，投资推介会场景，专业的演讲者，观众认真听讲，高档的会议设备，蓝色商务调，专业严谨的氛围，大屏幕显示，16:9宽屏，企业级质感",
+        "大豆": "金黄色的大豆田，成熟的豆荚饱满，阳光洒在田野上，农业专家在田间考察，丰收的喜悦，蓝天白云，16:9宽屏，田园风光，农业科学研究氛围",
+        "栽培": "现代化温室大棚，绿色植物茁壮成长，农业科技人员在进行栽培实验，专业的培育设备，生机勃勃，16:9宽屏，现代农业科技氛围",
+        "化工": "现代化工厂全景，管道纵横交错，反应塔高耸，安全设施完备，黄昏时分的工业美景，16:9宽屏，现代工业科技氛围",
+    }
+
+    combined_text = (task_name + " " + task_description).lower()
+    for keyword, template in prompt_templates.items():
+        if keyword.lower() in combined_text:
+            return template
+
+    # Default prompt
+    default_prompt = (
+        f"现代教学培训场景，专业人士在讲解'{task_name}'，"
+        "互动教学环境，科技感和教育感结合，光线充足，"
+        "氛围积极向上，现代化设施，16:9宽屏，高清质感，"
+        "细节丰富，专业呈现"
+    )
+    return default_prompt
+
+
+def generate_cover_image(prompt: str) -> str | None:
+    """
+    Generate cover image using Polymas API (LLM_API_KEY) or Doubao ARK API.
+    Returns image URL or None on failure.
+    """
+    import requests as _req
+
+    # Try Polymas API first (LLM_API_KEY) - most commonly configured
+    llm_key = os.environ.get("LLM_API_KEY")
+    if llm_key:
+        try:
+            headers = {"api-key": llm_key, "Content-Type": "application/json"}
+            payload = {
+                "model": "Doubao-Seedream-4.0",
+                "prompt": prompt,
+                "size": "768x432",
+                "watermark": False,
+                "response_format": "url",
+            }
+            resp = _req.post(
+                "https://llm-service.polymas.com/api/openai/v1/images/generations",
+                headers=headers,
+                json=payload,
+                timeout=120,
+            )
+            resp.raise_for_status()
+            url = resp.json()["data"][0]["url"]
+            if url:
+                return url
+        except Exception as e:
+            print(f"⚠️  Polymas 封面图生成失败: {e}")
+
+    # Fallback to ARK API
+    ark_key = os.environ.get("ARK_API_KEY")
+    if not ark_key:
+        print("⚠️  未设置 LLM_API_KEY 或 ARK_API_KEY，无法生成封面图")
+        return None
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(
+            base_url="https://ark.cn-beijing.volces.com/api/v3",
+            api_key=ark_key,
+        )
+        response = client.images.generate(
+            model="doubao-seedream-4-0-250828",
+            prompt=prompt,
+            size="2K",
+            response_format="url",
+            extra_body={"watermark": True},
+        )
+        return response.data[0].url
+    except Exception as e:
+        print(f"⚠️  ARK 封面图生成失败: {e}")
+        return None
+
+
+def download_cover_image(url: str, output_path: Path) -> bool:
+    """Download cover image from URL to local path."""
+    try:
+        import requests
+        response = requests.get(url, timeout=60)
+        response.raise_for_status()
+        output_path.write_bytes(response.content)
+        return True
+    except Exception as e:
+        print(f"⚠️  封面图下载失败: {e}")
+        return False
+
+
+def step_create_task(
+    md_path: Path,
+    course_id: str,
+) -> Tuple[bool, str | None]:
+    """
+    Step 0: Create training task (basic config only).
+
+    Rubric and publish are handled as separate steps after import.
+
+    Returns: (success, task_id)
+    """
+    _print_banner("🆕 Step 0: 创建训练任务")
+
+    # 1. Parse base configuration
+    print("\n📖 解析基础配置...")
+    task_name, description, bg_image = parse_base_configuration(md_path)
+
+    if not task_name:
+        print("❌ Markdown 缺少基础配置字段：任务名称")
+        print("   请在 Markdown 开头添加：")
+        print("   ## 基础配置")
+        print("   - **任务名称**: 您的任务名称")
+        print("   - **任务描述**: 任务描述")
+        return False, None
+
+    if not description:
+        print("❌ Markdown 缺少基础配置字段：任务描述")
+        return False, None
+
+    print(f"   ✓ 任务名称: {task_name}")
+    print(f"   ✓ 任务描述: {description[:50]}...")
+
+    # 2. Generate or find cover image
+    print("\n🖼️  准备任务封面图...")
+    cover_path = None
+
+    # Try to use provided background image
+    if bg_image and not is_placeholder_value(bg_image):
+        if not re.match(r"^[a-zA-Z]+://", bg_image):
+            # Local path
+            cover_path = Path(bg_image)
+            if not cover_path.is_absolute():
+                cover_path = (md_path.parent / bg_image).resolve()
+            if cover_path.exists():
+                print(f"   ✓ 使用指定背景图: {cover_path}")
+            else:
+                print(f"   ⚠️ 指定背景图不存在: {cover_path}")
+                cover_path = None
+
+    # If no valid cover, try to generate one
+    if cover_path is None:
+        print("   🎨 使用 Doubao API 生成封面图...")
+        prompt = generate_cover_prompt(task_name, description)
+        print(f"   提示词: {prompt[:60]}...")
+
+        cover_url = generate_cover_image(prompt)
+
+        if cover_url:
+            # Download to local
+            covers_dir = md_path.parent / "covers"
+            covers_dir.mkdir(parents=True, exist_ok=True)
+            cover_path = covers_dir / "task_cover.png"
+
+            if download_cover_image(cover_url, cover_path):
+                print(f"   ✓ 封面图已下载: {cover_path}")
+            else:
+                print("   ⚠️ 封面图下载失败，将使用平台默认封面")
+                cover_path = None
+        else:
+            print("   ⚠️ 封面图生成失败，将使用平台默认封面")
+
+    # 3. Use create_from_markdown for basic config only (no rubric, no publish)
+    print("\n🚀 调用 API 创建训练任务...")
+    try:
+        from create_configuration_from_markdown import create_from_markdown
+
+        # Only create basic config; rubric and publish happen later in the pipeline
+        # cover image is resolved internally by create_from_markdown via resolve_cover_image
+        result = create_from_markdown(
+            markdown_path=md_path,
+            with_steps=False,
+        )
+        task_id = result["trainTaskId"]
+
+        print(f"\n✅ 训练任务创建成功!")
+        print(f"   任务 ID: {task_id}")
+        print(f"   任务名称: {task_name}")
+
+        # 4. Write TASK_ID to .env (already done by create_from_markdown, but ensure it's set)
+        env_path = write_task_id_to_env(task_id)
+        print(f"\n📝 TASK_ID 已写入: {env_path}")
+
+        return True, task_id
+
+    except ImportError as e:
+        print(f"❌ 导入 create_configuration_from_markdown 失败: {e}")
+        return False, None
+    except Exception as e:
+        print(f"❌ 创建训练任务失败: {e}")
+        return False, None
+
+
+# ===========================================================================
+# Pre-check: VTS Script Purity Validation
+# ===========================================================================
+
+
+def step_validate_script(md_path: Path) -> bool:
+    """Pre-check: 验证训练剧本纯净跳转（vts）"""
+    vts_script = PROJECT_ROOT / ".claude" / "tools" / "validate_script_purity.py"
+    if not vts_script.exists():
+        print(f"⚠️  VTS 脚本不存在: {vts_script}，跳过验证")
+        return True  # 非致命，脚本不存在时继续
+    cmd = [sys.executable, str(vts_script), str(md_path)]
+    return _run_subprocess(cmd, "🔍 Pre-check: 剧本纯净跳转验证（vts）")
+
+
 # ===========================================================================
 # Step 1: Background Image Generation
 # ===========================================================================
@@ -112,7 +450,7 @@ def step_generate_backgrounds(md_path: Path) -> bool:
         return True  # Non-fatal: continue pipeline
 
     cmd = [sys.executable, str(bg_script), str(md_path)]
-    return _run_subprocess(cmd, "📸 Step 1/3: 生成阶段背景图")
+    return _run_subprocess(cmd, "📸 Step 1: 生成阶段背景图")
 
 
 # ===========================================================================
@@ -143,7 +481,7 @@ def step_import_to_platform(md_path: Path, task_id: str, delete_existing: bool =
     # If delete_existing is True, we need to handle the interactive prompt
     # by providing "y" as input
     if delete_existing:
-        _print_banner("📦 Step 2/3: 导入训练剧本到平台 (自动删除现有节点)")
+        _print_banner("📦 Step 2: 导入训练剧本到平台 (自动删除现有节点)")
         print(f"▶ {' '.join(str(c) for c in cmd)}\n")
 
         try:
@@ -173,25 +511,165 @@ def step_import_to_platform(md_path: Path, task_id: str, delete_existing: bool =
     # Standard import without auto-delete
     return _run_subprocess(
         cmd,
-        "📦 Step 2/3: 导入训练剧本到平台",
+        "📦 Step 2: 导入训练剧本到平台",
         cwd=PROJECT_ROOT / "skill_training_build",
     )
 
 
 # ===========================================================================
-# Step 3: Auto Dialogue Test
+# Step 3: Configure Rubric (Evaluation Criteria)
 # ===========================================================================
 
 
-def step_auto_test(task_id: str, profiles: list[str], md_path: Path) -> dict[str, bool]:
+def step_configure_rubric(task_id: str, md_path: Path, rubric_path: Path | None = None) -> bool:
+    """
+    Step 3: Configure evaluation criteria (评价标准) for the training task.
+
+    This step is independent from task creation, so it works whether the task
+    was just created or already existed (--task-id).
+
+    Args:
+        task_id: Training task ID
+        md_path: Path to the training script markdown (used to auto-discover rubric)
+        rubric_path: Explicit path to rubric markdown (optional, auto-discovers if None)
+    """
+    _print_banner("📊 Step 3: 配置评价标准")
+
+    try:
+        from create_configuration_from_markdown import (
+            create_rubric_from_markdown,
+            resolve_rubric_path,
+        )
+    except ImportError as e:
+        print(f"❌ 导入评价标准模块失败: {e}")
+        return False
+
+    # Resolve rubric file path
+    rubric_md = rubric_path or resolve_rubric_path(md_path)
+    if not rubric_md or not rubric_md.exists():
+        print("⚠️  未找到评价标准.md 文件")
+        print(f"   搜索路径: {md_path.parent / '评价标准.md'}")
+        print(f"   搜索路径: {md_path.parent.parent / '评价标准.md'}")
+        return False
+
+    print(f"   评价标准文件: {rubric_md}")
+
+    try:
+        result = create_rubric_from_markdown(task_id, rubric_md)
+        total = result["total"]
+        success = result["success"]
+
+        if total == 0:
+            print("⚠️  评价标准文件中未找到评分项")
+            return False
+
+        print(f"\n✅ 评价标准配置完成: {success}/{total} 个评分项创建成功")
+
+        if success < total:
+            failed = [item for item in result["items"] if item["itemId"] is None]
+            for item in failed:
+                print(f"   ❌ 失败: {item['itemName']}")
+            return False
+
+        return True
+
+    except Exception as e:
+        print(f"❌ 配置评价标准失败: {e}")
+        return False
+
+
+# ===========================================================================
+# Step 4: Publish Task
+# ===========================================================================
+
+
+def step_publish_task(task_id: str) -> bool:
+    """
+    Step 4: Publish the training task.
+
+    Should only be called after all configurations (script import, rubric) are complete.
+    """
+    _print_banner("🚀 Step 4: 发布任务")
+
+    try:
+        from create_configuration_from_markdown import publish_training
+    except ImportError as e:
+        print(f"❌ 导入发布模块失败: {e}")
+        return False
+
+    course_id = os.getenv("COURSE_ID", "").strip()
+    if not course_id:
+        print("❌ 缺少 COURSE_ID，无法发布任务")
+        print("   请通过 --course-id 参数或 COURSE_ID 环境变量提供。")
+        return False
+
+    print(f"   任务 ID: {task_id}")
+    print(f"   课程 ID: {course_id}")
+
+    try:
+        success = publish_training(task_id, course_id)
+        if success:
+            print("\n✅ 任务发布成功!")
+        else:
+            print("\n❌ 任务发布失败（API 返回非成功状态）")
+        return success
+
+    except Exception as e:
+        print(f"❌ 发布任务异常: {e}")
+        return False
+
+
+# ===========================================================================
+# Step 5: Auto Dialogue Test
+# ===========================================================================
+
+
+def step_auto_test(task_id: str, profiles: list[str], md_path: Path, background: bool = False) -> dict[str, bool]:
     """
     Run auto dialogue test for each student profile.
 
     Uses WorkflowTester programmatically (not subprocess) to avoid
     interactive input() prompts in auto_script_train.py's main block.
-    """
-    _print_banner("🧪 Step 3/3: 自动对话测试")
 
+    Args:
+        task_id: Training task ID
+        profiles: List of student profile keys
+        md_path: Path to markdown file for logging context
+        background: If True, run tests in background process and return immediately
+    """
+    _print_banner("🧪 Step 5: 自动对话测试")
+
+    if background:
+        # Launch test in background process
+        test_script = SCRIPT_DIR / "run_test_background.py"
+        cmd = [
+            sys.executable,
+            str(test_script),
+            task_id,
+            ",".join(profiles),
+            str(md_path),
+        ]
+
+        print(f"🔄 启动后台测试进程...")
+        print(f"   档位: {', '.join(profiles)}")
+        print(f"   日志将保存到: {PROJECT_ROOT / 'log'}")
+
+        # Start background process (detached)
+        subprocess.Popen(
+            cmd,
+            cwd=str(PROJECT_ROOT),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,  # Detach from parent
+        )
+
+        print("✅ 后台测试已启动，主进程将继续执行")
+        print("   测试完成后日志会自动保存到 log/ 目录")
+
+        # Return empty results since we're not waiting
+        return {profile: True for profile in profiles}
+
+    # Foreground execution (original behavior)
     results: dict[str, bool] = {}
 
     for profile_key in profiles:
@@ -213,6 +691,14 @@ def step_auto_test(task_id: str, profiles: list[str], md_path: Path) -> dict[str
 
             # Set log context path to the markdown file for organized logging
             tester.log_context_path = md_path.resolve()
+
+            # 自动发现对话流程模拟文件（同目录下 对话流程模拟_{profile}.md）
+            sim_file = md_path.parent / f"对话流程模拟_{profile_key}.md"
+            if sim_file.exists():
+                tester.load_student_dialogues(str(sim_file))
+                print(f"   📚 已加载对话流程模拟: {sim_file.name}")
+            else:
+                print(f"   ℹ️  未找到对话流程模拟文件，使用纯模型生成")
 
             # Run the auto test
             print(f"\n🚀 开始 {tester.STUDENT_PROFILES[profile_key]['label']} 测试...")
@@ -243,12 +729,20 @@ def step_auto_test(task_id: str, profiles: list[str], md_path: Path) -> dict[str
 
 def run_pipeline(
     md_path: Path,
-    task_id: str,
+    task_id: str | None,
     profiles: list[str],
     skip_bg: bool = False,
     skip_import: bool = False,
     skip_test: bool = False,
+    skip_validate: bool = False,
     delete_existing: bool = False,
+    create_task: bool = False,
+    create_only: bool = False,
+    course_id: str | None = None,
+    with_rubric: bool = False,
+    rubric_path: Path | None = None,
+    publish: bool = False,
+    background_test: bool = False,
 ) -> bool:
     """
     Execute the full pipeline.
@@ -257,14 +751,63 @@ def run_pipeline(
     """
     _print_banner("🚀 训练部署与自动测试 Pipeline")
     print(f"  剧本文件: {md_path}")
-    print(f"  任务 ID:  {task_id}")
+    print(f"  任务 ID:  {task_id or '(将自动创建)'}")
     print(f"  测试档位: {', '.join(profiles)}")
+    print(f"  跳过验证:   {'是' if skip_validate else '否'}")
     print(f"  跳过背景图: {'是' if skip_bg else '否'}")
     print(f"  跳过导入:   {'是' if skip_import else '否'}")
     print(f"  跳过测试:   {'是' if skip_test else '否'}")
+    print(f"  后台测试:   {'是' if background_test else '否'}")
     print(f"  删除旧节点: {'是' if delete_existing else '否'}")
+    print(f"  仅创建任务: {'是' if create_only else '否'}")
+    print(f"  配置评价标准: {'是' if with_rubric else '否'}")
+    print(f"  自动发布:   {'是' if publish else '否'}")
 
     all_ok = True
+
+    # ---- Pre-check: VTS 验证 ----
+    if not skip_validate:
+        if not step_validate_script(md_path):
+            print("\n❌ 剧本验证不通过，请根据上方报告修复后重新部署。")
+            return False
+    else:
+        print("\n⏭  跳过剧本验证")
+
+    # ---- Step 0: Create task (if needed) ----
+    if create_task or (not task_id and not create_only):
+        if not course_id:
+            print("\n❌ 创建训练任务需要提供 COURSE_ID")
+            print("   请通过 --course-id 参数或 COURSE_ID 环境变量提供。")
+            return False
+
+        # Generate backgrounds FIRST so the cover image is available when creating the task
+        if not skip_bg:
+            print("\n📸 预先生成阶段背景图（封面图依赖）...")
+            step_generate_backgrounds(md_path)
+            skip_bg = True  # Already done; skip in Step 1
+
+        success, new_task_id = step_create_task(md_path, course_id)
+        if not success:
+            print("\n❌ 训练任务创建失败，中止 Pipeline。")
+            return False
+
+        task_id = new_task_id
+
+        if create_only:
+            _print_banner("任务创建完成")
+            print(f"✅ 训练任务已成功创建！")
+            print(f"   任务 ID: {task_id}")
+            print(f"   任务名称: {parse_base_configuration(md_path)[0]}")
+            print(f"\n📝 TASK_ID 已写入 .env 文件")
+            print("\n📋 后续可以使用以下命令进行部署：")
+            print(f"   python run_pipeline.py '{md_path}' --task-id {task_id}")
+            return True
+    else:
+        if not task_id:
+            print("\n❌ 未指定 task_id，且未启用自动创建。")
+            print("   请通过 --task-id 参数、TASK_ID 环境变量提供，")
+            print("   或使用 --create-task 自动创建新任务。")
+            return False
 
     # ---- Step 1: Background images ----
     if not skip_bg:
@@ -282,19 +825,37 @@ def run_pipeline(
     else:
         print("\n⏭  跳过平台导入")
 
-    # ---- Step 3: Auto dialogue test ----
+    # ---- Step 3: Configure rubric (evaluation criteria) ----
+    if with_rubric:
+        if not step_configure_rubric(task_id, md_path, rubric_path):
+            print("\n⚠️  评价标准配置失败，继续后续步骤...")
+            # Non-fatal: continue pipeline
+    else:
+        print("\n⏭  跳过评价标准配置")
+
+    # ---- Step 4: Publish task ----
+    if publish:
+        if not step_publish_task(task_id):
+            print("\n⚠️  任务发布失败，继续后续步骤...")
+            # Non-fatal: publish failure should not abort pipeline
+    else:
+        print("\n⏭  跳过任务发布")
+
+    # ---- Step 5: Auto dialogue test ----
     if not skip_test:
-        test_results = step_auto_test(task_id, profiles, md_path)
+        test_results = step_auto_test(task_id, profiles, md_path, background=background_test)
 
-        print("\n" + "=" * 60)
-        print("📊 测试结果汇总")
-        print("=" * 60)
-        for profile, success in test_results.items():
-            label = "✅ 通过" if success else "❌ 失败"
-            print(f"  {profile}: {label}")
+        if not background_test:
+            # Only show results summary if running in foreground
+            print("\n" + "=" * 60)
+            print("📊 测试结果汇总")
+            print("=" * 60)
+            for profile, success in test_results.items():
+                label = "✅ 通过" if success else "❌ 失败"
+                print(f"  {profile}: {label}")
 
-        if not all(test_results.values()):
-            all_ok = False
+            if not all(test_results.values()):
+                all_ok = False
     else:
         print("\n⏭  跳过自动测试")
 
@@ -320,7 +881,21 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  # 完整流程
+  # 创建新任务并完整部署
+  python run_pipeline.py 训练剧本配置.md --create-task --course-id xxx
+
+  # 仅创建任务（不执行后续步骤）
+  python run_pipeline.py 训练剧本配置.md --create-only --course-id xxx
+
+  # 使用现有任务部署（向后兼容）
+  python run_pipeline.py 训练剧本配置.md --task-id abc123
+
+  # 从环境变量读取配置
+  export COURSE_ID=xxx
+  export TASK_ID=abc123  # 可选，不设置则自动创建
+  python run_pipeline.py 训练剧本配置.md
+
+  # 完整流程（使用现有任务）
   python run_pipeline.py 训练剧本配置.md --task-id abc123
 
   # 跳过背景图，只导入和测试
@@ -334,6 +909,15 @@ def main():
 
   # 删除现有节点后重新导入
   python run_pipeline.py 训练剧本配置.md --task-id abc123 --delete-existing
+
+  # 完整部署：创建任务 + 导入 + 评价标准 + 发布
+  python run_pipeline.py 训练剧本配置.md --create-task --course-id xxx --with-rubric --publish
+
+  # 使用已有任务，只配置评价标准（之前会被忽略，现在独立执行）
+  python run_pipeline.py 训练剧本配置.md --task-id xxx --skip-bg --skip-import --with-rubric --skip-test
+
+  # 指定评价标准文件路径
+  python run_pipeline.py 训练剧本配置.md --task-id xxx --with-rubric --rubric-path /path/to/评价标准.md
         """,
     )
 
@@ -349,15 +933,45 @@ def main():
         help="训练任务 ID (默认从 TASK_ID 环境变量读取)",
     )
     parser.add_argument(
+        "--course-id",
+        type=str,
+        default=None,
+        help="课程 ID (创建新任务时需要，也可从 COURSE_ID 环境变量读取)",
+    )
+    parser.add_argument(
         "--profiles",
         type=str,
         default="good,medium",
         help="测试的学生档位，逗号分隔 (默认: good,medium)",
     )
+    parser.add_argument("--skip-validate", action="store_true", help="跳过剧本纯净跳转验证（vts）")
     parser.add_argument("--skip-bg", action="store_true", help="跳过背景图生成")
     parser.add_argument("--skip-import", action="store_true", help="跳过平台导入")
     parser.add_argument("--skip-test", action="store_true", help="跳过自动测试")
     parser.add_argument("--delete-existing", action="store_true", help="删除平台上现有节点后重新导入")
+    parser.add_argument("--create-task", action="store_true", help="强制创建新任务（即使 TASK_ID 已存在）")
+    parser.add_argument("--create-only", action="store_true", help="仅创建任务，完成后退出，不执行后续部署步骤")
+    parser.add_argument(
+        "--with-rubric",
+        action="store_true",
+        help="在剧本导入后配置评价标准（自动发现评价标准.md）",
+    )
+    parser.add_argument(
+        "--rubric-path",
+        type=str,
+        default=None,
+        help="指定评价标准 Markdown 文件路径（默认自动发现）",
+    )
+    parser.add_argument(
+        "--publish",
+        action="store_true",
+        help="所有配置完成后自动发布任务（在剧本导入和评价标准之后）",
+    )
+    parser.add_argument(
+        "--background-test",
+        action="store_true",
+        help="测试部分在后台进程运行，部署完成后主进程立即退出",
+    )
 
     args = parser.parse_args()
 
@@ -369,9 +983,9 @@ def main():
 
     # Resolve task ID
     task_id = args.task_id or os.getenv("TASK_ID")
-    if not task_id:
-        print("❌ 未指定 task_id。请通过 --task-id 参数或 TASK_ID 环境变量提供。")
-        sys.exit(1)
+
+    # Resolve course ID
+    course_id = args.course_id or os.getenv("COURSE_ID")
 
     # Parse profiles
     profiles = [p.strip() for p in args.profiles.split(",") if p.strip()]
@@ -381,6 +995,9 @@ def main():
         print(f"❌ 无效的学生档位: {invalid}. 可选: {valid_profiles}")
         sys.exit(1)
 
+    # Parse rubric path
+    rubric_path = Path(args.rubric_path) if args.rubric_path else None
+
     # Run pipeline
     success = run_pipeline(
         md_path=md_path,
@@ -389,7 +1006,15 @@ def main():
         skip_bg=args.skip_bg,
         skip_import=args.skip_import,
         skip_test=args.skip_test,
+        skip_validate=args.skip_validate,
         delete_existing=args.delete_existing,
+        create_task=args.create_task,
+        create_only=args.create_only,
+        course_id=course_id,
+        with_rubric=args.with_rubric,
+        rubric_path=rubric_path,
+        publish=args.publish,
+        background_test=args.background_test,
     )
 
     sys.exit(0 if success else 1)
