@@ -390,12 +390,10 @@ def step_create_task(
         from create_configuration_from_markdown import create_from_markdown
 
         # Only create basic config; rubric and publish happen later in the pipeline
+        # cover image is resolved internally by create_from_markdown via resolve_cover_image
         result = create_from_markdown(
             markdown_path=md_path,
             with_steps=False,
-            with_rubric=False,
-            publish=False,
-            cover_image_path=cover_path,
         )
         task_id = result["trainTaskId"]
 
@@ -415,6 +413,21 @@ def step_create_task(
     except Exception as e:
         print(f"❌ 创建训练任务失败: {e}")
         return False, None
+
+
+# ===========================================================================
+# Pre-check: VTS Script Purity Validation
+# ===========================================================================
+
+
+def step_validate_script(md_path: Path) -> bool:
+    """Pre-check: 验证训练剧本纯净跳转（vts）"""
+    vts_script = PROJECT_ROOT / ".claude" / "tools" / "validate_script_purity.py"
+    if not vts_script.exists():
+        print(f"⚠️  VTS 脚本不存在: {vts_script}，跳过验证")
+        return True  # 非致命，脚本不存在时继续
+    cmd = [sys.executable, str(vts_script), str(md_path)]
+    return _run_subprocess(cmd, "🔍 Pre-check: 剧本纯净跳转验证（vts）")
 
 
 # ===========================================================================
@@ -679,6 +692,14 @@ def step_auto_test(task_id: str, profiles: list[str], md_path: Path, background:
             # Set log context path to the markdown file for organized logging
             tester.log_context_path = md_path.resolve()
 
+            # 自动发现对话流程模拟文件（同目录下 对话流程模拟_{profile}.md）
+            sim_file = md_path.parent / f"对话流程模拟_{profile_key}.md"
+            if sim_file.exists():
+                tester.load_student_dialogues(str(sim_file))
+                print(f"   📚 已加载对话流程模拟: {sim_file.name}")
+            else:
+                print(f"   ℹ️  未找到对话流程模拟文件，使用纯模型生成")
+
             # Run the auto test
             print(f"\n🚀 开始 {tester.STUDENT_PROFILES[profile_key]['label']} 测试...")
             tester.run_with_doubao(task_id)
@@ -713,6 +734,7 @@ def run_pipeline(
     skip_bg: bool = False,
     skip_import: bool = False,
     skip_test: bool = False,
+    skip_validate: bool = False,
     delete_existing: bool = False,
     create_task: bool = False,
     create_only: bool = False,
@@ -731,6 +753,7 @@ def run_pipeline(
     print(f"  剧本文件: {md_path}")
     print(f"  任务 ID:  {task_id or '(将自动创建)'}")
     print(f"  测试档位: {', '.join(profiles)}")
+    print(f"  跳过验证:   {'是' if skip_validate else '否'}")
     print(f"  跳过背景图: {'是' if skip_bg else '否'}")
     print(f"  跳过导入:   {'是' if skip_import else '否'}")
     print(f"  跳过测试:   {'是' if skip_test else '否'}")
@@ -741,6 +764,14 @@ def run_pipeline(
     print(f"  自动发布:   {'是' if publish else '否'}")
 
     all_ok = True
+
+    # ---- Pre-check: VTS 验证 ----
+    if not skip_validate:
+        if not step_validate_script(md_path):
+            print("\n❌ 剧本验证不通过，请根据上方报告修复后重新部署。")
+            return False
+    else:
+        print("\n⏭  跳过剧本验证")
 
     # ---- Step 0: Create task (if needed) ----
     if create_task or (not task_id and not create_only):
@@ -913,6 +944,7 @@ def main():
         default="good,medium",
         help="测试的学生档位，逗号分隔 (默认: good,medium)",
     )
+    parser.add_argument("--skip-validate", action="store_true", help="跳过剧本纯净跳转验证（vts）")
     parser.add_argument("--skip-bg", action="store_true", help="跳过背景图生成")
     parser.add_argument("--skip-import", action="store_true", help="跳过平台导入")
     parser.add_argument("--skip-test", action="store_true", help="跳过自动测试")
@@ -974,6 +1006,7 @@ def main():
         skip_bg=args.skip_bg,
         skip_import=args.skip_import,
         skip_test=args.skip_test,
+        skip_validate=args.skip_validate,
         delete_existing=args.delete_existing,
         create_task=args.create_task,
         create_only=args.create_only,
