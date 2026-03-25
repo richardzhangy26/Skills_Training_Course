@@ -77,6 +77,52 @@ class StageInfo:
 
 
 # ── Markdown 解析 ──────────────────────────────────────────
+def parse_basic_config(content: str) -> dict:
+    """解析 ##基础配置 section，提取任务名称和任务描述。
+
+    Returns:
+        dict with keys: task_name, task_desc, section_start, section_end,
+        has_cover_field. Empty dict if section not found.
+    """
+    # 定位 ##基础配置 section（兼容 emoji 前缀）
+    section_match = re.search(
+        r"^##\s*[📋\s]*基础配置\s*$",
+        content,
+        re.MULTILINE,
+    )
+    if not section_match:
+        return {}
+
+    section_start = section_match.start()
+    # section 结束于下一个 ## 标题或文件末尾
+    next_section = re.search(r"^##\s+", content[section_match.end():], re.MULTILINE)
+    if next_section:
+        section_end = section_match.end() + next_section.start()
+    else:
+        section_end = len(content)
+
+    section_text = content[section_start:section_end]
+
+    def _extract_field(field_name: str) -> str:
+        m = re.search(
+            r"\*\*" + re.escape(field_name) + r"\*\*\s*[:：]\s*([^\n]+)",
+            section_text,
+        )
+        return m.group(1).strip() if m else ""
+
+    task_name = _extract_field("任务名称")
+    task_desc = _extract_field("任务描述")
+    has_cover_field = bool(re.search(r"\*\*背景图\*\*", section_text))
+
+    return {
+        "task_name": task_name,
+        "task_desc": task_desc,
+        "section_start": section_start,
+        "section_end": section_end,
+        "has_cover_field": has_cover_field,
+    }
+
+
 def parse_script_markdown(content: str) -> List[StageInfo]:
     """解析训练剧本配置 Markdown，提取所有阶段信息。
 
@@ -159,6 +205,25 @@ def parse_script_markdown(content: str) -> List[StageInfo]:
 
 # ── 提示词生成 ─────────────────────────────────────────────
 
+# LLM 生成封面提示词的系统/用户模板
+_COVER_PROMPT_SYSTEM = """你是一个专业的文生图提示词设计师。你的任务是根据训练任务的整体信息，生成适合 AI 文生图模型的封面场景描述提示词。
+
+要求：
+1. 输出纯场景描述，用于生成整体任务封面图，不要包含任何解释或标记
+2. 描述综合性的标志性场景：体现任务主题的核心环境、象征元素、整体氛围
+3. 不要出现任何代码变量（如 ${xxx}）、Markdown 标记、模板占位符
+4. 不要描述单一阶段细节，而是展现整个训练课题的全貌
+5. 提示词控制在 100-200 字之间
+6. 使用中文描述"""
+
+_COVER_PROMPT_USER_TEMPLATE = """请根据以下训练任务整体信息，生成一段文生图封面场景描述提示词。
+
+【任务名称】{task_name}
+【任务描述】{task_desc}
+
+请直接输出封面场景描述提示词，不要有任何额外内容。"""
+
+
 # LLM 生成提示词的系统提示
 _PROMPT_SYSTEM = """你是一个专业的文生图提示词设计师。你的任务是根据训练剧本的阶段信息，生成适合 AI 文生图模型的场景描述提示词。
 
@@ -193,6 +258,92 @@ def _get_text_client():
     base_url = re.sub(r"/chat/completions/?$", "", raw_url)
 
     return OpenAI(base_url=base_url, api_key=api_key)
+
+
+def generate_cover_prompt_via_llm(
+    client,
+    task_name: str,
+    task_desc: str,
+    style_suffix: str,
+    text_model: str,
+) -> str:
+    """调用 LLM 生成封面级文生图提示词。"""
+    user_msg = _COVER_PROMPT_USER_TEMPLATE.format(
+        task_name=task_name or "（未知任务）",
+        task_desc=task_desc or "（无描述）",
+    )
+    response = client.chat.completions.create(
+        model=text_model,
+        messages=[
+            {"role": "system", "content": _COVER_PROMPT_SYSTEM},
+            {"role": "user", "content": user_msg},
+        ],
+        temperature=0.7,
+        max_tokens=500,
+    )
+    raw = response.choices[0].message.content.strip()
+    prompt = f"{raw}，{style_suffix}"
+    if len(prompt) > 1800:
+        prompt = prompt[:1800]
+    return prompt
+
+
+def build_cover_prompt_fallback(task_name: str, task_desc: str, style_suffix: str) -> str:
+    """Fallback: 直接拼接 task_name + task_desc + style_suffix。"""
+    core = f"{task_name}，{task_desc}".rstrip("，") if task_desc else task_name
+    prompt = f"{core}，{style_suffix}"
+    if len(prompt) > 1800:
+        prompt = prompt[:1800]
+    return prompt
+
+
+def update_markdown_cover_background(md_path: Path, cover_img_path: str) -> bool:
+    """将封面背景图路径回填到 ##基础配置 section 的 **背景图** 字段。
+
+    - 若 section 内已有 **背景图**: 字段 → 替换
+    - 若无 → 在最后一个 `- **xxx**` 行后追加
+
+    Returns:
+        True 表示成功写入，False 表示未找到 section 或写入失败。
+    """
+    content = md_path.read_text(encoding="utf-8")
+    config = parse_basic_config(content)
+    if not config:
+        return False
+
+    sec_start = config["section_start"]
+    sec_end = config["section_end"]
+    section_text = content[sec_start:sec_end]
+
+    new_field_line = f"- **背景图**: {cover_img_path}"
+
+    if config["has_cover_field"]:
+        # 替换已有字段
+        updated_section = re.sub(
+            r"- \*\*背景图\*\*\s*[:：]\s*[^\n]*",
+            new_field_line,
+            section_text,
+        )
+    else:
+        # 在最后一个 `- **xxx**` 行后追加
+        last_field_match = None
+        for m in re.finditer(r"- \*\*[^*]+\*\*\s*[:：][^\n]*", section_text):
+            last_field_match = m
+        if last_field_match:
+            insert_pos = last_field_match.end()
+            updated_section = (
+                section_text[:insert_pos]
+                + "\n"
+                + new_field_line
+                + section_text[insert_pos:]
+            )
+        else:
+            # section 内无字段行，直接追加到末尾（section 末尾前）
+            updated_section = section_text.rstrip("\n") + "\n" + new_field_line + "\n"
+
+    new_content = content[:sec_start] + updated_section + content[sec_end:]
+    md_path.write_text(new_content, encoding="utf-8")
+    return True
 
 
 def generate_prompt_via_llm(
@@ -383,7 +534,70 @@ def process(
     if text_model is None:
         text_model = os.environ.get("LLM_MODEL", DEFAULT_TEXT_MODEL)
 
-    # 4. 生成提示词
+    # 4. 确定输出目录（提前，封面图也需要）
+    task_name = md_file.stem.replace("training_background_generator_", "")
+    if output_dir:
+        bg_dir = Path(output_dir) / f"backgrounds_{task_name}"
+    else:
+        bg_dir = md_file.parent / "backgrounds"
+    bg_dir.mkdir(parents=True, exist_ok=True)
+    print(f"\n📁 输出目录: {bg_dir}")
+
+    # 4.5 封面图子流程
+    cover_result: dict = {}
+    print("\n🖼️  生成任务封面背景图...")
+    basic_config = parse_basic_config(content)
+    if not basic_config:
+        print("   ⚠️  未找到 ##基础配置 section，跳过封面图生成")
+    else:
+        cfg_task_name = basic_config.get("task_name") or task_name
+        cfg_task_desc = basic_config.get("task_desc", "")
+        print(f"   任务名称: {cfg_task_name}")
+
+        # 生成封面提示词
+        try:
+            text_client_cover = _get_text_client()
+            if use_llm_prompt:
+                cover_prompt = generate_cover_prompt_via_llm(
+                    text_client_cover, cfg_task_name, cfg_task_desc, style_suffix, text_model
+                )
+                print(f"   ✓ LLM 封面提示词: {cover_prompt[:60]}...")
+            else:
+                cover_prompt = build_cover_prompt_fallback(cfg_task_name, cfg_task_desc, style_suffix)
+                print(f"   封面提示词(fallback): {cover_prompt[:60]}...")
+        except Exception as e:
+            print(f"   ⚠️  封面提示词生成失败 ({e})，使用 fallback")
+            cover_prompt = build_cover_prompt_fallback(cfg_task_name, cfg_task_desc, style_suffix)
+
+        # 生成并下载封面图
+        cover_filename = f"{sanitize_filename(cfg_task_name)}_cover.png"
+        cover_save_path = bg_dir / cover_filename
+        try:
+            cover_url = generate_image(cover_prompt, model, size, api_key)
+            download_image(cover_url, cover_save_path)
+            print(f"   ✓ 封面图已保存: {cover_save_path}")
+
+            # 回填到 ##基础配置
+            filled = update_markdown_cover_background(md_file, str(cover_save_path.resolve()))
+            if filled:
+                print("   ✓ 封面背景图路径已回填到 ##基础配置")
+            else:
+                print("   ⚠️  封面图路径回填失败（section 未找到）")
+
+            cover_result = {
+                "file": str(cover_save_path),
+                "url": cover_url,
+                "prompt": cover_prompt,
+                "task_name": cfg_task_name,
+            }
+        except Exception as e:
+            print(f"   ⚠️  封面图生成失败 ({e})，跳过封面图，继续阶段图生成")
+            cover_result = {"error": str(e), "prompt": cover_prompt}
+
+        # 封面生成后的间隔
+        time.sleep(API_INTERVAL)
+
+    # 5. 生成阶段提示词
     text_client = None
     if use_llm_prompt:
         print(f"\n🤖 使用 LLM ({text_model}) 智能生成提示词...")
@@ -408,15 +622,6 @@ def process(
         for stage in stages:
             stage.prompt = build_prompt_fallback(stage, style_suffix)
             print(f"   阶段{stage.number} [{stage.name}]: {stage.prompt[:60]}...")
-
-    # 5. 确定输出目录
-    task_name = md_file.stem.replace("training_background_generator_", "")
-    if output_dir:
-        bg_dir = Path(output_dir) / f"backgrounds_{task_name}"
-    else:
-        bg_dir = md_file.parent / "backgrounds"
-    bg_dir.mkdir(parents=True, exist_ok=True)
-    print(f"\n📁 输出目录: {bg_dir}")
 
     # 6. 逐阶段生成并下载
     results: list[dict] = []
@@ -480,6 +685,7 @@ def process(
         "style_suffix": style_suffix,
         "prompt_mode": "llm" if use_llm_prompt else "fallback",
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "cover": cover_result,
         "success": results,
         "failed": failed,
     }

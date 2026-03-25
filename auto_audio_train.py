@@ -33,6 +33,27 @@ CONFIG = {
     "school_id": None,  # 稍后通过 API 获取
 }
 
+LANG_CONFIGS = {
+    "zh": {
+        "tts_voice": "zh-CN-XiaoxiaoNeural",
+        "system_prompt": "你是一名中文能力训练助手，需要严格按照给定的学生档位扮演角色。你只能用中文回答。",
+        "format_requirement": "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在50字以内。",
+        "fallback_answer": "好的，我明白了。",
+        "confirm_examples": "   → 直接回答'是'、'好的'、'我准备好了'等",
+        "choice_examples": "   → 直接说出选项，如'A'、'B'、'1'、'2'等",
+        "label": "中文测试",
+    },
+    "en": {
+        "tts_voice": "en-US-GuyNeural",
+        "system_prompt": "你是一名英语口语能力训练助手，需要严格按照给定的学生档位扮演角色。你只能用英语回答。",
+        "format_requirement": "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在30字以内。",
+        "fallback_answer": "ok, i understand.",
+        "confirm_examples": "   → 直接回答'yes'、'ok'、'i am ready'等",
+        "choice_examples": "   → 直接说出选项，如'option A'、'option B'、'option C'等",
+        "label": "英文测试",
+    },
+}
+
 def get_user_info():
     """
     调用 API 获取用户和学校信息
@@ -85,7 +106,7 @@ AUDIO_CONFIG = {
     "pcm_chunk_size": 3200,
     "frame_header": bytes([0x11, 0x20, 0x10, 0x00, 0x00, 0x00, 0x0c, 0x80]),
     "chunk_interval": 0.1,
-    "silence_frames": 15,
+    "silence_frames": 30,
 }
 
 # ============ 日志记录器 ============
@@ -409,10 +430,12 @@ STUDENT_PROFILES = {
 
 # ============ WebSocket客户端 ============
 class TrainingClient:
-    def __init__(self):
+    def __init__(self, lang: str = "en"):
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
         self.logger = ConversationLogger(CONFIG["task_id"])  # 传入 task_id
-        self.tts = TTSEngine()
+        self.lang = lang if lang in LANG_CONFIGS else "en"
+        self.lang_config = LANG_CONFIGS[self.lang]
+        self.tts = TTSEngine(voice=self.lang_config["tts_voice"])
         self.audio = AudioProcessor()
 
         # WebSocket 发送互斥锁：避免音频帧与控制消息（nextStep/heartBeat 等）交错发送
@@ -783,7 +806,7 @@ class TrainingClient:
         """
         if not self.llm_api_url or not self.llm_api_key:
             log.error("❌ Doubao API 未配置")
-            return "好的"
+            return self.lang_config["fallback_answer"]
 
         try:
             log.info(
@@ -797,7 +820,7 @@ class TrainingClient:
             profile_info = STUDENT_PROFILES.get(self.student_profile_key, STUDENT_PROFILES["medium"])
 
             # 构建系统提示
-            system_prompt = "你是一名英语口语能力训练助手，需要严格按照给定的学生档位扮演角色。你只能用英语回答。"
+            system_prompt = self.lang_config["system_prompt"]
 
             # 构建用户提示
             sections = [
@@ -809,9 +832,9 @@ class TrainingClient:
                 "## 问题类型识别（优先级最高）",
                 "如果当前问题属于以下类型，请优先直接回答，不需要强制体现性格特点：",
                 "1. **确认式问题**: 如'你准备好了吗？请回复是或否'",
-                "   → 直接回答'yes'、'ok'、'i am ready'等",
+                self.lang_config["confirm_examples"],
                 "2. **选择式问题**: 如'你选择A还是B？'、'请选择1/2/3'",
-                "   → 直接说出选项，如'option A'、'option B'、'option C'等",
+                self.lang_config["choice_examples"],
                 "",
             ]
 
@@ -846,7 +869,7 @@ class TrainingClient:
                 "**优先级1**: 如果对话记录中存在语义高度相关回答，优先引用或改写其结论和表达风格",
                 "**优先级2**: 对话记录无匹配时，优先依据知识库作答，不要编造不存在的信息",
                 "**优先级3**: 若前两者都不足，再结合学生档位特征回答；封闭式问题保持简短直接",
-                "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在30字以内。",
+                self.lang_config["format_requirement"],
                 ""
             ])
 
@@ -864,12 +887,11 @@ class TrainingClient:
             if answer:
                 return answer
             else:
-                # 回退到简单回答
-                return "ok, i understand."
+                return self.lang_config["fallback_answer"]
 
         except Exception as e:
             log.error(f"❌ 生成回答失败: {str(e)}")
-            return "ok, i understand."
+            return self.lang_config["fallback_answer"]
 
     async def speak(self, text: str) -> bool:
         self.last_sent_text = text  # 记录发送内容，用于重试
@@ -877,7 +899,10 @@ class TrainingClient:
         
         while self.bot_speaking:
             await asyncio.sleep(0.1)
-        
+
+        # 等待服务器完成状态转换（ASR 管道就绪），避免首次发送被吞
+        await asyncio.sleep(0.5)
+
         try:
             log.info("🔄 生成语音...")
             mp3_data = await self.tts.synthesize(text)
@@ -1304,6 +1329,20 @@ async def main():
     print("  4. 客户端: nextStep (确认进入下一步)")
     print("  5. 服务器: botAnswerStart → botAnswerEnd")
 
+    # 选择语言
+    print("\n请选择测试语言：")
+    print("1. 英文测试（默认）")
+    print("2. 中文测试")
+
+    lang_choice = input("\n请输入选项 (1/2，默认 1): ").strip()
+    lang_map = {
+        "1": "en",
+        "2": "zh",
+    }
+    selected_lang = lang_map.get(lang_choice, "en")
+
+    print(f"\n✅ 已选择: {LANG_CONFIGS[selected_lang]['label']}")
+
     # 选择模式
     print("\n请选择运行模式：")
     print("1. 半交互模式（推荐）- 回车AI回答，输入手动回答")
@@ -1312,7 +1351,7 @@ async def main():
     mode_choice = input("\n请输入选项 (1/2，默认 1): ").strip()
     # mode_choice = "1"
 
-    client = TrainingClient()
+    client = TrainingClient(lang=selected_lang)
 
     # 如果选择半交互模式，让用户选择学生档位
     if mode_choice != "2":
