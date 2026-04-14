@@ -24,6 +24,7 @@ async def evaluate_dimension(
     api_key: str,
     base_url: str,
     model: str,
+    service_code: Optional[str] = None,
 ) -> DimensionScore:
     """评测单个维度"""
     print(f"\n正在评测: {dimension_name}...")
@@ -51,7 +52,11 @@ async def evaluate_dimension(
 
         try:
             llm_response = await call_llm(
-                prompt=prompt, api_key=api_key, base_url=base_url, model=model
+                prompt=prompt,
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                service_code=service_code,
             )
             result = parse_llm_response(llm_response)
 
@@ -129,6 +134,7 @@ async def evaluate(
     model: str,
     workflow_config: Optional[str] = None,
     prompts_path: Optional[str] = None,
+    service_code: Optional[str] = None,
 ) -> EvaluationReport:
     """执行完整评测"""
     print("\n" + "=" * 70)
@@ -153,6 +159,7 @@ async def evaluate(
             api_key=api_key,
             base_url=base_url,
             model=model,
+            service_code=service_code,
         )
 
         dimension_scores.append(score)
