@@ -5,7 +5,7 @@ LLM 工具函数 - 简化版
 import json
 import re
 import time
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import requests
 from types_def import DialogueData, IssueItem, HighlightItem
 
@@ -121,10 +121,17 @@ async def call_llm(
     model: str,
     temperature: float = 0.1,
     timeout: int = 180,
+    service_code: Optional[str] = None,
+    max_tokens: int = 4000,
 ) -> str:
-    """调用 LLM API"""
+    """调用 LLM API (Polymas POST 接口 / OpenAI 兼容)
+
+    Payload 采用 snake_case 键名以兼容 Polymas 内部网关
+    (参考 auto_script_train.py 中 _call_doubao_post 的有效配置).
+    当 ``service_code`` 非空时会附加 ``service-code`` 请求头.
+    """
     payload = {
-        "maxTokens": 4000,
+        "model": model,
         "messages": [
             {
                 "role": "system",
@@ -136,11 +143,17 @@ async def call_llm(
             },
             {"role": "user", "content": prompt},
         ],
-        "model": model,
-        "n": 1,
-        "presencePenalty": 0.0,
         "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_p": 0.9,
+        "frequency_penalty": 0.3,
+        "presence_penalty": 0.0,
+        "n": 1,
     }
+
+    headers = {"api-key": api_key, "Content-Type": "application/json"}
+    if service_code:
+        headers["service-code"] = service_code
 
     print(f"[LLM] 调用模型: {model}")
     start_time = time.time()
@@ -148,7 +161,7 @@ async def call_llm(
     response = requests.post(
         base_url,
         json=payload,
-        headers={"api-key": api_key, "Content-Type": "application/json"},
+        headers=headers,
         timeout=timeout,
     )
 
