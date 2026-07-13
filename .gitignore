@@ -52,3 +52,4 @@ training-background-generator.zip
 # Test files
 test.py
 demo_create_regions.sh
+.worktrees/
