@@ -65,7 +65,7 @@ class PreprocessedSkillContractTests(unittest.TestCase):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `python3 -m unittest test/test_grade_ai_sales_consultant_video_preprocessed_skill.py -v`
+Run: `python3 test/test_grade_ai_sales_consultant_video_preprocessed_skill.py -v`
 
 Expected: FAIL with `新 Skill 尚未创建`.
 
@@ -164,7 +164,7 @@ Define:
 
 ```python
 REQUIRED_METADATA_LABELS = {
-    "批阅状态", "客户类型", "前置处理来源", "内容覆盖状态",
+    "批阅状态", "客户类型", "课程", "前置处理来源", "内容覆盖状态",
     "证据定位精度", "严重红线类别", "总分封顶", "局限说明",
 }
 ```
@@ -175,7 +175,7 @@ Validate that each label is present, preserve the six-dimension score checks, an
 
 Run: `python3 -m unittest discover -s .qoder/skills/grade-ai-sales-consultant-video-preprocessed/tests -p 'test_*.py' -v`
 
-Run: `python3 -m unittest test/test_grade_ai_sales_consultant_video_preprocessed_skill.py -v`
+Run: `python3 test/test_grade_ai_sales_consultant_video_preprocessed_skill.py -v`
 
 Expected: all tests PASS.
 
@@ -198,7 +198,7 @@ python3 /Users/zhangyichi/.codex/skills/.system/skill-creator/scripts/quick_vali
 python3 -m unittest discover \
   -s .qoder/skills/grade-ai-sales-consultant-video-preprocessed/tests \
   -p 'test_*.py' -v
-python3 -m unittest test/test_grade_ai_sales_consultant_video_preprocessed_skill.py -v
+python3 test/test_grade_ai_sales_consultant_video_preprocessed_skill.py -v
 ```
 
 Expected: skill valid and all tests PASS.
