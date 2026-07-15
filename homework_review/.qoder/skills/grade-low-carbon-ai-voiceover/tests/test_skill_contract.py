@@ -42,3 +42,12 @@ def test_skill_declares_json_composition_recipe() -> None:
     assert "直接从 `{" in text
     assert "只使用中文全角引号" in text
     assert "未转义的英文双引号" in text
+
+
+def test_skill_requires_evidence_based_deductions() -> None:
+    text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "扣分必须基于可复核的实际缺陷" in text
+    assert "无法确认的问题不得作为扣分理由" in text
+    assert "独立背景音乐长于最终成品不扣分" in text
+    assert "独立配音为单声道不扣分" in text
