@@ -5,7 +5,7 @@ description: "Use when grading low-carbon themed AI audio or audio-video homewor
 
 # 低碳生活 AI 音视频作业批阅
 
-最终响应就是一个 JSON object，不是对批阅过程的说明。第一非空字符必须是 `{`，最后一个字符必须是 `}`。对象前后没有任何文本。顶层依次包含 `score` 和 `evaluations`，不得输出 Markdown、标题、分析摘要、工具失败说明或自然语言前后缀；所有证据限制写入 JSON 字段值。
+最终响应就是一个 JSON object，不是对批阅过程的说明。不要先总结证据，也不要宣布已经完成分析；直接从 `{"score":` 开始写最终对象。第一非空字符必须是 `{`，最后一个字符必须是 `}`。对象前后没有任何文本。顶层依次包含 `score` 和 `evaluations`，不得输出 Markdown、标题、分析摘要、工具失败说明或自然语言前后缀；所有证据限制写入 JSON 字段值。
 
 ## 批阅对象与基准
 
@@ -107,6 +107,8 @@ description: "Use when grading low-carbon themed AI audio or audio-video homewor
 ## 输出要求
 
 最终响应就是以下形状的单个 JSON object：
+
+组合响应时直接填写 JSON 字段，不要先总结证据再把总结转换成 JSON。JSON 字符串值内需要引用作品名、术语或口号时，只使用中文全角引号 `“”` 或不加引号；不得输入未转义的英文双引号。完成对象后只在内部检查语法，不展示检查过程。
 
 - 顶层键依次为 `score`、`evaluations`；
 - `score.score_type` 为 `dimension`；

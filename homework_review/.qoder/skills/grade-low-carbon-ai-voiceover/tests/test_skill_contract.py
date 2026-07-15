@@ -33,3 +33,12 @@ def test_skill_declares_score_contract() -> None:
     assert "25、20、25、15、15" in text
     assert "第一非空字符必须是 `{`" in text
     assert "最后一个字符必须是 `}`" in text
+
+
+def test_skill_declares_json_composition_recipe() -> None:
+    text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "不要先总结证据" in text
+    assert "直接从 `{" in text
+    assert "只使用中文全角引号" in text
+    assert "未转义的英文双引号" in text
