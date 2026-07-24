@@ -1,4 +1,0 @@
-interface:
-  display_name: "低碳生活AI音视频批阅"
-  short_description: "批阅含配音和AI背景音乐的低碳主题音视频成品"
-  default_prompt: "Use $grade-low-carbon-ai-voiceover to grade the attached low-carbon AI audio or audio-video submission. Return exactly one raw JSON object with score and evaluations; the first character is { and the last character is }; no prefix, analysis summary, markdown, or code fence."
