@@ -60,14 +60,25 @@ async def evaluate_dimension(
             )
             result = parse_llm_response(llm_response)
 
+            # 解析失败保底：full_score=0 会污染该维度总分并误触一票否决
+            # 用配置里的满分占位，rating 标注原因，score 维持 0 表示未评出
+            parsed_full = int(result.get("full_score", 0))
+            if parsed_full <= 0:
+                parsed_full = sub_dim.full_score
+                basis = f"[解析失败，已保留满分占位 {parsed_full}] {result.get('judgment_basis','')}"
+                rating = "解析失败"
+            else:
+                basis = result.get("judgment_basis", "")
+                rating = result.get("rating", "未知")
+
             sub_dimension_scores.append(
                 SubDimensionScore(
-                    sub_dimension=result["sub_dimension"],
-                    score=int(result["score"]),
-                    full_score=int(result["full_score"]),
-                    rating=result.get("rating", "未知"),
+                    sub_dimension=result.get("sub_dimension", sub_dim.name) if result.get("sub_dimension") != "解析失败" else sub_dim.name,
+                    score=int(result.get("score", 0)),
+                    full_score=parsed_full,
+                    rating=rating,
                     score_range=result.get("score_range", ""),
-                    judgment_basis=result.get("judgment_basis", ""),
+                    judgment_basis=basis,
                     issues=result.get("issues", []),
                     highlights=result.get("highlights", []),
                 )

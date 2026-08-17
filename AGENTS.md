@@ -6,27 +6,6 @@
 
 AI教育平台自动化测试系统（能力训练工作流测试）。模拟学生-AI对话，测试对话式教学任务质量。
 
-**Core Stack:** Python + Doubao/DeepSeek LLM + WebSocket
-
----
-
-## STRUCTURE
-
-```
-能力训练/
-├── auto_script_train.py              # 主入口：3档学生画像测试
-├── auto_script_train_5characters.py  # 扩展：5角色并发测试
-├── auto_audio_train.py               # WebSocket语音训练测试
-├── workflow_tester_base.py           # 共享基类（API/日志/重试）
-├── skill_training_build/             # Markdown→平台任务构建
-├── homework_review/                  # AI作业批改工具
-├── evaluation/                       # 对话质量评测（5维度20子维度）
-├── .claude/skills/                   # Claude Code自动化技能
-├── prompts/                          # 评测提示词模板
-├── skills_training_course/           # 课程文档/任务源文件
-└── log/                              # 测试日志（txt+json）
-```
-
 ---
 
 ## WHERE TO LOOK
@@ -90,25 +69,9 @@ chat(user_answer)                # 3. 循环对话
 ## COMMANDS
 
 ```bash
-# 工作流测试
-python auto_script_train.py              # 交互式选择模式
-python auto_script_train_5characters.py  # 5角色并发
-
-# 语音训练测试
-python auto_audio_train.py
-
-# 构建任务
-python skill_training_build/create_task_from_markdown.py
-
-# 作业批改
-cd homework_review && python homework_reviewer_v2.py
-
 # 对话评测
 python -m evaluation -t doc.docx -d log.json -v
 python -m evaluation -t doc.docx -D ./logs/ -O ./reports/ --workers 3
-
-# 依赖安装
-pip install -r requirements.txt
 ```
 
 ---
@@ -133,7 +96,16 @@ pip install -r requirements.txt
 
 ---
 
-## PROJECT SKILLS
+## Agent skills
 
-- workflow-test-debugger: 工作流测试诊断助手。用于排查 `task_id` 运行失败、`run_card/chat` 跳转异常、`needSkipStep` 自动跳步、日志缺失、认证问题、学生画像配置问题。 (file: /Users/zhangyichi/工作/能力训练/project_skills/workflow-test-debugger/SKILL.md)
-- training-script-generator-v2: 能力训练剧本创建器。用于将实训任务文档、课程说明或草稿整理成项目可用的 `训练剧本配置.md`，包含阶段划分、状态机跳转、开场白、反剧透提示词。 (file: /Users/zhangyichi/工作/能力训练/.agent/skills/training-script-generator-v2/SKILL.md)
+### Issue tracker
+
+Issue 跟踪在 GitHub（origin 仓库 `richardzhangy26/Skills_Training_Course`）。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+使用默认的五个 triage 标签（needs-triage / needs-info / ready-for-agent / ready-for-human / wontfix）。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+单上下文布局：根目录 `CONTEXT.md` + `docs/adr/`。详见 `docs/agents/domain.md`。

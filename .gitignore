@@ -70,6 +70,8 @@ demo_create_regions.sh
 # Word 文档
 *.docx
 *.docm
+# Excel 数据文件
+*.xlsx
 # 图片（README/ 与 skills 内的说明图已入库，不受影响）
 *.jpg
 *.jpeg

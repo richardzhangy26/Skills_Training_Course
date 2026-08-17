@@ -4,6 +4,7 @@
 
 import os
 import json
+from dataclasses import fields
 from typing import Tuple, Optional
 from txt_converter import parse_txt_dialogue
 from types_def import DialogueData, DialogueMetadata, DialogueStage, DialogueMessage
@@ -26,12 +27,19 @@ def parse_dialogue_file(file_path: str) -> DialogueData:
 
     if ext == ".json":
         data = json.loads(content)
+        meta_known = {f.name for f in fields(DialogueMetadata)}
+        msg_known = {f.name for f in fields(DialogueMessage)}
         return DialogueData(
-            metadata=DialogueMetadata(**data.get("metadata", {})),
+            metadata=DialogueMetadata(**{
+                k: v for k, v in data.get("metadata", {}).items() if k in meta_known
+            }),
             stages=[
                 DialogueStage(
                     stage_name=stage.get("stage_name", ""),
-                    messages=[DialogueMessage(**msg) for msg in stage.get("messages", [])]
+                    messages=[
+                        DialogueMessage(**{k: v for k, v in msg.items() if k in msg_known})
+                        for msg in stage.get("messages", [])
+                    ],
                 )
                 for stage in data.get("stages", [])
             ],

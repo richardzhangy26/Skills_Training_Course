@@ -27,14 +27,16 @@ pip install -r requirements.txt
 
 | 变量 | 说明 |
 | --- | --- |
-| `AUTHORIZATION` | 调用 `cloudapi.polymas.com` 所需的 Bearer Token。 |
+| `AUTHORIZATION` | 调用平台接口所需的 Bearer Token。 |
 | `COOKIE` | 同源接口需要的 `Cookie` 字符串。 |
 | `TASK_ID` | 默认的训练任务 ID；未设置时会在运行期询问。 |
+| `ABILITY_TRAIN_API_BASE` | 能力训练接口前缀；旧平台可不填，新平台如 `https://aic.sysu.edu.cn/cloud/teacher-course/abilityTrain`。 |
+| `PLATFORM_BASE_URL` | 可选的平台根地址；通常不需要填，脚本会从 `ABILITY_TRAIN_API_BASE` 推导出 `runCard/chat` 前缀。 |
 | `ARK_API_KEY` / `ARK_BASE_URL` | Doubao OpenAI SDK 的秘钥与网关地址。 |
 | `DOUBAO_MODEL` | Doubao 模型名称，默认 `doubao-seed-1-6-251015`。 |
 | `DEEPSEEK_API_KEY` / `DEEPSEEK_MODEL` | 仅 `auto_script_train_5characters.py` 使用，配置 DeepSeek SDK。 |
-| `MODEL_TYPE` | 仅 5 角色脚本使用，`doubao_sdk` / `doubao_post` / `deepseek_sdk`。 |
-| `LLM_API_URL` / `LLM_API_KEY` / `LLM_MODEL` / `LLM_SERVICE_CODE` | 当 `MODEL_TYPE=doubao_post` 时走自建 POST 接口(默认)。 |
+| `MODEL_TYPE` | `doubao_sdk` / `doubao_post` / `deepseek_sdk`。 |
+| `LLM_API_URL` / `LLM_API_KEY` / `LLM_MODEL` / `LLM_SERVICE_CODE` | 当 `MODEL_TYPE=doubao_post` 时走自建 POST 接口(默认)，只影响学生回答生成，不影响平台对话接口。 |
 | `USE_POST_API` | 兼容旧配置，如果为 `true` 会强制走 POST 接口模式。 |
 
 示例 `.env.example`,使用时请将 `xxx` 替换为实际值：
@@ -43,6 +45,7 @@ pip install -r requirements.txt
 AUTHORIZATION=xxx
 COOKIE=xxx
 TASK_ID=xxx
+ABILITY_TRAIN_API_BASE=https://aic.sysu.edu.cn/cloud/teacher-course/abilityTrain
 ARK_API_KEY=ak-xxx
 DOUBAO_MODEL=doubao-seed-1-6-251015
 MODEL_TYPE=doubao_sdk

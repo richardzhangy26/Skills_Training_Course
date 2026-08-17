@@ -4,7 +4,7 @@
 
 **Goal:** 安全、可回滚地定点修改普通能力训练任务 `gbxP2ro08oh4L66KpaVQ`，落实 7 月 24 日教师意见，并用三病例回归验证修改结果。
 
-**Architecture:** 复用 `create_task_from_markdown.py` 的鉴权、步骤查询和完整步骤编辑载荷，新建本任务专用更新器。更新器先读取任务配置、27 个节点、28 条流程边和 5 个评分项并落盘备份，再以真实 Step ID 和更新前节点名双重校验构建补丁；默认仅预演，只有显式 `--apply` 才写平台。内容修改采用纯函数生成，远程写入通过可注入网关隔离，便于测试。
+**Architecture:** 复用 `create_task_from_markdown.py` 的鉴权、步骤查询和完整步骤编辑载荷，新建本任务专用更新器。更新器先读取任务配置、27 个节点、28 条流程边和 5 个评分项并落盘备份，再以真实 Step ID 和更新前节点名双重校验构建补丁；默认仅预演，只有显式 `--apply` 才写平台，流程触发条件还需额外显式 `--include-flows`。正式写入前二次读取整份快照，若发现并发变化则中止。内容修改采用纯函数生成，远程写入通过可注入网关隔离，便于测试。
 
 **Tech Stack:** Python 3、requests、pytest、Pillow、Polymas 普通能力训练 API。
 
@@ -12,13 +12,13 @@
 
 - 目标任务 ID 固定为 `gbxP2ro08oh4L66KpaVQ`，不得接受其他任务 ID。
 - 必须以线上真实 Step ID 为主键，节点名为写入前置校验；禁止按 API 返回顺序 `zip()`。
-- 默认 dry-run；仅显式 `--apply` 允许远程写入。
+- 默认 dry-run；仅显式 `--apply` 允许远程写入；流程修改还必须显式传入 `--include-flows`。
 - 写入前必须备份基础配置、全部步骤、全部流程边和全部评分项，备份不得包含 Authorization、Cookie 或其他请求头。
-- 不整体导入 `训练剧本配置_三选一路由版.md`，不改动路由结构。
+- 不整体导入 `训练剧本配置_三选一路由版.md`，不改动路由结构；仅允许修改病例二问诊→信息补充现有流程边 `8eDVMQorOocZp0PlbakN` 的触发文本，起点和终点必须保持不变。
 - 步骤编辑保留位置、数字人、音色、头像、知识库和既有资源，只修改设计明确列出的字段。
 - 任务名精确改为“冠心病的中西医结合诊疗模拟训练”。
 - 三个治疗节点统一命名为“中西医结合治疗方案”。
-- 评价标准总分固定为 100，五项分值固定为 `10 / 20 / 20 / 20 / 30`。
+- 评价标准沿用课程既有总分和原始权重，五项分值固定为 `10 / 35 / 15 / 20 / 20`。
 - 平台生成的“（AI生成）”标签不在本次脚本中处理。
 
 ---
@@ -101,8 +101,9 @@ Expected: 全部通过，0 failure。
 assert "西医与中医初步考虑什么诊断？" in case1_info_prompt
 assert "干湿性啰音" in case1_exam_prompt
 assert "患者需要做哪些辅助检查" in case1_aux_prompt
-assert "CK-MB 18 U/L" in case1_aux_prologue
-assert "肌钙蛋白I 0.02 ng/mL" in case1_aux_prologue
+assert "CK-MB 18 U/L" in case1_aux_prompt
+assert "肌钙蛋白I 0.02 ng/mL" in case1_aux_prompt
+assert "CK-MB" not in case1_aux_prologue
 assert "分析合理" in case1_aux_prologue
 assert "中医治则、主方、具体药物组成" in case1_treatment_prompt
 assert "西医治疗原则、具体药物" in case1_treatment_prompt
@@ -151,7 +152,7 @@ Expected: 全部通过，0 failure。
 ```python
 def test_score_plan_is_branch_aware_and_totals_100():
     items = build_target_score_items(load_fixture_snapshot()["scoreItems"])
-    assert [item["score"] for item in items] == [10, 20, 20, 20, 30]
+    assert [item["score"] for item in items] == [10, 35, 15, 20, 20]
     assert sum(item["score"] for item in items) == 100
     assert all("按当前进入的病例" in item["requireDetail"] for item in items)
 ```
@@ -160,11 +161,11 @@ def test_score_plan_is_branch_aware_and_totals_100():
 
 基础配置只改变任务名；五个评分项改为：
 
-1. 问诊与危险信息采集 10 分。
-2. 体格检查与辅助检查 20 分。
-3. 西医诊断及依据 20 分。
-4. 中医病名、证型与辨证依据 20 分。
-5. 中西医结合治疗方案 30 分。
+1. 人文沟通与急救素养 10 分。
+2. 问诊采集 35 分。
+3. 辅助检查与体征解读 15 分。
+4. 中西医诊断与鉴别 20 分。
+5. 中西医结合治疗方案 20 分。
 
 每项要求根据当前病例选择稳定型心绞痛、痰湿内阻不稳定型心绞痛或气虚血瘀急性心肌梗死的标准答案，并明确记录扣分原因。
 
@@ -229,13 +230,13 @@ Expected: 输出固定任务 ID、真实 Step ID、更新前后差异和备份�
 
 - [ ] **Step 3: 人工复核 update_plan.json**
 
-确认只包含任务名、19 个教师意见相关节点、5 个评分项；流程更新数为 0。
+确认只包含任务名、19 个教师意见相关节点、5 个评分项，以及流程边 `8eDVMQorOocZp0PlbakN` 的触发文本；该边仍从 `M6DLzroRvoc4gkKYQdVr` 指向 `8eDVMQorOocRpmy0AakN`，其他 27 条流程边零变化。
 
 - [ ] **Step 4: 显式执行**
 
-Run: `python skill_training_build/update_coronary_heart_disease_task.py --apply`
+Run: `python skill_training_build/update_coronary_heart_disease_task.py --apply --include-flows`
 
-Expected: 基础配置、目标步骤、评分项逐项成功；任一失败立即停止。
+Expected: 二次快照一致性校验通过后，基础配置、目标步骤、评分项和唯一目标流程边逐项成功；任一失败立即停止。
 
 - [ ] **Step 5: 通过平台 UI 上传病例三检查报告图**
 
@@ -255,11 +256,11 @@ Expected: 基础配置、目标步骤、评分项逐项成功；任一失败立�
 
 - [ ] **Step 1: 重新读取四类配置**
 
-按任务名、目标 Step ID、五项评分和 28 条原流程边生成字段级校验；流程边必须与备份一致。
+按任务名、目标 Step ID、五项评分和 28 条流程边生成字段级校验；27 条流程边必须与备份一致，病例二目标边只允许触发文本变化且起终点不变。
 
 - [ ] **Step 2: 运行病例一**
 
-验证辅助检查先问后给、单位完整、治疗六项必答、总结先标准答案后数字评分。
+验证辅助检查先问后给、单位完整、治疗五类核心内容必答、总结先标准答案后数字评分。
 
 - [ ] **Step 3: 运行病例二**
 

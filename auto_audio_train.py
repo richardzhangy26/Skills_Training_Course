@@ -90,21 +90,34 @@ AUDIO_CONFIG = {
 
 # ============ 日志记录器 ============
 class ConversationLogger:
-    def __init__(self, task_id: str):
-        log_dir = Path("./audio_logs")
-        log_dir.mkdir(exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_file = log_dir / f"task_{task_id}_{timestamp}.txt"
+    def __init__(
+        self,
+        log_file: Path,
+        task_id: str,
+        student_profile_key: str,
+        student_profile_label: str,
+        reference_path: Optional[str],
+    ):
+        self.log_file = Path(log_file)
+        self.log_file.parent.mkdir(parents=True, exist_ok=True)
 
         # 保存task_id和创建时间用于头部显示
-        self.task_id = task_id
+        self.task_id = task_id or "unknown"
         self.creation_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.student_profile_key = student_profile_key
+        self.student_profile_label = student_profile_label
+        self.reference_path = reference_path or "无"
 
         # 创建日志文件并写入头部
         with open(self.log_file, 'w', encoding='utf-8') as f:
-            f.write("对话记录\n")
+            f.write("语音对话记录\n")
             f.write(f"日志创建时间: {self.creation_time}\n")
-            f.write(f"task_id: {task_id}\n")
+            f.write(f"task_id: {self.task_id}\n")
+            f.write(
+                f"学生档位: {self.student_profile_label} "
+                f"({self.student_profile_key})\n"
+            )
+            f.write(f"参考文档路径: {self.reference_path}\n")
             f.write("="*60 + "\n")
 
     def log(self, role: str, content: str, step_name: str, step_id: str, round_num: int, source: str, user_content: str = None):
@@ -252,14 +265,14 @@ class AudioProcessor:
 
 # ============ TTS引擎 ============
 class TTSEngine:
-    def __init__(self, voice: str = "en-US-GuyNeural"):
+    def __init__(self, voice: str = "zh-CN-XiaoxiaoNeural"):
         self.voice = voice
         self.provider = os.getenv("TTS_PROVIDER", "auto").lower()
         self.polymas_tts_url = os.getenv(
             "TTS_API_URL",
             "https://llm-service.polymas.com/api/openai/v1/audio/speech/stream"
         )
-        self.polymas_api_key = os.getenv("TTS_API_KEY") or os.getenv("LLM_API_KEY", "")
+        self.polymas_api_key = os.getenv("TTS_API_KEY", "")
         self.polymas_model = os.getenv("TTS_MODEL", "tts-1")
         self.polymas_voice = os.getenv("TTS_VOICE", "alloy")
         self.polymas_speed = float(os.getenv("TTS_SPEED", "1.0"))
@@ -331,7 +344,10 @@ class TTSEngine:
 
     async def _synthesize_with_polymas(self, text: str) -> bytes:
         if not self.polymas_api_key:
-            raise ValueError("Polymas TTS 缺少 api-key（TTS_API_KEY 或 LLM_API_KEY）")
+            raise ValueError(
+                "Polymas TTS 缺少 TTS_API_KEY。按平台规范 api-key 需按业务区分，"
+                "请在 .env 显式设置 TTS_API_KEY（不再兜底复用 LLM_API_KEY）"
+            )
 
         headers = {
             "Content-Type": "application/json",
@@ -357,10 +373,39 @@ class TTSEngine:
         )
         response.raise_for_status()
 
-        audio_bytes = response.content or b""
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        if "text/event-stream" in content_type:
+            audio_bytes = self._decode_polymas_sse(response.text)
+        else:
+            audio_bytes = response.content or b""
+
         if not audio_bytes:
             raise ValueError("Polymas TTS 返回空音频")
         return audio_bytes
+
+    @staticmethod
+    def _decode_polymas_sse(text: str) -> bytes:
+        import base64
+
+        chunks: List[bytes] = []
+        for line in text.splitlines():
+            if not line.startswith("data:"):
+                continue
+            rest = line[5:].strip()
+            if not rest:
+                continue
+            try:
+                obj = json.loads(rest)
+            except json.JSONDecodeError:
+                continue
+            frame = obj.get("audioFrame")
+            if not frame:
+                continue
+            try:
+                chunks.append(base64.b64decode(frame))
+            except Exception:
+                continue
+        return b"".join(chunks)
 
     async def synthesize(self, text: str) -> bytes:
         if not text or not text.strip():
@@ -411,7 +456,7 @@ STUDENT_PROFILES = {
 class TrainingClient:
     def __init__(self):
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
-        self.logger = ConversationLogger(CONFIG["task_id"])  # 传入 task_id
+        self.logger: Optional[ConversationLogger] = None
         self.tts = TTSEngine()
         self.audio = AudioProcessor()
 
@@ -425,6 +470,7 @@ class TrainingClient:
         self.bot_speaking = False
         self.waiting_response = False
         self.current_bot_msg = ""
+        self.bot_answer_open = False
         self.current_history_id = ""
         self.task_completed = False
 
@@ -454,6 +500,12 @@ class TrainingClient:
         self.bot_total_timeout = float(os.getenv("BOT_TOTAL_TIMEOUT", "240"))  # bot回复总时长上限（秒）
         self.bot_answer_started_at: Optional[float] = None
         self.last_bot_activity_at: Optional[float] = None
+        self.server_idle_timeout = float(os.getenv("SERVER_IDLE_TIMEOUT", "45"))  # 服务端活动空闲超时（秒）
+        self.response_phase = "idle"
+        self.response_started_at: Optional[float] = None
+        self.last_server_activity_at: Optional[float] = None
+        self.last_server_event: Optional[str] = None
+        self._audio_stop_reason: Optional[str] = None
 
         # 学生档位配置
         self.student_profile_key = "medium"  # 默认：需要引导的学生
@@ -638,6 +690,48 @@ class TrainingClient:
         except Exception as exc:
             log.warning(f"⚠️ 加载知识库失败: {exc}")
             return False
+
+    def _selected_log_context_path(self) -> Optional[str]:
+        """选择语音日志所在目录的上下文路径：知识库优先，其次对话记录。"""
+        return self.knowledge_base_path or self.reference_dialogue_path
+
+    def _resolve_audio_log_dir(self, context_path: Optional[str]) -> Path:
+        if not context_path:
+            return Path("./audio_logs")
+
+        path = Path(context_path).expanduser()
+        if path.is_dir():
+            return path.resolve()
+        return path.resolve().parent
+
+    def build_audio_log_file_path(
+        self,
+        context_path: Optional[str] = None,
+        timestamp: Optional[str] = None,
+    ) -> Path:
+        timestamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+        task_id = str(CONFIG.get("task_id") or "unknown")
+        log_dir = self._resolve_audio_log_dir(context_path)
+        return log_dir / f"task_{task_id}_{timestamp}_audio-log.txt"
+
+    def ensure_logger(self) -> ConversationLogger:
+        if self.logger is not None:
+            return self.logger
+
+        context_path = self._selected_log_context_path()
+        profile_info = STUDENT_PROFILES.get(
+            self.student_profile_key,
+            STUDENT_PROFILES["medium"],
+        )
+        self.logger = ConversationLogger(
+            log_file=self.build_audio_log_file_path(context_path),
+            task_id=str(CONFIG.get("task_id") or "unknown"),
+            student_profile_key=self.student_profile_key,
+            student_profile_label=profile_info["label"],
+            reference_path=context_path,
+        )
+        log.info(f"📝 语音日志: {self.logger.log_file}")
+        return self.logger
     
     async def connect(self):
         url = f"{CONFIG['ws_url']}?taskId={CONFIG['task_id']}"
@@ -677,20 +771,80 @@ class TrainingClient:
     async def send_next_step(self, step_id: str):
         """发送 nextStep 确认进入下一步"""
         await self.send_json("nextStep", {"stepId": step_id})
+
+    async def send_mute(self):
+        """发送静音事件，等价于网页端点击静音按钮。"""
+        await self.send_json("mute", {})
+        log.info("🔇 已发送自动静音事件")
     
     async def send_heartbeat(self):
         await self.send_json("heartBeat", {})
+
+    def _mark_server_activity(self, event: str, phase: Optional[str] = None):
+        self.last_server_activity_at = time.monotonic()
+        self.last_server_event = event
+        if phase:
+            self.response_phase = phase
+
+    def _finalize_bot_answer(
+        self,
+        reason: str,
+        mark_response_complete: bool,
+        clear_current_bot_msg: bool,
+    ):
+        had_open_answer = self.bot_answer_open
+        had_content = bool(self.current_bot_msg)
+
+        if had_content:
+            source = "runCard" if self.step_just_started else "chat"
+            logger = self.ensure_logger()
+            logger.log(
+                role="AI",
+                content=self.current_bot_msg,
+                step_name=self.step_name,
+                step_id=self.step_id,
+                round_num=self.round_counter,
+                source=source,
+                user_content=self.pending_user_message if source == "chat" else None,
+            )
+            if self.step_just_started:
+                self.step_just_started = False
+            self.pending_user_message = None
+
+        self.bot_speaking = False
+        self.bot_answer_open = False
+        self.heartbeat_without_response = 0
+        self.bot_answer_started_at = None
+        self.last_bot_activity_at = time.monotonic()
+
+        if mark_response_complete:
+            self.waiting_response = False
+            self.response_phase = "idle"
+
+        if clear_current_bot_msg:
+            self.current_bot_msg = ""
+
+        if had_open_answer or had_content:
+            log.info(
+                "🤖 Bot回复已收束: reason=%s, complete=%s, clear=%s",
+                reason,
+                mark_response_complete,
+                clear_current_bot_msg,
+            )
     
     def _request_stop_audio_sending(self, reason: str):
+        if self._audio_sending or self.waiting_response:
+            self._audio_stop_reason = reason
         stop_event = self._audio_stop_event
         if stop_event and not stop_event.is_set():
             stop_event.set()
             log.info(f"🛑 停止发送音频: {reason}")
 
-    async def send_audio_frames(self, pcm_data: bytes):
+    async def send_audio_frames(self, pcm_data: bytes) -> bool:
         # 为本次发送创建 stop 事件（用于提前终止）
         self._audio_stop_event = asyncio.Event()
         stop_event = self._audio_stop_event
+        self._audio_stop_reason = None
 
         self._audio_sending = True
         self._audio_sending_done.clear()
@@ -700,6 +854,7 @@ class TrainingClient:
 
         log.info(f"📤 发送: {audio_frame_count} 音频帧 + {AUDIO_CONFIG['silence_frames']} 静音帧(最多)")
 
+        completed = False
         try:
             async with self._ws_send_lock:
                 # 先发送语音内容帧
@@ -719,10 +874,18 @@ class TrainingClient:
                     await self.ws.send(self.audio.create_silence_frame())
                     await asyncio.sleep(AUDIO_CONFIG["chunk_interval"])
 
+                completed = self.is_connected and not stop_event.is_set()
+
         finally:
             self._audio_sending = False
             self._audio_sending_done.set()
-            log.info("✅ 音频发送完成")
+            if completed:
+                log.info("✅ 音频发送完成")
+            else:
+                reason = self._audio_stop_reason or "连接已断开"
+                log.info(f"✅ 音频发送提前结束: {reason}")
+
+        return completed
 
     def _call_doubao_post(self, messages, temperature=0.7, max_tokens=1000):
         """
@@ -876,6 +1039,17 @@ class TrainingClient:
         log.info(f"🎤 准备发送: {text}")
         
         while self.bot_speaking:
+            if (
+                self.bot_answer_open
+                and self.last_bot_activity_at
+                and (time.monotonic() - self.last_bot_activity_at) >= self.bot_idle_timeout
+            ):
+                self._finalize_bot_answer(
+                    reason="bot idle before speak",
+                    mark_response_complete=False,
+                    clear_current_bot_msg=False,
+                )
+                break
             await asyncio.sleep(0.1)
         
         try:
@@ -887,7 +1061,20 @@ class TrainingClient:
             log.info(f"✅ PCM: {len(pcm_data)} bytes")
             
             self.waiting_response = True
-            await self.send_audio_frames(pcm_data)
+            self.response_phase = "audio_sending"
+            self.response_started_at = time.monotonic()
+            self.last_server_activity_at = None
+            self.last_server_event = None
+
+            audio_completed = await self.send_audio_frames(pcm_data)
+            if audio_completed and self.is_connected and self.waiting_response and not self._audio_stop_reason:
+                await self.send_mute()
+                log.info("🔇 本轮已自动发送 mute")
+                if self.response_phase == "audio_sending":
+                    self.response_phase = "waiting_server"
+            else:
+                reason = self._audio_stop_reason or "音频未完整发送或响应已结束"
+                log.info(f"🔇 跳过自动 mute: {reason}")
             
             log.info("⏳ 等待响应...")
             return True
@@ -907,6 +1094,22 @@ class TrainingClient:
             data = json.loads(message)
             event = data.get("event")
             payload = data.get("payload", {})
+
+            activity_phases = {
+                "userTextStart": "asr",
+                "userText": "asr",
+                "userTextEnd": "waiting_bot",
+                "userAudioEnd": "audio_saved",
+                "stepEnd": "step_end",
+                "botAnswerStart": "bot",
+                "botAnswer": "bot",
+                "botAnswerEnd": "done",
+                "scriptEnd": "done",
+                "taskEnd": "done",
+                "error": "error",
+            }
+            if event in activity_phases:
+                self._mark_server_activity(event, activity_phases[event])
             
             if event == "connected":
                 self.session_id = payload.get("sessionId")
@@ -918,10 +1121,19 @@ class TrainingClient:
                 await self.start_script()
                 
             elif event == "botAnswerStart":
+                # botAnswerEnd 在当前协议里可能缺失；若上一段 Bot 文本流仍未收束，
+                # 先按边界事件收束，再开始新的 Bot 文本流。
+                if self.bot_answer_open:
+                    self._finalize_bot_answer(
+                        reason="new botAnswerStart",
+                        mark_response_complete=False,
+                        clear_current_bot_msg=True,
+                    )
                 self.bot_speaking = True
+                self.bot_answer_open = True
                 self.current_bot_msg = ""
                 # 注意：不要在这里设置 waiting_response = False
-                # 应该等到 botAnswerEnd 时才认为响应完成，确保 current_bot_msg 已完整接收
+                # botAnswerEnd 可能缺失，需靠 userTextEnd/stepEnd/scriptEnd/new botAnswerStart 等边界收束。
                 self.heartbeat_without_response = 0  # 重置心跳计数
                 self._request_stop_audio_sending("botAnswerStart")
                 now = time.monotonic()
@@ -936,38 +1148,21 @@ class TrainingClient:
                 self.last_bot_activity_at = time.monotonic()
                 
             elif event == "botAnswerEnd":
-                if self.current_bot_msg:
-                    # 确定来源
-                    source = "runCard" if self.step_just_started else "chat"
-
-                    # 记录日志
-                    self.logger.log(
-                        role="AI",
-                        content=self.current_bot_msg,
-                        step_name=self.step_name,
-                        step_id=self.step_id,
-                        round_num=self.round_counter,
-                        source=source,
-                        user_content=self.pending_user_message if source == "chat" else None
-                    )
-
-                    # 重置 step_just_started 标志
-                    if self.step_just_started:
-                        self.step_just_started = False
-
-                    # 清空缓存的用户消息
-                    self.pending_user_message = None
-
-                    # 保留 current_bot_msg 不清空，供半交互模式的 AI 生成回答使用
-                    # 在 botAnswerStart 时会重新清空
-
-                self.bot_speaking = False
-                self.waiting_response = False
-                self.heartbeat_without_response = 0  # 重置心跳计数
-                self.bot_answer_started_at = None
-                self.last_bot_activity_at = time.monotonic()
+                self._finalize_bot_answer(
+                    reason="botAnswerEnd",
+                    mark_response_complete=True,
+                    clear_current_bot_msg=False,
+                )
 
             elif event == "userTextStart":
+                # 当前日志样本里，首轮 runCard 提问可能没有 botAnswerEnd；
+                # 一旦进入 userTextStart，说明用户已经开始回答上一题，可收束旧 Bot 文本流。
+                if self.bot_answer_open and self.step_just_started:
+                    self._finalize_bot_answer(
+                        reason="userTextStart",
+                        mark_response_complete=False,
+                        clear_current_bot_msg=True,
+                    )
                 log.info("🎙️ ✅ 开始识别!")
                 
             elif event == "userText":
@@ -982,6 +1177,16 @@ class TrainingClient:
                 # 缓存用户消息，等待与AI回复一起记录
                 self.pending_user_message = text
 
+                if self.bot_answer_open:
+                    self._finalize_bot_answer(
+                        reason="userTextEnd",
+                        mark_response_complete=False,
+                        clear_current_bot_msg=True,
+                    )
+                    # userTextEnd 同时标记“上一段 Bot 文本流结束”和“本轮用户输入完成”，
+                    # 收束旧 Bot 后需要把当前用户文本重新保留给后续 AI 响应日志。
+                    self.pending_user_message = text
+
                 log.info(f"✅ 识别完成: {text}")
                 
             elif event == "userAudioEnd":
@@ -989,17 +1194,26 @@ class TrainingClient:
                 self._request_stop_audio_sending("userAudioEnd")
                 
             elif event == "stepEnd":
-                # 关键：收到 stepEnd，从中获取 nextStepId
-                current_step = payload.get("stepName", "")
+                # 当前协议样本里，stepEnd.payload.stepName 可作为下一步展示名，
+                # 不是刚结束步骤名；没有 nextStepName 时用它做展示与 fallback。
+                if self.bot_answer_open:
+                    self._finalize_bot_answer(
+                        reason="stepEnd",
+                        mark_response_complete=False,
+                        clear_current_bot_msg=True,
+                    )
+
+                payload_step_name = payload.get("stepName", "")
                 next_step_id = payload.get("nextStepId")
-                next_step_name = payload.get("nextStepName", "")  # 尝试获取下一步骤名称
+                next_step_name = payload.get("nextStepName", "")
                 end_type = payload.get("endType", "")
                 step_desc = payload.get("stepDescription", "")
+                next_step_display_name = next_step_name or payload_step_name or next_step_id or ""
 
                 # step 结束说明服务器已经不再需要当前音频流，停止继续发送避免跨步骤触发识别
                 self._request_stop_audio_sending("stepEnd")
 
-                log.info(f"📍 步骤结束: {current_step}")
+                log.info(f"📍 当前步骤结束，下一步展示名: {next_step_display_name or '未知'}")
                 log.info(f"   结束类型: {end_type}")
                 log.info(f"   步骤描述: {step_desc[:50]}...")
 
@@ -1007,11 +1221,8 @@ class TrainingClient:
                     log.info(f"➡️ 下一步: {next_step_id}")
                     self.step_id = next_step_id
 
-                    # 更新步骤名称（如果服务器没有返回，用step_id作为临时名称）
-                    if next_step_name:
-                        self.step_name = next_step_name
-                    else:
-                        self.step_name = current_step
+                    # 更新步骤名称；当前协议无 nextStepName 时使用 stepEnd.stepName 作为下一步展示名。
+                    self.step_name = next_step_display_name or next_step_id
 
                     # 轮次计数器不重置，持续累加
 
@@ -1028,17 +1239,38 @@ class TrainingClient:
                 else:
                     log.info("🏁 任务完成，没有下一步了！")
                     self.task_completed = True
+                    self.waiting_response = False
+                    self.bot_speaking = False
+                    self.response_phase = "idle"
+
+            elif event == "scriptEnd":
+                if self.bot_answer_open:
+                    self._finalize_bot_answer(
+                        reason="scriptEnd",
+                        mark_response_complete=True,
+                        clear_current_bot_msg=True,
+                    )
+                log.info("🎉 脚本已完成！")
+                self.task_completed = True
+                self.waiting_response = False
+                self.bot_speaking = False
+                self.response_phase = "idle"
+                self._request_stop_audio_sending("scriptEnd")
                 
             elif event == "taskEnd":
                 log.info("🎉 整个任务已完成！")
                 self.task_completed = True
                 self.waiting_response = False
+                self.bot_speaking = False
+                self.response_phase = "idle"
                 self._request_stop_audio_sending("taskEnd")
                 
             elif event == "error":
                 log.error(f"❌ 错误: {payload}")
                 # 出错时尽量解锁等待状态，避免永远卡在 bot_speaking
                 self.bot_speaking = False
+                self.waiting_response = False
+                self.response_phase = "idle"
                 self.bot_answer_started_at = None
                 self.last_bot_activity_at = time.monotonic()
                 
@@ -1064,17 +1296,23 @@ class TrainingClient:
         await self.send_next_step(step_id)
 
     async def wait_for_response_with_retry(self, text: str) -> bool:
-        """等待服务器响应，超时后自动重试（但如果 Bot 正在回复则继续等待）"""
+        """等待服务器响应，超时后自动重试。
+
+        只要服务端仍在 ASR、保存音频、切步或 Bot 回复过程中持续有活动，就继续等待；
+        只有完全无活动或某个阶段长时间停滞时才重试。
+        """
         retry_count = 0
 
         while retry_count <= self.max_retries:
             timeout = self.base_timeout
             start_wait = time.monotonic()
+            self.response_started_at = self.response_started_at or start_wait
+            retry_reason = "无服务端活动"
 
             while True:
                 await asyncio.sleep(0.5)
 
-                # 响应已完成（botAnswerEnd 触发）
+                # 响应已完成（botAnswerEnd/scriptEnd/taskEnd/error 触发）
                 if not self.waiting_response:
                     return True
 
@@ -1083,20 +1321,57 @@ class TrainingClient:
                 # Bot 正在回复：如果长时间无输出/总时长过长，判定卡住，允许重试
                 if self.bot_speaking:
                     if self.last_bot_activity_at and (now - self.last_bot_activity_at) >= self.bot_idle_timeout:
-                        log.warning(f"⚠️ Bot 已 {int(now - self.last_bot_activity_at)} 秒无输出，判定卡住")
+                        idle = now - self.last_bot_activity_at
+                        if self.bot_answer_open and self.current_bot_msg:
+                            log.warning(f"⚠️ Bot 已 {int(idle)} 秒无输出，按缺失 botAnswerEnd 收束")
+                            self._finalize_bot_answer(
+                                reason="bot idle timeout",
+                                mark_response_complete=True,
+                                clear_current_bot_msg=False,
+                            )
+                            return True
+
+                        retry_reason = f"Bot 已 {int(idle)} 秒无输出"
+                        log.warning(f"⚠️ {retry_reason}，判定卡住")
                         self.bot_speaking = False
                         break
                     if self.bot_answer_started_at and (now - self.bot_answer_started_at) >= self.bot_total_timeout:
-                        log.warning(f"⚠️ Bot 回复超过 {int(now - self.bot_answer_started_at)} 秒仍未结束，判定卡住")
+                        bot_total = now - self.bot_answer_started_at
+                        retry_reason = f"Bot 回复超过 {int(bot_total)} 秒仍未结束"
+                        log.warning(f"⚠️ {retry_reason}，判定卡住")
                         self.bot_speaking = False
                         break
                     continue
 
-                # 还没进入 botAnswerStart：按基础超时判断
-                if (now - start_wait) >= timeout:
+                # ASR/音频保存/切步等服务端阶段：只要最近仍有活动就继续等
+                if self.last_server_activity_at:
+                    server_idle = now - self.last_server_activity_at
+                    if server_idle < self.server_idle_timeout:
+                        continue
+
+                    retry_reason = (
+                        f"服务端阶段停滞，phase={self.response_phase}, "
+                        f"last_event={self.last_server_event}, idle={int(server_idle)}秒"
+                    )
+                    log.warning(f"⚠️ {retry_reason}")
                     break
 
-            log.warning(f"⏰ 等待 {int(timeout)} 秒无响应")
+                # 还没收到任何服务端活动：按基础超时判断
+                if (now - start_wait) >= timeout:
+                    retry_reason = f"发送后 {int(timeout)} 秒内无服务端活动"
+                    break
+
+            elapsed = int(time.monotonic() - start_wait)
+            total_elapsed = int(time.monotonic() - (self.response_started_at or start_wait))
+            log.warning(
+                "⏰ 等待响应超时: reason=%s, phase=%s, last_event=%s, "
+                "elapsed=%s秒, total=%s秒",
+                retry_reason,
+                self.response_phase,
+                self.last_server_event,
+                elapsed,
+                total_elapsed,
+            )
             retry_count += 1
 
             if retry_count <= self.max_retries:
@@ -1263,6 +1538,7 @@ class TrainingClient:
         参数:
             mode: 'semi' = 半交互模式, 'manual' = 纯手动模式
         """
+        self.ensure_logger()
         await self.connect()
 
         listen_task = asyncio.create_task(self.listen_loop())

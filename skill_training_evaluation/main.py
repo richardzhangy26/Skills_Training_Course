@@ -26,9 +26,9 @@ def load_env() -> dict:
     """从环境变量加载配置"""
     if load_dotenv:
         env_paths = [
+            Path.cwd() / ".env",
             Path(__file__).parent / ".env",
             Path(__file__).parent.parent / ".env",
-            Path.cwd() / ".env",
         ]
         for path in env_paths:
             if path.exists():
@@ -124,6 +124,7 @@ async def main():
     parser.add_argument("--api-url", help="LLM API 地址")
     parser.add_argument("--model", help="LLM 模型名称")
     parser.add_argument("--output", default="evaluation_report.json", help="输出报告路径")
+    parser.add_argument("--output-pdf", default=None, help="可选 PDF 报告路径 (传则生成 Dashboard 风格 PDF)")
     parser.add_argument("--prompts", default="prompts.json", help="提示词文件路径")
 
     args = parser.parse_args()
@@ -185,6 +186,20 @@ async def main():
             json.dump(output_data, f, ensure_ascii=False, indent=2)
 
         print(f"\n评估报告已保存: {args.output}")
+
+        if args.output_pdf:
+            from pdf_report import generate_pdf
+
+            pdf_path = Path(args.output_pdf)
+            pdf_path.parent.mkdir(parents=True, exist_ok=True)
+            generate_pdf(
+                report=report,
+                output_path=str(pdf_path),
+                model_name=model,
+                dialogue_file=args.dialogue_record,
+            )
+            print(f"PDF 报告已保存: {pdf_path}")
+
         print(f"总分: {report.total_score:.1f} / 100")
         print(f"等级: {report.final_level.value}")
         print(f"通过: {'是' if report.pass_criteria_met else '否'}")

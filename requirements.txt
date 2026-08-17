@@ -49,6 +49,10 @@ edge-tts>=6.1.0,<7.0.0
 # 如果需要直接生成PDF报告（不经HTML），建议安装：
 reportlab>=4.0.0,<5.0.0
 
+# 如果需要录制网页端 WebSocket 对话，可以安装：
+# playwright>=1.40.0,<2.0.0
+# 安装后执行: python -m playwright install chromium
+
 # 开发依赖（可选）：
 # pytest>=7.0.0,<8.0.0
 # black>=23.0.0,<24.0.0

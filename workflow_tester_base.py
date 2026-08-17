@@ -9,6 +9,21 @@ import requests
 from dotenv import load_dotenv
 
 
+DEFAULT_PLATFORM_BASE_URL = "https://cloudapi.polymas.com"
+DEFAULT_ABILITY_TRAIN_API_BASE = f"{DEFAULT_PLATFORM_BASE_URL}/teacher-course/abilityTrain"
+ABILITY_TRAIN_PATH = "/teacher-course/abilityTrain"
+
+
+def _clean_base_url(url: Optional[str]) -> str:
+    return (url or "").strip().rstrip("/")
+
+
+def _platform_base_from_ability_train_base(ability_train_base: str) -> str:
+    if ability_train_base.endswith(ABILITY_TRAIN_PATH):
+        return ability_train_base[: -len(ABILITY_TRAIN_PATH)].rstrip("/")
+    return ability_train_base
+
+
 class WorkflowTesterBase:
     """Common workflow tester logic shared by auto_script_train*.py scripts.
 
@@ -23,8 +38,7 @@ class WorkflowTesterBase:
     PROFILE_LABEL_FIELD_NAME: str = "学生档位"
     PROFILE_SELECT_TITLE: str = "学生档位"
 
-    def __init__(self, base_url: str = "https://cloudapi.polymas.com"):
-        self.base_url = base_url
+    def __init__(self, base_url: Optional[str] = None):
         self.session = requests.Session()
 
         # Workflow state
@@ -60,6 +74,22 @@ class WorkflowTesterBase:
 
         # From environment
         load_dotenv()
+        configured_ability_train_base = _clean_base_url(os.getenv("ABILITY_TRAIN_API_BASE"))
+        configured_platform_base = _clean_base_url(base_url or os.getenv("PLATFORM_BASE_URL"))
+
+        if configured_ability_train_base:
+            self.ability_train_api_base = configured_ability_train_base
+            self.base_url = configured_platform_base or _platform_base_from_ability_train_base(
+                configured_ability_train_base
+            )
+        else:
+            self.base_url = configured_platform_base or DEFAULT_PLATFORM_BASE_URL
+            self.ability_train_api_base = (
+                f"{self.base_url}{ABILITY_TRAIN_PATH}"
+                if configured_platform_base
+                else DEFAULT_ABILITY_TRAIN_API_BASE
+            )
+
         self.headers = {
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -87,6 +117,12 @@ class WorkflowTesterBase:
     def _post_json(self, url: str, payload: Dict[str, Any], timeout: int):
         """POST helper. Subclasses can override to add retries."""
         return self.session.post(url, json=payload, headers=self.headers, timeout=timeout)
+
+    def _ability_train_url(self, endpoint: str) -> str:
+        return f"{self.ability_train_api_base}/{endpoint.lstrip('/')}"
+
+    def _platform_url(self, path: str) -> str:
+        return f"{self.base_url}/{path.lstrip('/')}"
 
     # ---- Logging ----
     def _prepare_log_files(self, task_id: str):
@@ -502,7 +538,7 @@ class WorkflowTesterBase:
 
     def _query_first_step_from_flow(self, task_id: str) -> Optional[str]:
         """通过 flowList 接口获取第一个步骤 ID（更可靠）"""
-        url = f"{self.base_url}/teacher-course/abilityTrain/queryScriptStepFlowList"
+        url = self._ability_train_url("queryScriptStepFlowList")
         payload = {"trainTaskId": task_id}
 
         timeout = getattr(self, "base_timeout", 60)
@@ -521,7 +557,7 @@ class WorkflowTesterBase:
 
     def query_script_step_list(self, task_id: str) -> str:
         """Get step list and return the first real stepId."""
-        url = f"{self.base_url}/teacher-course/abilityTrain/queryScriptStepList"
+        url = self._ability_train_url("queryScriptStepList")
         payload = {"trainTaskId": task_id, "trainSubType": "ability"}
 
         print(f"\n=== 获取步骤列表 ===")
@@ -571,7 +607,7 @@ class WorkflowTesterBase:
 
     def run_card(self, task_id: str, step_id: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Run a workflow card."""
-        url = f"{self.base_url}/ai-tools/trainRun/runCard"
+        url = self._platform_url("ai-tools/trainRun/runCard")
         payload = {"taskId": task_id, "stepId": step_id, "sessionId": session_id}
         if session_id:
             payload["sessionId"] = session_id
@@ -618,7 +654,7 @@ class WorkflowTesterBase:
 
     def chat(self, user_input: str, step_id: Optional[str] = None) -> Dict[str, Any]:
         """Send user answer to the workflow."""
-        url = f"{self.base_url}/ai-tools/trainRun/chat"
+        url = self._platform_url("ai-tools/trainRun/chat")
         if step_id is None:
             step_id = self.current_step_id
 

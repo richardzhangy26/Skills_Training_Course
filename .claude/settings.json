@@ -1,7 +1,4 @@
 {
-  "enabledPlugins": {
-    "playwright@claude-plugins-official": true
-  },
   "hooks": {
     "PostToolUse": [
       {
@@ -14,5 +11,9 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "playwright@claude-plugins-official": true,
+    "document-skills@anthropic-agent-skills": true
   }
 }

@@ -50,7 +50,7 @@ class WorkflowTester(WorkflowTesterBase):
         }
     }
 
-    def __init__(self, base_url="https://cloudapi.polymas.com"):
+    def __init__(self, base_url=None):
         super().__init__(base_url)
 
         # 加载学生性格配置

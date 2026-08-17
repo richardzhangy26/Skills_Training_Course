@@ -640,10 +640,35 @@ class WorkflowTester(WorkflowTesterBase):
             "description": "专业的医生，回答问题时会考虑患者的情况和健康问题。",
             "style": "语气专业、语言专业，必要时引用相关知识或建议。尽量不要使用太口头话的用语。",
             "fallback_hint": "若模拟对话中没有合适示例，可根据患者情况组织回答。"
+        },
+        "good_en": {
+            "label": "Excellent Student (EN)",
+            "description": "Thorough understanding, clear and structured responses with key points summarized.",
+            "style": "Confident tone, well-organized language, references key information from materials.",
+            "fallback_hint": "If no sample dialogue matches, compose the best answer independently.",
+            "lang": "en"
+        },
+        "classical_good": {
+            "label": "文言文优秀学生",
+            "description": "文言基础扎实，翻译准确到位，能精准辨析古今异义与虚词用法；句式判断敏锐，可准确识别判断句、被动句、倒装句等结构；分析层面能结合历史背景与人物形象进行深度解读，表达有学术意识的雏形。",
+            "style": "语气沉稳有条理，回答结构化：先给出结论，再逐条展开论证；翻译时兼顾信、达；分析人物时会援引文本细节支撑观点；遇到复杂句式会先拆解语法结构再译。",
+            "fallback_hint": "若模拟对话中没有合适示例，自主组织高质量答案：翻译准确完整，虚词标注清晰，句式分析指出标志词与正常语序，主旨分析结合战国历史背景与人物性格双重维度。保持学术严谨性，但语言不必过于艰深。"
+        },
+        "classical_medium": {
+            "label": "文言文中等水平学生",
+            "description": "具备一定文言基础，能完成大意翻译，但容易在古今异义、虚词用法上犯错；句式辨析不够敏锐，常遗漏特殊句式；主旨分析停留在表面，缺乏深度挖掘意识。",
+            "style": "回答有基本思路但不够严谨，偶尔会用现代汉语习惯去理解文言词汇；句式分析时经常忽略'之'的提宾功能、'者...也'的判断句标志；分析主旨时偏重复述情节，不善结合历史背景。",
+            "fallback_hint": "若模拟对话中没有合适示例，先给出基本理解，但故意保留1-2个常见错误：如将'亲戚'理解为现代含义、将'所以'理解为因果连词、忽略宾语前置句式等，等待智能体引导纠正。"
+        },
+        "reporter": {
+            "label": "新闻媒体采访人",
+            "description": "资深新闻记者，以提问为核心职责。善于用简洁有力的问题挖掘深层信息，追问细节，促使受访者展开阐述。会针对对方回答中的关键词或模糊之处进一步追问，保持专业中立的采访立场。",
+            "style": "语气沉稳专业，问题简短精准；习惯用'您能具体说说……吗？'、'这背后的原因是什么？'、'能举个例子吗？'等追问句式；避免发表个人意见，以引导受访者深入表达为主。",
+            "fallback_hint": "若模拟对话中没有合适示例，根据AI的回答内容自主设计1个追问：可以追问原因、举例、影响或具体细节，保持记者的追问风格，控制在30字以内。"
         }
     }
 
-    def __init__(self, base_url="https://cloudapi.polymas.com"):
+    def __init__(self, base_url=None):
         super().__init__(base_url)
 
         # Provide profile data for base prompt/selection helpers.
@@ -917,67 +942,133 @@ class WorkflowTester(WorkflowTesterBase):
 
         try:
             profile_info = self._get_student_profile_info()
-            system_prompt = (
-                "你是一名能力训练助手，需要严格按照给定的学生档位扮演角色。"
-            )
+            is_english = profile_info.get("lang") == "en"
 
-            sections = [
-                "## 角色设定",
-                f"学生档位: {profile_info['label']}",
-                f"角色特征: {profile_info['description']}",
-                f"表达风格: {profile_info['style']}",
-                "",
-            ]
+            if is_english:
+                system_prompt = (
+                    "You are a training assistant. Strictly role-play as the assigned student type. Always respond in English."
+                )
 
-            # 添加问题类型识别（优先级最高）
-            sections.extend([
-                "## 问题类型识别（优先级最高）",
-                "如果当前问题属于以下类型，请优先直接回答，不需要强制体现性格特点：",
-                "1. **确认式问题**: 如'你准备好了吗？请回复是或否'、'确认的话请回复是'",
-                "   → 直接回答'是'、'好的'、'确认'等",
-                "2. **选择式问题**: 如'你选择A还是B？'、'请选择1/2/3'",
-                "   → 直接说出选项，如'我选择A'、'选1'",
-                "3. **角色确认问题**: 如'你是学生还是老师？'",
-                "   → 直接回答角色，如'学生'",
-                "",
-                "**判断标准**: 如果问题中包含'请回复'、'请选择'、'是或否'、'A/B/C'等明确指示，则为封闭式问题。",
-                "",
-            ])
+                sections = [
+                    "## Role Setup",
+                    f"Student Type: {profile_info['label']}",
+                    f"Traits: {profile_info['description']}",
+                    f"Speaking Style: {profile_info['style']}",
+                    "",
+                ]
 
-            if self.dialogue_samples_content:
+                # Question type detection (highest priority)
                 sections.extend([
-                    "## 档位示例对话 (如有匹配请优先引用或改写，优先级最高)",
-                    self.dialogue_samples_content,
+                    "## Question Type Detection (Highest Priority)",
+                    "If the current question falls into the following types, answer directly without forcing personality traits:",
+                    "1. **Confirmation questions**: e.g. 'Are you ready? Reply yes or no', 'Please confirm'",
+                    "   → Answer directly: 'Yes', 'Sure', 'Confirmed', etc.",
+                    "2. **Multiple choice questions**: e.g. 'Do you choose A or B?', 'Pick 1/2/3'",
+                    "   → State the choice directly: 'I choose A', 'Option 1'",
+                    "3. **Role confirmation questions**: e.g. 'Are you a student or teacher?'",
+                    "   → Answer the role directly: 'Student'",
+                    "",
+                    "**Criteria**: If the question contains 'please reply', 'please choose', 'yes or no', 'A/B/C', it is a closed-ended question.",
                     "",
                 ])
 
-            if self.knowledge_base_content:
+                if self.dialogue_samples_content:
+                    sections.extend([
+                        "## Sample Dialogues (prioritize referencing or adapting these)",
+                        self.dialogue_samples_content,
+                        "",
+                    ])
+
+                if self.knowledge_base_content:
+                    sections.extend([
+                        "## Reference Knowledge Base",
+                        self.knowledge_base_content,
+                        "",
+                    ])
+
+                # Dialogue history
+                if self.conversation_history:
+                    sections.extend([
+                        "## Dialogue History (chronological)",
+                    ])
+                    for i, turn in enumerate(self.conversation_history, 1):
+                        sections.append(f"Round {i}:")
+                        sections.append(f"  AI Question: {turn['ai']}")
+                        sections.append(f"  Student Answer: {turn['student']}")
+                    sections.append("")
+
                 sections.extend([
-                    "## 参考知识库 (可结合使用)",
-                    self.knowledge_base_content,
+                    "## Current Question",
+                    question,
+                    "",
+                    "## Output Requirements (by priority)",
+                    "**Priority 1**: For closed-ended questions (confirmation/choice/role), answer briefly and directly",
+                    "**Priority 2**: If sample dialogues contain a highly relevant answer, prioritize referencing or adapting it",
+                    "**Priority 3**: For open-ended questions, incorporate student personality traits moderately",
+                    "**Format**: Only return the student's response, no extra explanation, within 30 words. Must be in English.",
+                ])
+            else:
+                system_prompt = (
+                    "你是一名能力训练助手，需要严格按照给定的学生档位扮演角色。"
+                )
+
+                sections = [
+                    "## 角色设定",
+                    f"学生档位: {profile_info['label']}",
+                    f"角色特征: {profile_info['description']}",
+                    f"表达风格: {profile_info['style']}",
+                    "",
+                ]
+
+                # 添加问题类型识别（优先级最高）
+                sections.extend([
+                    "## 问题类型识别（优先级最高）",
+                    "如果当前问题属于以下类型，请优先直接回答，不需要强制体现性格特点：",
+                    "1. **确认式问题**: 如'你准备好了吗？请回复是或否'、'确认的话请回复是'",
+                    "   → 直接回答'是'、'好的'、'确认'等",
+                    "2. **选择式问题**: 如'你选择A还是B？'、'请选择1/2/3'",
+                    "   → 直接说出选项，如'我选择A'、'选1'",
+                    "3. **角色确认问题**: 如'你是学生还是老师？'",
+                    "   → 直接回答角色，如'学生'",
+                    "",
+                    "**判断标准**: 如果问题中包含'请回复'、'请选择'、'是或否'、'A/B/C'等明确指示，则为封闭式问题。",
                     "",
                 ])
 
-            # 添加对话历史
-            if self.conversation_history:
-                sections.extend([
-                    "## 对话历史（按时间顺序）",
-                ])
-                for i, turn in enumerate(self.conversation_history, 1):
-                    sections.append(f"第{i}轮:")
-                    sections.append(f"  AI提问: {turn['ai']}")
-                    sections.append(f"  学生回答: {turn['student']}")
-                sections.append("")
+                if self.dialogue_samples_content:
+                    sections.extend([
+                        "## 档位示例对话 (如有匹配请优先引用或改写，优先级最高)",
+                        self.dialogue_samples_content,
+                        "",
+                    ])
 
-            sections.extend([
-                "## 当前问题",
-                question,
-                "",
-                "## 输出要求（按优先级执行）",
-                "**优先级1**: 如果是封闭式问题（确认式/选择式/角色确认），直接简短回答",
-                "**优先级2**: 如果示例对话中有高度相关的回答，请优先引用或改写",
-                "**优先级3**: 如果是开放式问题，再适度融入学生档位特点",
-                "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在50字以内。",
+                if self.knowledge_base_content:
+                    sections.extend([
+                        "## 参考知识库 (可结合使用)",
+                        self.knowledge_base_content,
+                        "",
+                    ])
+
+                # 添加对话历史
+                if self.conversation_history:
+                    sections.extend([
+                        "## 对话历史（按时间顺序）",
+                    ])
+                    for i, turn in enumerate(self.conversation_history, 1):
+                        sections.append(f"第{i}轮:")
+                        sections.append(f"  AI提问: {turn['ai']}")
+                        sections.append(f"  学生回答: {turn['student']}")
+                    sections.append("")
+
+                sections.extend([
+                    "## 当前问题",
+                    question,
+                    "",
+                    "## 输出要求（按优先级执行）",
+                    "**优先级1**: 如果是封闭式问题（确认式/选择式/角色确认），直接简短回答",
+                    "**优先级2**: 如果示例对话中有高度相关的回答，请优先引用或改写",
+                    "**优先级3**: 如果是开放式问题，再适度融入学生档位特点",
+                    "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在50字以内。",
                 ""
             ])
 
