@@ -1,0 +1,18 @@
+{
+  "assets": {
+    "1": {
+      "stageName": "热力学早期探索先驱：卡诺",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/skill_training_pro/天津大学-热力学/backgrounds/background_stage_1_热力学早期探索先驱_卡诺.png",
+      "sha256": "ab485e0adc92af6b64d6678b319c4291a2d764959c9cc47aa188e7c0996d41fb",
+      "fileId": "AyUDLNSeXr",
+      "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202608/6a798977e4b0d4b494e55909.png"
+    },
+    "2": {
+      "stageName": "热力学经典体系奠基人：克劳修斯与开尔文勋爵",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/skill_training_pro/天津大学-热力学/backgrounds/background_stage_2_热力学经典体系奠基人_克劳修斯与开尔文勋爵.png",
+      "sha256": "e6ede2f8917a6da46404588cef50519681bb5e0b561e05f8bf250fb9fbb7d648",
+      "fileId": "Q9Iv3hMO4L",
+      "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202608/6a798979e4b0547794135209.png"
+    }
+  }
+}

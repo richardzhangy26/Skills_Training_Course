@@ -1,0 +1,46 @@
+{
+  "assets": {
+    "1": {
+      "stageName": "绪论与研发背景问答",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/临沂大学-单片机原理与应用/简易数字X光成像模拟系统单片机开发实训/backgrounds/-训练剧本配置_stage_1_绪论理论问答.png",
+      "sha256": "f0e411642ef5c8bf676c593533b4f4855970b098da5b3b3d6e9ad2f872c6e424",
+      "fileId": "DgNDFbN0zo",
+      "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a609c8be4b04f49f500d484.png"
+    },
+    "2": {
+      "stageName": "系统总体方案设计与器件选型",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/临沂大学-单片机原理与应用/简易数字X光成像模拟系统单片机开发实训/backgrounds/-训练剧本配置_stage_2_系统总体方案与器件选型.png",
+      "sha256": "4fd6e3f031eb56caa87876948fb9ccef4d2166d453722bd1045801cf9a4f52e4",
+      "fileId": "Is0kpt5L3N",
+      "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a609c8be4b04f49f500d487.png"
+    },
+    "3": {
+      "stageName": "硬件电路原理分析",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/临沂大学-单片机原理与应用/简易数字X光成像模拟系统单片机开发实训/backgrounds/-训练剧本配置_stage_3_硬件电路原理分析.png",
+      "sha256": "0c0bcab0f1ce0c9523b93cabfd84c10493661ea7a6983e095f6e0f78e62a8191",
+      "fileId": "lWZlg12SKB",
+      "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a609d50e4b04f49f500d65f.png"
+    },
+    "4": {
+      "stageName": "软件程序逻辑与代码编写",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/临沂大学-单片机原理与应用/简易数字X光成像模拟系统单片机开发实训/backgrounds/-训练剧本配置_stage_4_软件程序逻辑与代码编写.png",
+      "sha256": "a8d5177096ed7e9b22b646c948210ae9010589bb4c146cefb7f73bb2930ca930",
+      "fileId": "qWFCxyfCe8",
+      "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a609d50e4b04f49f500d661.png"
+    },
+    "5": {
+      "stageName": "系统调试、故障排查与性能测试",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/临沂大学-单片机原理与应用/简易数字X光成像模拟系统单片机开发实训/backgrounds/-训练剧本配置_stage_5_系统调试、故障排查与性能测试.png",
+      "sha256": "0b953e02e3e0c944bc09f25b1d9d87843693de1fab6f8b2e6c4e29b12d718d2e",
+      "fileId": "L9QhzwnGwU",
+      "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a609d51e4b04f49f500d663.png"
+    },
+    "6": {
+      "stageName": "系统总结、缺陷与优化拓展",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/临沂大学-单片机原理与应用/简易数字X光成像模拟系统单片机开发实训/backgrounds/-训练剧本配置_stage_6_系统总结、缺陷与优化拓展.png",
+      "sha256": "92d3e71601718c2e6d72c69e6a9b68f7cd2d2d757e13bf216497cd905484518b",
+      "fileId": "e6LdSQKi6q",
+      "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a609d51e4b038d2bf6db888.png"
+    }
+  }
+}
