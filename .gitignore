@@ -1,9 +1,76 @@
-# 忽略 Word 文档
+# ===== 凭证与个人文件 =====
+.env
+.env.*
+!.env.example
+.env.backup
+*.swp
+智能体课程配置账号情况*.csv
+转正申请.md
+student_profiles.json
+
+# ===== 缓存 =====
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.venv/
+.temp
+
+# ===== 系统与 IDE =====
+.DS_Store
+**/.DS_Store
+.trae/
+.qoder/
+.codex/
+.agents/
+.playwright-mcp/
+.worktrees/
+
+# ===== 运行日志与测试产物 =====
+log/
+logs/
+audio_logs/
+test_logs/
+test_logs_v2/
+trainv2_pro_logs/
+trainv2_logs/
+tmp/
+*.log
+voice_test.json
+能力训练pro_har.json
+conversation_log.json
+dialogue_log.txt
+websocket_headers.txt
+websocket_message.csv
+ws_message.txt
+ws_trainflow.txt
+viedo_download.csv
+skill_training_evaluation/evaluation_report.json
+skill_training_pro/trainV2?*
+
+# ===== 一次性脚本与草稿（本地保留，不入库） =====
+/generate_case_images*.py
+/generate_code_screenshots.py
+/generate_cookie_diagram.py
+/generate_guangying_comparison.py
+/generate_javaweb_supplementary.py
+/generate_supplementary_images.py
+/gpt_image2_test.py
+/batch_run_qiqihar_mayuan.py
+/batch_run_zhongshan_materials.py
+/test_all_routing_branches.py
+/update_javaweb_task.py
+/tts_plan325.md
+workspace_polymas/
+test.py
+demo_create_regions.sh
+
+# ===== 大文件与媒体资源 =====
+# Word 文档
 *.docx
 *.docm
-
-# 忽略常见图片文件（包括你生成的 media 目录里的图片）
-
+# 图片（README/ 与 skills 内的说明图已入库，不受影响）
 *.jpg
 *.jpeg
 *.gif
@@ -12,45 +79,13 @@
 *.webp
 *.heic
 *.heif
-
-# 可选：整个 media 目录都不纳入版本控制
+/case拥挤*.png
+/spee曲线*.png
+# 压缩包（skill 已有解压后的目录）
+*.zip
 media/
-skills_training_course
-log/
-.env
-.env.*
-!.env.example
-.env.backup
+resources/
 
-test/
-audio_logs/
-logs/
-__pycache__/
-*.pyc
-*.pyo
-.temp
-homework_review/document
-
-# macOS system files
-.DS_Store
-**/.DS_Store
-
-# IDE files
-.trae/
-
-# Temporary and log files
-*.log
-conversation_log.json
-dialogue_log.txt
-websocket_headers.txt
-websocket_message.csv
-ws_message.txt
-ws_trainflow.txt
-viedo_download.csv
-training-background-generator.zip
-
-# Test files
-test.py
-demo_create_regions.sh
+# ===== 子仓库与独立项目 =====
 homework_review/
-.worktrees/
+skills_training_course
