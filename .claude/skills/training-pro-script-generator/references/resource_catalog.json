@@ -1,0 +1,143 @@
+{
+  "verifiedAt": "2026-07-22",
+  "scope": "Polymas Pro preset resources visible to the Shandong regional account; verify availability before importing under another account",
+  "runtimeOnlyFields": [
+    "customDigitalHuman",
+    "roleNid",
+    "skillNid"
+  ],
+  "voices": [
+    {
+      "nid": "Tg2LpKo18D",
+      "name": "灿灿",
+      "voiceType": "zh_female_cancan_mars_bigtts",
+      "language": "中文",
+      "tags": ["female", "young-adult", "bright", "friendly", "assistant"]
+    },
+    {
+      "nid": "Tg3LpKo28D",
+      "name": "擎苍",
+      "voiceType": "zh_male_qingcang_mars_bigtts",
+      "language": "中文",
+      "tags": ["male", "adult", "steady", "professional", "engineer"]
+    },
+    {
+      "nid": "TTS2cuBiL",
+      "name": "儒雅青年 2.0",
+      "voiceType": "zh_male_ruyaqingnian_uranus_bigtts",
+      "language": "中文",
+      "tags": ["male", "young-adult", "cultured", "professional", "teacher"]
+    },
+    {
+      "nid": "TTS2cuBiP",
+      "name": "渊博小叔 2.0",
+      "voiceType": "zh_male_yuanboxiaoshu_uranus_bigtts",
+      "language": "中文",
+      "tags": ["male", "middle-aged", "knowledgeable", "steady", "professor"]
+    },
+    {
+      "nid": "TTS2cuBiS",
+      "name": "亲切女声 2.0",
+      "voiceType": "zh_female_qinqienv_uranus_bigtts",
+      "language": "中文",
+      "tags": ["female", "adult", "friendly", "patient", "service"]
+    },
+    {
+      "nid": "TTS2cuBiY",
+      "name": "Tina老师 2.0",
+      "voiceType": "zh_female_yingyujiaoxue_uranus_bigtts",
+      "language": "中文",
+      "tags": ["female", "adult", "teacher", "clear", "instructional"]
+    },
+    {
+      "nid": "TTS2cuBiZ",
+      "name": "知性女声 2.0",
+      "voiceType": "zh_female_zhixingnv_uranus_bigtts",
+      "language": "中文",
+      "tags": ["female", "adult", "knowledgeable", "professional", "doctor"]
+    },
+    {
+      "nid": "TTS2cuBjI",
+      "name": "和蔼奶奶2.0",
+      "voiceType": "ICL_uranus_zh_female_heainainai_tob",
+      "language": "中文",
+      "tags": ["female", "elderly", "kind", "patient", "resident"]
+    },
+    {
+      "nid": "TTS2cuBjK",
+      "name": "胡子叔叔2.0",
+      "voiceType": "ICL_uranus_zh_male_huzishushu_tob",
+      "language": "中文",
+      "tags": ["male", "middle-aged", "plainspoken", "experienced", "worker"]
+    },
+    {
+      "nid": "TTS2cuBjL",
+      "name": "幽默大爷2.0",
+      "voiceType": "ICL_uranus_zh_male_youmodaye_tob",
+      "language": "中文",
+      "tags": ["male", "elderly", "humorous", "plainspoken", "resident"]
+    }
+  ],
+  "avatars": [
+    {
+      "nid": "9gFfICj7pX",
+      "url": "https://prod-polymas.oss-cn-hangzhou.aliyuncs.com/polymas-basic-resource/YkX3ld/J37Onr/688b4936e4b027a39604b278.png",
+      "description": "中国中年男性，短发、眼镜、深色衬衫，沉稳专业",
+      "tags": ["male", "middle-aged", "glasses", "professional", "engineer", "professor"]
+    },
+    {
+      "nid": "iL87nmUAwe",
+      "url": "https://image.zhihuishu.com/zhs_yufa_150820/aidedteaching/hike-teaching-center/202512/00ad66f22fe945e18d28125b0c50dc05.png",
+      "description": "中国年轻女性，黑色短发、深色上衣，简洁自然",
+      "tags": ["female", "young-adult", "casual", "assistant"]
+    },
+    {
+      "nid": "ag1GCgbFiG",
+      "url": "https://image.zhihuishu.com/zhs_yufa_150820/aidedteaching/hike-teaching-center/202512/6f910e927b2c4049a4be06684925bc0e.png",
+      "description": "中国年轻女性，长卷发、白色衬衫，温和知性",
+      "tags": ["female", "young-adult", "friendly", "researcher", "teacher"]
+    },
+    {
+      "nid": "wzEs5YRvwx",
+      "url": "https://image.zhihuishu.com/zhs_yufa_150820/aidedteaching/hike-teaching-center/202512/e9c735c62c9d41a8a04c075573cc7b2c.png",
+      "description": "中国年轻女性，深蓝职业西装，正式专业",
+      "tags": ["female", "young-adult", "formal", "professional", "manager"]
+    },
+    {
+      "nid": "Haxf0OJbbD",
+      "url": "https://image.zhihuishu.com/zhs_yufa_150820/aidedteaching/hike-teaching-center/202512/37aea0e58294434d9408cae4e0b6fbf0.png",
+      "description": "中国老年男性，白发、眼镜、蓝色毛衣，亲和朴实",
+      "tags": ["male", "elderly", "glasses", "friendly", "resident"]
+    },
+    {
+      "nid": "6ikwydCEOp",
+      "url": "https://image.zhihuishu.com/zhs_yufa_150820/aidedteaching/hike-teaching-center/202512/7d5d9a85d8aa4970b8cd6157cc137770.png",
+      "description": "中国成年女性，短卷发、眼镜、深色休闲装，理性亲和",
+      "tags": ["female", "adult", "glasses", "friendly", "teacher"]
+    },
+    {
+      "nid": "VE2yJykMDZ",
+      "url": "https://image.zhihuishu.com/zhs_yufa_150820/aidedteaching/hike-teaching-center/202512/2231f810030a4162a3ec064bb6ea91bc.png",
+      "description": "中国成年女性，盘发、浅蓝职业装，专业亲和",
+      "tags": ["female", "adult", "professional", "doctor", "teacher"]
+    },
+    {
+      "nid": "22wiYSHWac",
+      "url": "https://image.zhihuishu.com/zhs_yufa_150820/aidedteaching/hike-teaching-center/202512/151549140c544dea86cad8578fc27bc7.png",
+      "description": "中国年轻女性，短发、深蓝职业西装，干练正式",
+      "tags": ["female", "young-adult", "formal", "professional", "manager"]
+    },
+    {
+      "nid": "c5Hzcef2jm",
+      "url": "https://image.zhihuishu.com/zhs_yufa_150820/aidedteaching/hike-teaching-center/202512/b48f1e0b883a4db79e72b77214fdf8ff.png",
+      "description": "中国成年女性，长发、眼镜、黑色西装，知性专业",
+      "tags": ["female", "adult", "glasses", "professional", "teacher", "manager"]
+    },
+    {
+      "nid": "QyCHhkDTcj",
+      "url": "https://image.zhihuishu.com/zhs_yufa_150820/aidedteaching/hike-teaching-center/202512/1928788717f24db99dfae90a7cfd8c92.png",
+      "description": "中国年轻男性，短发、深蓝职业西装，正式干练",
+      "tags": ["male", "young-adult", "formal", "professional", "engineer"]
+    }
+  ]
+}

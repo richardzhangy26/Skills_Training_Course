@@ -1,0 +1,28 @@
+{
+    "trainTaskId": "B9D5jXlMoBtkN0E8wxKj",
+    "flowId": "vbXZYBvs1qBqgoRmGC8DT",
+    "scriptStepStartId": "uCM6-gw81oCBzGalysVOz",
+    "scriptStepStartHandle": "uCM6-gw81oCBzGalysVOz-source-bottom",
+    "scriptStepEndId": "uRUvprsiOKys1mqCiO1hs",
+    "scriptStepEndHandle": "uRUvprsiOKys1mqCiO1hs-target-top",
+    "flowSettingType": "quick",
+    "flowCondition": "任务结束",
+    "flowConfiguration": {
+        "relation": "and",
+        "conditions": [
+            {
+                "text": "条件组1",
+                "relation": "and",
+                "conditions": [
+                    {
+                        "text": ""
+                    }
+                ]
+            }
+        ]
+    },
+    "transitionPrompt": "",
+    "transitionHistoryNum": 0,
+    "isDefault": 1,
+    "isError": false
+}

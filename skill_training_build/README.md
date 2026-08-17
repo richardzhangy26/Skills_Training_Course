@@ -24,6 +24,8 @@
     COOKIE=你的Cookie
     COURSE_ID=所属课程ID
     TASK_ID=默认的任务ID 
+    # 可选：切换能力训练接口域名；旧平台可不填
+    ABILITY_TRAIN_API_BASE=https://aic.sysu.edu.cn/cloud/teacher-course/abilityTrain
     ```
 
 ### 新增：先创建基础配置

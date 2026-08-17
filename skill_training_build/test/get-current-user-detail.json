@@ -1,0 +1,728 @@
+{
+    "code": 200,
+    "msg": "success",
+    "data": {
+        "userNid": "y4QK2KvFCo",
+        "realName": "黑龙江省区",
+        "avatar": "https://image.zhihuishu.com/zhs/ablecommons/demo/201804/acbf1893189e4a77b846087cd52435cd.jpg",
+        "status": 0,
+        "schoolCertificationNid": "c6EL6hPNdS",
+        "homeUrl": "https://www.polymas.com",
+        "roleNid": "D3hZcKF5HD",
+        "nickName": "黑龙江省区",
+        "schoolInfo": {
+            "id": 317,
+            "nid": "c6EL6hPNdS",
+            "schoolId": "15257",
+            "schoolName": "Polymas实验室",
+            "status": 0,
+            "approveStatus": 1,
+            "icon": "https://yufa-polymas.oss-cn-hangzhou.aliyuncs.com/data/2024-12-13/oq2zIAh3RB.png",
+            "routeList": [
+                {
+                    "nid": "TpF6Uyzlmm",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "云平台路由",
+                    "code": "YUN_PING_TAI_LU_YOU",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "LdZejcMXLr",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "权限配置",
+                    "code": "QUAN_XIAN_PEI_ZHI",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "wmJoMNg2U2",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "运营配置",
+                    "code": "YUN_YING_PEI_ZHI",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "MLCDzNi7b9",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "能力说明书",
+                    "code": "NENG_LI_SHUO_MING_SHU",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "QIPKp2jIFi",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "机构管理",
+                    "code": "JI_GOU_GUAN_LI",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "CMH3YPeRcI",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "角色配置",
+                    "code": "JIAO_SE_PEI_ZHI",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "fzv7YChMOe",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "账号管理",
+                    "code": "ZHANG_HAO_GUAN_LI",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "UMgPOCcwGl",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "团队管理",
+                    "code": "TUAN_DUI_GUAN_LI",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "GBoAoDJkjm",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "应用管理",
+                    "code": "YING_YONG_GUAN_LI",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "nNifk87xLe",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "源图谱搜索",
+                    "code": "YUAN_TU_PU_SOU_SUO",
+                    "path": "/graph",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "nRmeqd6Dj8",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "知识库",
+                    "code": "ZHI_SHI_KU",
+                    "path": "/repository",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "IBoYdVchzB",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "智能助手",
+                    "code": "ZHI_NENG_ZHU_SHOU",
+                    "path": "/ai-robot",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "jkOUK8uKVs",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "科研搜索",
+                    "code": "KE_YAN_SOU_SUO",
+                    "path": "/aiScientific",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "txfMoPW9d3",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "课堂时光机",
+                    "code": "KE_TANG_SHI_GUANG_JI",
+                    "path": "/timeMachine",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "KD1OB6j4X8",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "自动出题",
+                    "code": "ZI_DONG_CHU_TI",
+                    "path": "/question/index",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "dO8fEs6ssk",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "职业搜索",
+                    "code": "ZHI_YE_SOU_SUO",
+                    "path": "/careerSearch",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "k40X5Wvn9R",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "知识发现",
+                    "code": "ZHI_SHI_FA_XIAN",
+                    "path": "/searchTransfer",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "ANyPuDCWlt",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "创建团队和应用",
+                    "code": "CHUANG_JIAN_TUAN_DUI_HE_YING_YONG",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "D1Xbjx4QvH",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "AI写作",
+                    "code": "A_I_XIE_ZUO",
+                    "path": "/aiWriting",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "ZmNSHJ6qMm",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "AI问答",
+                    "code": "A_I_WEN_DA",
+                    "path": "/aiTalk",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "A6jr26qef6",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "AI阅读",
+                    "code": "A_I_YUE_DU",
+                    "path": "/uploadReader",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "4wZXPu8e6f",
+                    "parentNid": "rMcaOkZKZk",
+                    "name": "ops后台",
+                    "code": "O_P_S_HOU_TAI",
+                    "path": "/ops",
+                    "module": 2,
+                    "moduleType": "ops"
+                },
+                {
+                    "nid": "sRAFKA5oYl",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "科研订阅",
+                    "code": "KE_YAN_DING_YUE",
+                    "path": "/researchSub",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "ej5WfpsHyG",
+                    "parentNid": "aGreDa0hK6",
+                    "name": "mlops平台",
+                    "code": "M_L_O_P_S_PING_TAI",
+                    "path": "/mlops",
+                    "module": 2,
+                    "moduleType": "mlops"
+                },
+                {
+                    "nid": "ZYB5zZrcLa",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "AI写作新版",
+                    "code": "A_I_XIE_ZUO_XIN_BAN",
+                    "path": "/aiWritingNext",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "HB8DvVGYsc",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "图谱助手",
+                    "code": "TU_PU_ZHU_SHOU",
+                    "path": "/graphDetail",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "0hI4BrogRn",
+                    "parentNid": "aGreDa0hK6",
+                    "name": "AI模型平台",
+                    "code": "A_I_MO_XING_PING_TAI",
+                    "path": "/ai-models",
+                    "module": 2,
+                    "moduleType": "mlops"
+                },
+                {
+                    "nid": "r5V1b9g7v2",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "探索学习",
+                    "code": "TAN_SUO_XUE_XI",
+                    "path": "/aiProbeStudy",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "wsPH7FqSt9",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "课件PPT生成",
+                    "code": "KE_JIAN_P_P_T_SHENG_CHENG",
+                    "path": "/pptGeneration",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "QOquotEiHn",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "德育案例生成",
+                    "code": "DE_YU_AN_LI_SHENG_CHENG",
+                    "path": "/moralEducation",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "2b7eSzyAcG",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "教案生成",
+                    "code": "JIAO_AN_SHENG_CHENG",
+                    "path": "/teachingPlan",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "E8goNDc7Oz",
+                    "parentNid": "st7Puh29Ab",
+                    "name": "AI教学中心",
+                    "code": "A_I_JIAO_XUE_ZHONG_XIN",
+                    "path": "/hikeTeachingCenterAi",
+                    "module": 2,
+                    "moduleType": "tech"
+                },
+                {
+                    "nid": "st7Puh29Ab",
+                    "parentNid": "0",
+                    "name": "教学中心",
+                    "code": "JIAO_XUE_ZHONG_XIN",
+                    "path": "https://hike-teaching-center.polymas.com/",
+                    "module": 2,
+                    "moduleType": "tech"
+                },
+                {
+                    "nid": "rfoIuuR9kv",
+                    "parentNid": "0",
+                    "name": "知识平台",
+                    "code": "ZHI_SHI_PING_TAI",
+                    "path": "https://knowledgebase.polymas.com/",
+                    "module": 2,
+                    "moduleType": "knowledge"
+                },
+                {
+                    "nid": "aGreDa0hK6",
+                    "parentNid": "0",
+                    "name": "MLOPS模型工程平台",
+                    "code": "M_L_O_P_S_MO_XING_GONG_CHENG_PING_TAI",
+                    "path": "https://models.polymas.com/",
+                    "module": 2,
+                    "moduleType": "mlops"
+                },
+                {
+                    "nid": "LCiLd0JAKq",
+                    "parentNid": "0",
+                    "name": "开放云平台",
+                    "code": "KAI_FANG_YUN_PING_TAI",
+                    "path": "https://platform.polymas.com/",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "rMcaOkZKZk",
+                    "parentNid": "0",
+                    "name": "OPS开发平台",
+                    "code": "O_P_S_KAI_FA_PING_TAI",
+                    "path": "https://workspace.polymas.com/",
+                    "module": 2,
+                    "moduleType": "ops"
+                },
+                {
+                    "nid": "ONIwm64ye2",
+                    "parentNid": "0",
+                    "name": "控制台",
+                    "code": "KONG_ZHI_TAI",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "console"
+                },
+                {
+                    "nid": "dVIht82Fvn",
+                    "parentNid": "rMcaOkZKZk",
+                    "name": "事件平台",
+                    "code": "SHI_JIAN_PING_TAI",
+                    "path": "/ops-event",
+                    "module": 2,
+                    "moduleType": "ops"
+                },
+                {
+                    "nid": "8IX7sCv6U2",
+                    "parentNid": "st7Puh29Ab",
+                    "name": "教学中心AI工具数字人",
+                    "code": "JIAO_XUE_ZHONG_XIN_A_I_GONG_JU_SHU_ZI_REN",
+                    "path": "/digitalhuman",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "pWG5NDhnWu",
+                    "parentNid": "st7Puh29Ab",
+                    "name": "AI工具-PPT数字人",
+                    "code": "A_I_GONG_JU_-_P_P_T_SHU_ZI_REN",
+                    "path": "/ppthuman",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "nhWTGEIE8W",
+                    "parentNid": "0",
+                    "name": "智能体课程",
+                    "code": "ZHI_NENG_TI_KE_CHENG",
+                    "path": "https://agent-course.polymas.com",
+                    "module": 2,
+                    "moduleType": "agent_course"
+                },
+                {
+                    "nid": "HUb1xsEsyB",
+                    "parentNid": "0",
+                    "name": "智能体课程交付",
+                    "code": "ZHI_NENG_TI_KE_CHENG_JIAO_FU",
+                    "path": "https://pds.polymas.com",
+                    "module": 9,
+                    "moduleType": "agent_course_delivery"
+                }
+            ]
+        },
+        "roleInfo": {
+            "id": 4,
+            "nid": "D3hZcKF5HD",
+            "roleName": "教师",
+            "roleCode": "school_teacher",
+            "roleDesc": "学校老师，平台实际使用主力",
+            "sort": null,
+            "createUser": "FGwsFhphcA",
+            "createTime": "2024-03-13 17:22:08",
+            "updateUser": "Do0zNYCnBZ",
+            "updateTime": "2025-09-03 22:46:25",
+            "isDelete": 0,
+            "accountNum": 0,
+            "appNum": 0,
+            "resourceNidList": null,
+            "routeList": [
+                {
+                    "nid": "dO8fEs6ssk",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "职业搜索",
+                    "code": "ZHI_YE_SOU_SUO",
+                    "path": "/careerSearch",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "ANyPuDCWlt",
+                    "parentNid": "ONIwm64ye2",
+                    "name": "创建团队和应用",
+                    "code": "CHUANG_JIAN_TUAN_DUI_HE_YING_YONG",
+                    "path": "/",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "KD1OB6j4X8",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "自动出题",
+                    "code": "ZI_DONG_CHU_TI",
+                    "path": "/question/index",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "k40X5Wvn9R",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "知识发现",
+                    "code": "ZHI_SHI_FA_XIAN",
+                    "path": "/searchTransfer",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "jkOUK8uKVs",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "科研搜索",
+                    "code": "KE_YAN_SOU_SUO",
+                    "path": "/aiScientific",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "E8goNDc7Oz",
+                    "parentNid": "st7Puh29Ab",
+                    "name": "AI教学中心",
+                    "code": "A_I_JIAO_XUE_ZHONG_XIN",
+                    "path": "/hikeTeachingCenterAi",
+                    "module": 2,
+                    "moduleType": "tech"
+                },
+                {
+                    "nid": "ZYB5zZrcLa",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "AI写作新版",
+                    "code": "A_I_XIE_ZUO_XIN_BAN",
+                    "path": "/aiWritingNext",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "ej5WfpsHyG",
+                    "parentNid": "aGreDa0hK6",
+                    "name": "mlops平台",
+                    "code": "M_L_O_P_S_PING_TAI",
+                    "path": "/mlops",
+                    "module": 2,
+                    "moduleType": "mlops"
+                },
+                {
+                    "nid": "rMcaOkZKZk",
+                    "parentNid": "0",
+                    "name": "OPS开发平台",
+                    "code": "O_P_S_KAI_FA_PING_TAI",
+                    "path": "https://workspace.polymas.com/",
+                    "module": 2,
+                    "moduleType": "ops"
+                },
+                {
+                    "nid": "nhWTGEIE8W",
+                    "parentNid": "0",
+                    "name": "智能体课程",
+                    "code": "ZHI_NENG_TI_KE_CHENG",
+                    "path": "https://agent-course.polymas.com",
+                    "module": 2,
+                    "moduleType": "agent_course"
+                },
+                {
+                    "nid": "ZmNSHJ6qMm",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "AI问答",
+                    "code": "A_I_WEN_DA",
+                    "path": "/aiTalk",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "QOquotEiHn",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "德育案例生成",
+                    "code": "DE_YU_AN_LI_SHENG_CHENG",
+                    "path": "/moralEducation",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "IBoYdVchzB",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "智能助手",
+                    "code": "ZHI_NENG_ZHU_SHOU",
+                    "path": "/ai-robot",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "A6jr26qef6",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "AI阅读",
+                    "code": "A_I_YUE_DU",
+                    "path": "/uploadReader",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "rfoIuuR9kv",
+                    "parentNid": "0",
+                    "name": "知识平台",
+                    "code": "ZHI_SHI_PING_TAI",
+                    "path": "https://knowledgebase.polymas.com/",
+                    "module": 2,
+                    "moduleType": "knowledge"
+                },
+                {
+                    "nid": "r5V1b9g7v2",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "探索学习",
+                    "code": "TAN_SUO_XUE_XI",
+                    "path": "/aiProbeStudy",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "wsPH7FqSt9",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "课件PPT生成",
+                    "code": "KE_JIAN_P_P_T_SHENG_CHENG",
+                    "path": "/pptGeneration",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "HB8DvVGYsc",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "图谱助手",
+                    "code": "TU_PU_ZHU_SHOU",
+                    "path": "/graphDetail",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "txfMoPW9d3",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "课堂时光机",
+                    "code": "KE_TANG_SHI_GUANG_JI",
+                    "path": "/timeMachine",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "D1Xbjx4QvH",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "AI写作",
+                    "code": "A_I_XIE_ZUO",
+                    "path": "/aiWriting",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "8IX7sCv6U2",
+                    "parentNid": "st7Puh29Ab",
+                    "name": "教学中心AI工具数字人",
+                    "code": "JIAO_XUE_ZHONG_XIN_A_I_GONG_JU_SHU_ZI_REN",
+                    "path": "/digitalhuman",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "4wZXPu8e6f",
+                    "parentNid": "rMcaOkZKZk",
+                    "name": "ops后台",
+                    "code": "O_P_S_HOU_TAI",
+                    "path": "/ops",
+                    "module": 2,
+                    "moduleType": "ops"
+                },
+                {
+                    "nid": "aGreDa0hK6",
+                    "parentNid": "0",
+                    "name": "MLOPS模型工程平台",
+                    "code": "M_L_O_P_S_MO_XING_GONG_CHENG_PING_TAI",
+                    "path": "https://models.polymas.com/",
+                    "module": 2,
+                    "moduleType": "mlops"
+                },
+                {
+                    "nid": "pWG5NDhnWu",
+                    "parentNid": "st7Puh29Ab",
+                    "name": "AI工具-PPT数字人",
+                    "code": "A_I_GONG_JU_-_P_P_T_SHU_ZI_REN",
+                    "path": "/ppthuman",
+                    "module": 1,
+                    "moduleType": "other"
+                },
+                {
+                    "nid": "nNifk87xLe",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "源图谱搜索",
+                    "code": "YUAN_TU_PU_SOU_SUO",
+                    "path": "/graph",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "2b7eSzyAcG",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "教案生成",
+                    "code": "JIAO_AN_SHENG_CHENG",
+                    "path": "/teachingPlan",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "st7Puh29Ab",
+                    "parentNid": "0",
+                    "name": "教学中心",
+                    "code": "JIAO_XUE_ZHONG_XIN",
+                    "path": "https://hike-teaching-center.polymas.com/",
+                    "module": 2,
+                    "moduleType": "tech"
+                },
+                {
+                    "nid": "sRAFKA5oYl",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "科研订阅",
+                    "code": "KE_YAN_DING_YUE",
+                    "path": "/researchSub",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "nRmeqd6Dj8",
+                    "parentNid": "LCiLd0JAKq",
+                    "name": "知识库",
+                    "code": "ZHI_SHI_KU",
+                    "path": "/repository",
+                    "module": 2,
+                    "moduleType": "cloud"
+                },
+                {
+                    "nid": "LCiLd0JAKq",
+                    "parentNid": "0",
+                    "name": "开放云平台",
+                    "code": "KAI_FANG_YUN_PING_TAI",
+                    "path": "https://platform.polymas.com/",
+                    "module": 2,
+                    "moduleType": "cloud"
+                }
+            ],
+            "permissionList": [
+                {
+                    "nid": "o13HDCp5os",
+                    "permissionName": "创建团队",
+                    "permissionCode": "create:team",
+                    "permissionDesc": "创建团队"
+                },
+                {
+                    "nid": "7yKLE3NqIk",
+                    "permissionName": "创建应用",
+                    "permissionCode": "create:app",
+                    "permissionDesc": "创建应用"
+                }
+            ],
+            "manageTeamAndApp": true,
+            "extName": ""
+        },
+        "modules": [
+            "cloud",
+            "other",
+            "tech",
+            "mlops",
+            "ops",
+            "agent_course",
+            "knowledge"
+        ]
+    },
+    "time": "2026-01-06 10:05:01",
+    "traceId": null,
+    "success": true
+}

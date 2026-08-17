@@ -1,0 +1,15 @@
+{
+    "code": 200,
+    "msg": null,
+    "data": {
+        "itemId": "bmaKAZopL9SekApMXnxg",
+        "trainTaskId": "87dB0BZBXZHJ0oEjkDZ2",
+        "itemName": "1",
+        "score": 1,
+        "description": "1",
+        "requireDetail": "1"
+    },
+    "currentTime": 1766730725554,
+    "traceId": "386abc0e578f4d84a1b4ccb7e38b46d0",
+    "success": true
+}

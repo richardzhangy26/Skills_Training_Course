@@ -1,6 +1,6 @@
 ---
 name: training-background-generator
-description: "根据能力训练剧本配置文档，为每个训练阶段生成写实中国风的16:9背景图片。解析Markdown格式的剧本配置，提取每个阶段的描述和场景配置，使用Doubao Seedream模型生成对应的背景图并保存到任务配置目录。关键词:背景图生成、阶段背景、中国风、写实风格、16:9、训练剧本、场景图片、文生图"
+description: "根据能力训练剧本配置文档，为每个训练阶段生成写实中国风的16:9背景图片。解析Markdown格式的剧本配置，提取每个阶段的描述和场景配置，使用阿里百炼 qwen-image 模型生成对应的背景图并保存到任务配置目录。关键词:背景图生成、阶段背景、中国风、写实风格、16:9、训练剧本、场景图片、文生图"
 allowed-tools: Read, Bash, Write
 ---
 
@@ -14,7 +14,7 @@ allowed-tools: Read, Bash, Write
 - 用户提供了训练剧本配置文档（Markdown格式），需要为每个阶段生成背景图
 - 用户提到"生成阶段背景图"、"生成训练背景"、"为剧本生成图片"等关键词
 - 用户需要批量生成多个阶段的场景背景图
-- 用户提到 seedream、文生图、背景图相关词汇
+- 用户提到 qwen-image、百炼、文生图、背景图相关词汇
 
 ## 工作流程
 
@@ -27,8 +27,8 @@ allowed-tools: Read, Bash, Write
 
 使用 Bash 工具运行 `scripts/generate_background.py`，该脚本会自动完成:
 1. 解析所有训练阶段（阶段编号、名称、描述、场景配置）
-2. 调用 Doubao 文本模型（LLM）理解阶段上下文，生成高质量文生图提示词
-3. 调用 Doubao Seedream 文生图 API 生成 16:9 背景图
+2. 调用百炼 qwen 文本模型（LLM）理解阶段上下文，生成高质量文生图提示词
+3. 调用百炼 DashScope 文生图 API（qwen-image 系列）生成 16:9 背景图
 4. 下载并保存图片到 `backgrounds_{任务名字}/` 目录
 5. 自动回填图片路径到剧本 Markdown 的 `**背景图**` 字段
 6. 生成 `generation_record.json` 记录文件
@@ -50,11 +50,12 @@ python ... <剧本配置.md> --no-llm-prompt
 # 自定义风格后缀
 python ... <剧本配置.md> --style "中国写实人物风格，东方美学，16:9"
 
-# 指定文生图模型（默认: doubao-seedream-3-0-t2i-250415）
-python ... <剧本配置.md> --model doubao-seedream-3-0-t2i-250415
+# 指定文生图模型（默认: qwen-image-2.0-pro）
+# 可选: qwen-image-2.0 / qwen-image-max / wan2.7-image-pro / z-image-turbo
+python ... <剧本配置.md> --model qwen-image-2.0-pro
 
-# 指定文本模型（用于生成提示词，默认从.env读取）
-python ... <剧本配置.md> --text-model doubao-seed-1-6-251015
+# 指定文本模型（用于生成提示词，默认 qwen3.7-plus）
+python ... <剧本配置.md> --text-model qwen3.7-plus
 ```
 
 ### 第三步: 向用户汇报结果
@@ -67,15 +68,15 @@ python ... <剧本配置.md> --text-model doubao-seed-1-6-251015
 
 ## 环境配置
 
-脚本使用 `.claude/skills/.env` 中的以下变量:
+脚本使用 `.claude/skills/.env` 或项目根 `.env` 中的以下变量:
 
 | 变量 | 用途 | 备注 |
 |------|------|------|
-| `LLM_API_KEY` | Polymas API 密钥（文生图 + 文本模型） | 必需 |
-| `LLM_API_URL` | Polymas API 基础URL | 默认 `https://llm-service.polymas.com/api/openai/v1` |
-| `LLM_MODEL` | 文本模型（用于生成提示词） | 默认 `Doubao-1.5-pro-32k` |
+| `BAILIAN_API_KEY` | 百炼 API 密钥（文生图 + 文本模型） | 必需 |
+| `BAILIAN_TEXT_MODEL` | 文本模型（用于生成提示词） | 可选，默认 `qwen3.7-plus` |
 
-如果 `LLM_API_KEY` 未配置，脚本会尝试使用 `ARK_API_KEY`（直连 Volcengine Ark）作为备选。
+**接口说明**: 百炼 OpenAI 兼容的 images 端点不可用（404），脚本使用 DashScope 原生接口
+`/api/v1/services/aigc/multimodal-generation/generation`。
 
 ## 示例
 
@@ -130,15 +131,16 @@ python ... <剧本配置.md> --text-model doubao-seed-1-6-251015
 
 ## 注意事项
 
-1. **16:9比例**: 图片尺寸固定为 512x288（符合 Polymas API 豆包模型的建议值）
+1. **16:9比例**: 默认尺寸 1664x928（百炼 qwen-image 系列支持的 16:9 分辨率）
 2. **风格一致性**: 同一任务的所有阶段背景图应保持视觉风格一致
 3. **API限流**: 每次图片生成之间有2秒间隔，避免触发限流
 4. **URL时效性**: 生成的图片 URL 有时效性，脚本会自动下载到本地保存
 5. **回填字段**: 剧本 Markdown 中需要有 `**背景图**:` 字段才能自动回填路径
+6. **wan 系列限制**: 若换用 `wan2.7-image(-pro)` 模型，尺寸必须 ≥768×768（约 59 万像素以上）
 
 ## 错误处理
 
-1. **LLM_API_KEY未配置**: 尝试切换到 ARK_API_KEY，否则提示用户配置
+1. **BAILIAN_API_KEY未配置**: 提示用户在 .env 中配置
 2. **某阶段提示词生成失败**: 自动使用硬拼方式 (fallback)，继续处理其他阶段
 3. **图片生成失败**: 记录失败阶段，继续生成其他阶段，最终汇总报告
 4. **未找到背景图字段**: 正常完成生成，提示用户手动添加 `**背景图**:` 字段
@@ -157,11 +159,10 @@ pip install requests python-dotenv openai
 
 #### 环境变量
 
-在 `.claude/skills/.env` 中配置:
+在 `.claude/skills/.env` 或项目根 `.env` 中配置:
 ```bash
-LLM_API_KEY=sk-xxx          # Polymas API Key（必需）
-LLM_API_URL=https://llm-service.polymas.com/api/openai/v1  # 可选，有默认值
-LLM_MODEL=Doubao-1.5-pro-32k  # 可选，用于生成提示词
+BAILIAN_API_KEY=sk-xxx       # 百炼 API Key（必需）
+BAILIAN_TEXT_MODEL=qwen3.7-plus  # 可选，用于生成提示词
 ```
 
 #### 参数说明
@@ -170,8 +171,8 @@ LLM_MODEL=Doubao-1.5-pro-32k  # 可选，用于生成提示词
 |------|------|--------|------|
 | `markdown_file` | — | *必需* | 训练剧本配置 Markdown 文件路径 |
 | `--output-dir` | `-o` | 剧本同级 `backgrounds/` | 输出目录 |
-| `--model` | `-m` | `doubao-seedream-3-0-t2i-250415` | 文生图模型名称 |
-| `--size` | `-s` | `512x288` | 图片尺寸（16:9，范围256-768） |
+| `--model` | `-m` | `qwen-image-2.0-pro` | 文生图模型名称 |
+| `--size` | `-s` | `1664x928` | 图片尺寸（16:9） |
 | `--style` | — | 写实中国风 | 风格描述后缀，附加到每个阶段提示词末尾 |
-| `--text-model` | — | 从.env读取 | 文本模型，用于智能生成提示词 |
+| `--text-model` | — | `qwen3.7-plus` | 文本模型，用于智能生成提示词 |
 | `--no-llm-prompt` | — | `false` | 跳过LLM生成，直接硬拼提示词 |

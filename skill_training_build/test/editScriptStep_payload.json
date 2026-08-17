@@ -1,0 +1,104 @@
+{
+    "trainTaskId": "pbDQpKnL4bIeG6O9QaWL",
+    "stepId": "BJDw9Kr6oqSgynAjldRO",
+    "stepDetailDTO": {
+        "nodeType": "SCRIPT_NODE",
+        "stepName": "专科检查2-口腔",
+        "interactiveRounds": 10,
+        "description": "你将对一名牙科患者进行专科检查，请在小助手的引导下给出你的检查结果。",
+        "prologue": "",
+        "modelId": "Doubao-1.5-pro-256k",
+        "llmPrompt": "## Role角色\nAI 智能体扮演口腔专科检查助手，聚焦口腔内核心正畸检查项目，引导口腔正畸医生（学习者）对患者的牙列、咬合等口腔内情况进行检查，训练其口腔内专科检查的准确性与逻辑性。患者以牙列不齐、咀嚼效率低为主诉，口内呈现牙列拥挤、牙弓异常等特征。\n\n## Task\n向学习者展示患者的口腔情况图片的同时，你需要通过依次提问牙列阶段、拥挤度测量、Spee曲线深度、Bolton指数计算、咬合关系评估（磨牙/尖牙关系、前牙覆覆盖）、软组织侧貌分析等项目，引导用户逐步得出以下所有数据与检查结果：\n1. 牙列阶段判断——恒牙列，7-7（全口恒牙列，涉及双侧第 7 牙），对应第 1、2 张图片；\n2. 拥挤度测量——上颌：9.4mm；下颌：11.2mm，对应第 1、2 张图片；\n3. Spee 曲线深度评估——右侧：6.7mm；左侧：4.5mm，对应第 3、4 张图片；\n4. Bolton 指数计算——前牙比：79.3%；全牙比：93.5%，对应第 1、2 张图片；\n5. 咬合关系评估 - 磨牙关系——双侧磨牙中性，对应第 5、6 张图片；\n6. 咬合关系评估 - 尖牙关系——双侧尖牙中性，对应第 5、6 张图片；\n7. 咬合关系评估 - 前牙覆覆盖——深覆合 II°，覆盖 I°，对应第 5 张图片；\n8. 牙列中线评估——上牙中线左偏 1mm；下牙中线右偏 3mm，对应第 1、2、5 张图片；\n9. 牙弓形态判断——上颌牙弓尖圆形；下颌牙弓尖圆形，对应第 1、2 张图片；\n10. 特殊牙位情况——尖牙低位，对应第 3、4、6 张图片。\n\n## Rules\n1. 依次引导学习者检查相关项目。\n2. 引导清晰性：每个项目开始前，明确告知项目名称、核心检查要点及对应图片序号，确保学习者聚焦观察重点。\n3.**答案判断机制**：\n   - 请确认学习者的回复是否与你的提问相对应。\n   - 然后确认学习者给出的答案是否正确；如果是数据或角度的测量，则允许误差范围为“±5%”，在这个范围内都算正确。\n4. **回答反馈机制**：\n    -若学习者第一次回答正确，肯定结果并告知下一个项目及对应图片序号。\n    -若学习者第一次回答错误，讲解当前项目的核心检查要点（如 “拥挤度测量需通过模型或图片观察牙列实际间隙与所需间隙的差值，分别计算上下颌拥挤量”），并提示需查看的图片序号后让学习者重新尝试。\n    -若学习者重新回答后仍然错误，则告知正确结果，然后继续下一个项目及对应图片序号。\n\n## Workflow \n1. **自然语言互动**：按照Rules中的要求和学习者保持互动。\n2.**开场导入**：“检查完面部情况，下面我会给你患者的口内照片集，请根据这些图片给出你的各项检查结果吧，我们一个个来哦——”\n2. **项目引导顺序**：说完开场导入后直接开启引导，按 “①牙列阶段判断→②拥挤度测量→③Spee 曲线深度评估→④Bolton 指数计算→⑤咬合关系评估（磨牙关系、尖牙关系、前牙覆覆盖）→⑥牙列中线评估→⑦牙弓形态判断、特殊牙位情况” 的顺序依次引导，不得全部同时提问，每个序号下的项目在一次提问中问完，同步提示各项目对应图片序号。\n3. **单次引导步骤**：\n    -提问互动：针对项目提问（如 “结合第 1、2 张图片，该患者的上下颌拥挤度是多少？”）。\n    -反馈推进：根据学习者回答按**回答反馈机制**反馈（肯定、提醒重查或告知正确结果），随后进入下一组项目。\n4. **总结回顾**：全部项目检查完毕后，汇总口腔内核心检查的正确结果，梳理各项目间的关联（如拥挤度与牙弓形态的关系），强化学习者对口腔内检查逻辑的理解，然后询问“你是否对以上检查结果有疑问呢？”。\n3. **阶段意图识别**：若学习者没有其他疑问，则直接输出指令：影像分析与问题诊断。\n\n## Constraints\nAI智能体主要通过沟通进行交流，不输出表情或者动作。\n\n",
+        "trainerName": "正畸小助理",
+        "scriptStepCover": {
+            "fileId": "bmaKA1yr1yieMQYp29xg",
+            "contentType": "image/jpeg",
+            "fileUrl": "https://prod-polymas.oss-cn-hangzhou.aliyuncs.com/polymas-basic-resource/202509/68b6e3bae4b0e198012ed02d.jpg",
+            "fileName": null,
+            "originFileName": null,
+            "suffix": null,
+            "createTime": null
+        },
+        "whiteBoardSwitch": 0,
+        "videoSwitch": 0,
+        "scriptStepResourceList": [
+            {
+                "trainTaskId": "pbDQpKnL4bIeG6O9QaWL",
+                "scriptStepId": "BJDw9Kr6oqSgynAjldRO",
+                "sort": 1,
+                "fileId": "LRdRYjnGGkSAAkbmEmxj",
+                "fileUrl": "https://prod-polymas.oss-cn-hangzhou.aliyuncs.com/polymas-basic-resource/202509/68b6f7a4e4b0e198012ed03b.jpg"
+            },
+            {
+                "trainTaskId": "pbDQpKnL4bIeG6O9QaWL",
+                "scriptStepId": "BJDw9Kr6oqSgynAjldRO",
+                "sort": 2,
+                "fileId": "gbxP20J8qQT48Lr8g4aV",
+                "fileUrl": "https://prod-polymas.oss-cn-hangzhou.aliyuncs.com/polymas-basic-resource/202510/68f5d5d4e4b099ecb04b6a4a.jpg"
+            },
+            {
+                "trainTaskId": "pbDQpKnL4bIeG6O9QaWL",
+                "scriptStepId": "BJDw9Kr6oqSgynAjldRO",
+                "sort": 3,
+                "fileId": "4AxegPV0vACjq28307aQ",
+                "fileUrl": "https://prod-polymas.oss-cn-hangzhou.aliyuncs.com/polymas-basic-resource/202510/68f5d5d4e4b063543b01482a.jpg"
+            },
+            {
+                "trainTaskId": "pbDQpKnL4bIeG6O9QaWL",
+                "scriptStepId": "BJDw9Kr6oqSgynAjldRO",
+                "sort": 4,
+                "fileId": "pbDQpKnLbmF5e4E7ROaW",
+                "fileUrl": "https://prod-polymas.oss-cn-hangzhou.aliyuncs.com/polymas-basic-resource/202510/68f5d5d4e4b099ecb04b6a4b.jpg"
+            },
+            {
+                "trainTaskId": "pbDQpKnL4bIeG6O9QaWL",
+                "scriptStepId": "BJDw9Kr6oqSgynAjldRO",
+                "sort": 5,
+                "fileId": "5vamqPjGWbFvW5APlva4",
+                "fileUrl": "https://prod-polymas.oss-cn-hangzhou.aliyuncs.com/polymas-basic-resource/202510/68f5d5d4e4b063543b01482b.jpg"
+            },
+            {
+                "trainTaskId": "pbDQpKnL4bIeG6O9QaWL",
+                "scriptStepId": "BJDw9Kr6oqSgynAjldRO",
+                "sort": 6,
+                "fileId": "QgDjBj5PLMtW9pG1eWD5",
+                "fileUrl": "https://prod-polymas.oss-cn-hangzhou.aliyuncs.com/polymas-basic-resource/202510/68f5d5d4e4b099ecb04b6a4c.jpg"
+            },
+            {
+                "trainTaskId": "pbDQpKnL4bIeG6O9QaWL",
+                "scriptStepId": "BJDw9Kr6oqSgynAjldRO",
+                "sort": 7,
+                "fileId": "2wraJQ6MX5OTeGr5Vd8A",
+                "fileUrl": "https://prod-polymas.oss-cn-hangzhou.aliyuncs.com/polymas-basic-resource/202510/68f5d5d4e4b063543b01482c.jpg"
+            },
+            {
+                "trainTaskId": "pbDQpKnL4bIeG6O9QaWL",
+                "scriptStepId": "BJDw9Kr6oqSgynAjldRO",
+                "sort": 8,
+                "fileId": "qOxvqW2wrquk3v65yRDP",
+                "fileUrl": "https://prod-polymas.oss-cn-hangzhou.aliyuncs.com/polymas-basic-resource/202510/68f5d643e4b063543b01487e.png"
+            }
+        ],
+        "knowledgeBaseSwitch": 1,
+        "searchEngineSwitch": 1,
+        "historyRecordNum": -1,
+        "agentId": "TgaLpKo98D",
+        "avatarNid": "QyCHhkDTcj",
+        "projectId": null,
+        "agentVoiceId": "zh_male_wenrouxiaoge_mars_bigtts",
+        "knowledgeBaseId": "x5ivw14osM",
+        "trainTime": -1,
+        "createTime": "2025-10-20 14:28:45",
+        "updateTime": "2025-12-04 12:44:13",
+        "backgroundTheme": null,
+        "trainSubType": "ability",
+        "transitionDescriptionUrl": null,
+        "useTransitionDescriptionAsAudio": false,
+        "useVideoOriginalSoundAsAudio": false
+    },
+    "positionDTO": {
+        "x": 357.3476617735474,
+        "y": 732.4263117001318
+    },
+    "courseId": "Z8DbqQ6560cQ4pWn7Wa0"
+}

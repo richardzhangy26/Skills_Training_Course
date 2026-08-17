@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """
-训练阶段背景图生成器（Polymas API 版本）
+训练阶段背景图生成器（阿里百炼版本）
 
 解析训练剧本配置 Markdown，为每个阶段:
-1. 由 LLM（Doubao 文本模型）理解阶段上下文，智能生成文生图提示词
-2. 调用 Polymas 代理的 Doubao Seedream 文生图 API 生成背景图
+1. 由 LLM（百炼 qwen 文本模型）理解阶段上下文，智能生成文生图提示词
+2. 调用百炼 DashScope 原生文生图 API（qwen-image 系列）生成背景图
 3. 下载保存到本地 backgrounds/ 目录
 
 依赖安装:
     pip install requests python-dotenv openai
 
-环境变量（从 .claude/skills/.env 加载）:
-    LLM_API_KEY: Polymas API 密钥（必需）
-    LLM_API_URL: Polymas API 基础URL（可选，有默认值）
-    LLM_MODEL: 文本模型名称（可选，默认 Doubao-1.5-pro-32k）
+环境变量（从 .claude/skills/.env 或项目根 .env 加载）:
+    BAILIAN_API_KEY: 百炼 API 密钥（必需）
+    BAILIAN_TEXT_MODEL: 文本模型名称（可选，默认 qwen3.7-plus）
 
 使用方式:
     python generate_background.py <剧本配置.md> [--output-dir <目录>] [--model <模型名>] [--size <尺寸>] [--style <风格描述>]
@@ -37,26 +36,28 @@ from dotenv import load_dotenv
 
 # ── .env 加载 ───────────────────────────────────────────────
 # 脚本位于 .claude/skills/training-background-generator/scripts/
-# .env 位于 .claude/skills/.env
+# 优先加载 .claude/skills/.env，再用项目根 .env 补缺（load_dotenv 默认不覆盖已有变量）
 _SCRIPT_DIR = Path(__file__).resolve().parent
-_ENV_PATH = _SCRIPT_DIR.parent.parent / ".env"
-if _ENV_PATH.exists():
-    load_dotenv(_ENV_PATH)
-else:
-    # 也尝试项目根目录的 .env
-    _ROOT_ENV = _SCRIPT_DIR.parent.parent.parent.parent / ".env"
-    if _ROOT_ENV.exists():
-        load_dotenv(_ROOT_ENV)
+for _env_file in (
+    _SCRIPT_DIR.parent.parent / ".env",  # .claude/skills/.env
+    _SCRIPT_DIR.parent.parent.parent.parent / ".env",  # 项目根 .env
+):
+    if _env_file.exists():
+        load_dotenv(_env_file)
 
 # ── 默认配置 ───────────────────────────────────────────────
-DEFAULT_IMAGE_MODEL = "doubao-seedream-3-0-t2i-250415"
-DEFAULT_SIZE = "768x432"  # 16:9，Polymas API 范围 256-768
+DEFAULT_IMAGE_MODEL = "qwen-image-2.0-pro"
+DEFAULT_SIZE = "1664x928"  # 16:9，百炼 qwen-image 系列支持
 DEFAULT_STYLE_SUFFIX = (
     "写实风格，中国风元素，专业级渲染，电影级光影，高清细节，16:9宽屏构图"
 )
-POLYMAS_IMAGE_URL = "https://llm-service.polymas.com/api/openai/v1/images/generations"
-POLYMAS_CHAT_BASE_URL = "https://llm-service.polymas.com/api/openai/v1"
-DEFAULT_TEXT_MODEL = "Claude Sonnet 4.5"
+# 百炼 DashScope 原生文生图接口（OpenAI 兼容 images 端点不可用）
+BAILIAN_IMAGE_URL = (
+    "https://dashscope.aliyuncs.com/api/v1/services/aigc/"
+    "multimodal-generation/generation"
+)
+BAILIAN_CHAT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+DEFAULT_TEXT_MODEL = "qwen3.7-plus"
 
 # 下载超时（秒）
 DOWNLOAD_TIMEOUT = 60
@@ -246,18 +247,14 @@ _PROMPT_USER_TEMPLATE = """请根据以下训练阶段信息，生成一段文�
 
 
 def _get_text_client():
-    """创建用于生成提示词的 OpenAI 兼容客户端（通过 Polymas 代理）。"""
+    """创建用于生成提示词的 OpenAI 兼容客户端（百炼 compatible-mode）。"""
     from openai import OpenAI
 
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("ARK_API_KEY")
+    api_key = os.environ.get("BAILIAN_API_KEY")
     if not api_key:
-        raise EnvironmentError("请设置 LLM_API_KEY 或 ARK_API_KEY 环境变量。")
+        raise EnvironmentError("请设置 BAILIAN_API_KEY 环境变量。")
 
-    # 从 LLM_API_URL 中提取 base_url（去掉末尾的 /chat/completions）
-    raw_url = os.environ.get("LLM_API_URL", POLYMAS_CHAT_BASE_URL)
-    base_url = re.sub(r"/chat/completions/?$", "", raw_url)
-
-    return OpenAI(base_url=base_url, api_key=api_key)
+    return OpenAI(base_url=BAILIAN_CHAT_BASE_URL, api_key=api_key)
 
 
 def generate_cover_prompt_via_llm(
@@ -320,7 +317,7 @@ def update_markdown_cover_background(md_path: Path, cover_img_path: str) -> bool
     if config["has_cover_field"]:
         # 替换已有字段
         updated_section = re.sub(
-            r"- \*\*背景图\*\*\s*[:：]\s*[^\n]*",
+            r"- \*\*背景图\*\*[ \t]*[:：][ \t]*[^\n]*",
             new_field_line,
             section_text,
         )
@@ -403,31 +400,36 @@ def build_prompt_fallback(stage: StageInfo, style_suffix: str) -> str:
 
 # ── 图片生成与下载 ──────────────────────────────────────────
 def generate_image(prompt: str, model: str, size: str, api_key: str) -> str:
-    """调用 Polymas 代理的 Doubao Seedream 文生图 API，返回图片 URL。
+    """调用百炼 DashScope 原生文生图 API，返回图片 URL。
 
-    注意: Polymas API 使用 'api-key' 请求头而非 'Authorization: Bearer'。
+    请求格式（multimodal-generation）:
+        input.messages[0].content = [{"text": prompt}]
+        响应: output.choices[0].message.content[0].image
     """
     headers = {
-        "api-key": api_key,
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     payload = {
         "model": model,
-        "prompt": prompt,
-        "size": size,
-        "watermark": False,
-        "response_format": "url",
+        "input": {
+            "messages": [{"role": "user", "content": [{"text": prompt}]}]
+        },
+        "parameters": {"size": size.replace("x", "*")},
     }
     resp = requests.post(
-        POLYMAS_IMAGE_URL,
+        BAILIAN_IMAGE_URL,
         headers=headers,
         json=payload,
-        timeout=120,
+        timeout=300,
     )
     resp.raise_for_status()
 
     data = resp.json()
-    url = data["data"][0]["url"]
+    try:
+        url = data["output"]["choices"][0]["message"]["content"][0]["image"]
+    except (KeyError, IndexError, TypeError):
+        raise RuntimeError(f"API 返回格式异常: {json.dumps(data, ensure_ascii=False)[:300]}")
     if not url:
         raise RuntimeError("API 返回的图片 URL 为空")
     return url
@@ -470,7 +472,7 @@ def update_markdown_backgrounds(
         # 兼容中英文冒号，以及冒号后有任意内容（包括默认提示语）
         pattern = re.compile(
             r"(###\s*阶段\s*" + str(stage_num) + r"\s*[:：].*?)"
-            r"(\*\*背景图\*\*\s*[:：]\s*)([^\n]*)",
+            r"(\*\*背景图\*\*[ \t]*[:：][ \t]*)([^\n]*)",
             re.DOTALL,
         )
         match = pattern.search(content)
@@ -523,16 +525,16 @@ def process(
     print(f"   ✓ 发现 {len(stages)} 个阶段")
 
     # 2. 获取 API Key
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("ARK_API_KEY")
+    api_key = os.environ.get("BAILIAN_API_KEY")
     if not api_key:
         raise EnvironmentError(
-            "请设置 LLM_API_KEY 或 ARK_API_KEY 环境变量。\n"
-            "  在 .claude/skills/.env 中配置 LLM_API_KEY=sk-xxx"
+            "请设置 BAILIAN_API_KEY 环境变量。\n"
+            "  在项目根 .env 或 .claude/skills/.env 中配置 BAILIAN_API_KEY=sk-xxx"
         )
 
     # 3. 确定文本模型
     if text_model is None:
-        text_model = os.environ.get("LLM_MODEL", DEFAULT_TEXT_MODEL)
+        text_model = os.environ.get("BAILIAN_TEXT_MODEL", DEFAULT_TEXT_MODEL)
 
     # 4. 确定输出目录（提前，封面图也需要）
     task_name = md_file.stem.replace("training_background_generator_", "")
@@ -709,7 +711,7 @@ def process(
 # ── CLI ────────────────────────────────────────────────────
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="训练阶段背景图生成器 — 解析剧本 Markdown 并生成阶段背景图（Polymas API 版本）",
+        description="训练阶段背景图生成器 — 解析剧本 Markdown 并生成阶段背景图（百炼 DashScope 版本）",
     )
     parser.add_argument(
         "markdown_file",

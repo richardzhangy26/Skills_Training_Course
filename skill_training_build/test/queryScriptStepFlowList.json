@@ -1,0 +1,171 @@
+{
+    "code": 200,
+    "msg": null,
+    "data": [
+        {
+            "trainTaskId": "evDOwOQJ11H2KNrAQDbJ",
+            "flowId": "c0IlKwcAVXbd5RzMC6kMi",
+            "scriptStepStartId": "CuR8OWAoFDFSVC0ODA0r8",
+            "scriptStepEndId": "KDtBBTtsKeyH6lJzlTNxL",
+            "scriptStepStartHandle": "CuR8OWAoFDFSVC0ODA0r8-source-bottom",
+            "scriptStepEndHandle": "KDtBBTtsKeyH6lJzlTNxL-target-top",
+            "flowCondition": "",
+            "flowConfiguration": {
+                "relation": "and",
+                "conditions": [
+                    {
+                        "text": "条件组1",
+                        "relation": "and",
+                        "conditions": [
+                            {
+                                "text": ""
+                            }
+                        ]
+                    }
+                ]
+            },
+            "isDefault": 0,
+            "flowSettingType": "quick",
+            "transitionPrompt": "",
+            "transitionHistoryNum": 0
+        },
+        {
+            "trainTaskId": "evDOwOQJ11H2KNrAQDbJ",
+            "flowId": "0OYFZZgwmEWjNKTF4QQDk",
+            "scriptStepStartId": "KDtBBTtsKeyH6lJzlTNxL",
+            "scriptStepEndId": "VsHGBLQoCmDWf5LqKwQoS",
+            "scriptStepStartHandle": "KDtBBTtsKeyH6lJzlTNxL-source-bottom",
+            "scriptStepEndHandle": "VsHGBLQoCmDWf5LqKwQoS-target-top",
+            "flowCondition": "方案设计与算法选型",
+            "flowConfiguration": {
+                "relation": "and",
+                "conditions": [
+                    {
+                        "text": "条件组1",
+                        "relation": "and",
+                        "conditions": [
+                            {
+                                "text": ""
+                            }
+                        ]
+                    }
+                ]
+            },
+            "isDefault": 1,
+            "flowSettingType": "quick",
+            "transitionPrompt": "",
+            "transitionHistoryNum": 0
+        },
+        {
+            "trainTaskId": "evDOwOQJ11H2KNrAQDbJ",
+            "flowId": "Z5HCkfyLRkJF0N0nrIJ9O",
+            "scriptStepStartId": "VsHGBLQoCmDWf5LqKwQoS",
+            "scriptStepEndId": "Xcmxd_s01xLEel8Gg2H0G",
+            "scriptStepStartHandle": "VsHGBLQoCmDWf5LqKwQoS-source-bottom",
+            "scriptStepEndHandle": "Xcmxd_s01xLEel8Gg2H0G-target-top",
+            "flowCondition": "仿真实现与调试指导",
+            "flowConfiguration": {
+                "relation": "and",
+                "conditions": [
+                    {
+                        "text": "条件组1",
+                        "relation": "and",
+                        "conditions": [
+                            {
+                                "text": ""
+                            }
+                        ]
+                    }
+                ]
+            },
+            "isDefault": 1,
+            "flowSettingType": "quick",
+            "transitionPrompt": "",
+            "transitionHistoryNum": 0
+        },
+        {
+            "trainTaskId": "evDOwOQJ11H2KNrAQDbJ",
+            "flowId": "Jsi42roMHtpVF9usYiujk",
+            "scriptStepStartId": "Xcmxd_s01xLEel8Gg2H0G",
+            "scriptStepEndId": "23DcSonimnqUlozoCFzy9",
+            "scriptStepStartHandle": "Xcmxd_s01xLEel8Gg2H0G-source-bottom",
+            "scriptStepEndHandle": "23DcSonimnqUlozoCFzy9-target-top",
+            "flowCondition": "结果分析与创新点提炼",
+            "flowConfiguration": {
+                "relation": "and",
+                "conditions": [
+                    {
+                        "text": "条件组1",
+                        "relation": "and",
+                        "conditions": [
+                            {
+                                "text": ""
+                            }
+                        ]
+                    }
+                ]
+            },
+            "isDefault": 1,
+            "flowSettingType": "quick",
+            "transitionPrompt": "",
+            "transitionHistoryNum": 0
+        },
+        {
+            "trainTaskId": "evDOwOQJ11H2KNrAQDbJ",
+            "flowId": "kS2UWrPj2mcoRSsQyTWbK",
+            "scriptStepStartId": "23DcSonimnqUlozoCFzy9",
+            "scriptStepEndId": "2M5y7kavp9CIQI_yb_Fln",
+            "scriptStepStartHandle": "23DcSonimnqUlozoCFzy9-source-bottom",
+            "scriptStepEndHandle": "2M5y7kavp9CIQI_yb_Fln-target-top",
+            "flowCondition": "项目总结与报告点评",
+            "flowConfiguration": {
+                "relation": "and",
+                "conditions": [
+                    {
+                        "text": "条件组1",
+                        "relation": "and",
+                        "conditions": [
+                            {
+                                "text": ""
+                            }
+                        ]
+                    }
+                ]
+            },
+            "isDefault": 1,
+            "flowSettingType": "quick",
+            "transitionPrompt": "",
+            "transitionHistoryNum": 0
+        },
+        {
+            "trainTaskId": "evDOwOQJ11H2KNrAQDbJ",
+            "flowId": "ourrPO1wuulUZJJQhUhJM",
+            "scriptStepStartId": "2M5y7kavp9CIQI_yb_Fln",
+            "scriptStepEndId": "bzbgg2KCyQW0JDp0i594B",
+            "scriptStepStartHandle": "2M5y7kavp9CIQI_yb_Fln-source-bottom",
+            "scriptStepEndHandle": "bzbgg2KCyQW0JDp0i594B-target-top",
+            "flowCondition": "",
+            "flowConfiguration": {
+                "relation": "and",
+                "conditions": [
+                    {
+                        "text": "条件组1",
+                        "relation": "and",
+                        "conditions": [
+                            {
+                                "text": ""
+                            }
+                        ]
+                    }
+                ]
+            },
+            "isDefault": 1,
+            "flowSettingType": "quick",
+            "transitionPrompt": "",
+            "transitionHistoryNum": 0
+        }
+    ],
+    "currentTime": 1768556533290,
+    "traceId": "68bc92721995470cb66c95b30975f832",
+    "success": true
+}

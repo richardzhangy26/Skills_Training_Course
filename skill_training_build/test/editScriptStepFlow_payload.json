@@ -1,0 +1,28 @@
+{
+    "trainTaskId": "5vamqyJBjGcve8EbKa4y",
+    "flowId": "4ba83klOXQs1wGrgydz6",
+    "scriptStepStartId": "m0D0KB5ZoQsVZ9krnajn",
+    "scriptStepStartHandle": "m0D0KB5ZoQsVZ9krnajn-source-bottom",
+    "scriptStepEndId": "zmaG3XwrY6s1NzbVmalg",
+    "scriptStepEndHandle": "zmaG3XwrY6s1NzbVmalg-target-top",
+    "flowSettingType": "quick",
+    "flowCondition": "面部检查",
+    "flowConfiguration": {
+        "relation": "and",
+        "conditions": [
+            {
+                "text": "条件组1",
+                "relation": "and",
+                "conditions": [
+                    {
+                        "text": ""
+                    }
+                ]
+            }
+        ]
+    },
+    "transitionPrompt": "",
+    "transitionHistoryNum": 0,
+    "isDefault": 1,
+    "isError": false
+}

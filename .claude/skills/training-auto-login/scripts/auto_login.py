@@ -925,7 +925,19 @@ def run_login(
                         raise RuntimeError(f"未能勾选用户协议: {exc}") from exc
 
                 print("[4/6] 提交登录...")
-                page.get_by_text("立即登录", exact=True).click(timeout=10000)
+                submit_clicked = click_first_visible(
+                    page,
+                    [
+                        ".btn-block__grandient_login:has-text('登录')",
+                        "div:has-text('登录').btn-block__grandient_login",
+                        "text=立即登录",
+                        "button:has-text('立即登录')",
+                        "button:has-text('登录')",
+                    ],
+                    "点击登录提交按钮",
+                )
+                if not submit_clicked:
+                    page.get_by_text("立即登录", exact=True).click(timeout=10000)
                 time.sleep(2)
 
                 if check_for_captcha(page):

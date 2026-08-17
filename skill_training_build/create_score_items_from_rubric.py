@@ -23,6 +23,7 @@
 
 每个 ## 二级标题对应一个 createScoreItem 请求。
 """
+from __future__ import annotations
 
 import os
 import re
@@ -147,7 +148,6 @@ def parse_rubric_markdown(md_path: Path) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 CREATE_URL = "https://cloudapi.polymas.com/teacher-course/abilityTrain/createScoreItem"
-
 
 def create_score_item(train_task_id: str, item: dict) -> str | None:
     """
