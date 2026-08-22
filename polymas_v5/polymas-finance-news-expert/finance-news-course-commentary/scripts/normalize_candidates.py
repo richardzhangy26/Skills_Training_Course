@@ -27,6 +27,7 @@ REQUIRED_CITATION_FIELDS = (
     "resource_title",
     "excerpt",
 )
+OUTPUT_CANDIDATE_FIELDS = REQUIRED_CANDIDATE_FIELDS + ("source_level",)
 TRACKING_PARAMETERS = {
     "dclid",
     "fbclid",
@@ -91,9 +92,15 @@ def canonical_url(value):
     if any(character.isspace() for character in parsed.netloc):
         raise InputError("invalid_url")
     hostname = parsed.hostname.lower()
+    if parsed.username or parsed.password:
+        raise InputError("invalid_url")
     netloc = hostname
-    if parsed.port:
-        netloc = f"{hostname}:{parsed.port}"
+    port = parsed.port
+    if port and not (
+        (parsed.scheme.lower() == "http" and port == 80)
+        or (parsed.scheme.lower() == "https" and port == 443)
+    ):
+        netloc = f"{hostname}:{port}"
     path = parsed.path or "/"
     if path != "/":
         path = path.rstrip("/")
@@ -209,12 +216,23 @@ def validate_course_evidence(candidate, selected_course):
     return None
 
 
-def contains_investment_advice(candidate):
-    text = "\n".join(
-        str(candidate.get(field, ""))
-        for field in ("title", "fact_summary", "theory_analysis", "discussion_question")
+def string_values(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for nested_value in value.values():
+            yield from string_values(nested_value)
+    elif isinstance(value, list):
+        for nested_value in value:
+            yield from string_values(nested_value)
+
+
+def contains_investment_advice(value):
+    return any(
+        pattern in text
+        for text in string_values(value)
+        for pattern in INVESTMENT_ADVICE_PATTERNS
     )
-    return any(pattern in text for pattern in INVESTMENT_ADVICE_PATTERNS)
 
 
 def rejected_candidate(candidate, reason):
@@ -244,12 +262,12 @@ def validate_candidate(candidate, since, until, selected_course):
         return None, rejected_candidate(candidate, "invalid_published_at")
     if not since <= published_at <= until:
         return None, rejected_candidate(candidate, "outside_time_window")
+    if contains_investment_advice(candidate):
+        return None, rejected_candidate(candidate, "investment_advice_language")
     evidence_problem = validate_course_evidence(candidate, selected_course)
     if evidence_problem:
         return None, rejected_candidate(candidate, evidence_problem)
-    if contains_investment_advice(candidate):
-        return None, rejected_candidate(candidate, "investment_advice_language")
-    prepared = dict(candidate)
+    prepared = {field: candidate[field] for field in REQUIRED_CANDIDATE_FIELDS}
     prepared["url"] = url
     prepared["source_level"] = source_level(candidate)
     prepared["_published_at"] = published_at
@@ -262,6 +280,12 @@ def candidate_sort_key(candidate):
         -candidate["_published_at"].timestamp(),
         normalized_title(candidate["title"]),
         candidate["url"],
+        json.dumps(
+            {key: candidate[key] for key in OUTPUT_CANDIDATE_FIELDS},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
     )
 
 
@@ -274,8 +298,12 @@ def normalize(payload, since, until, edition_date, max_items):
         raise InputError("input.course must be an object")
     if not isinstance(candidates, list):
         raise InputError("input.candidates must be an array")
-    if max_items < 1:
-        raise InputError("max-items must be at least 1")
+    if not course_name(course):
+        raise InputError("input.course must include a recognizable name")
+    if contains_investment_advice(course):
+        raise InputError("input.course contains investment advice language")
+    if max_items < 1 or max_items > 3:
+        raise InputError("max-items must be between 1 and 3")
 
     rejected = []
     accepted = []
@@ -286,17 +314,46 @@ def normalize(payload, since, until, edition_date, max_items):
         else:
             accepted.append(prepared)
 
-    canonical = []
+    url_unique = []
     seen_urls = set()
     for candidate in sorted(accepted, key=candidate_sort_key):
         if candidate["url"] in seen_urls:
             rejected.append(rejected_candidate(candidate, "duplicate_url"))
             continue
         seen_urls.add(candidate["url"])
-        if any(similar_title(candidate["title"], kept["title"]) for kept in canonical):
-            rejected.append(rejected_candidate(candidate, "similar_title"))
-            continue
-        canonical.append(candidate)
+        url_unique.append(candidate)
+
+    parents = list(range(len(url_unique)))
+
+    def find(index):
+        while parents[index] != index:
+            parents[index] = parents[parents[index]]
+            index = parents[index]
+        return index
+
+    def union(left, right):
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            parents[right_root] = left_root
+
+    for left in range(len(url_unique)):
+        for right in range(left + 1, len(url_unique)):
+            if similar_title(url_unique[left]["title"], url_unique[right]["title"]):
+                union(left, right)
+
+    clusters = {}
+    for index, candidate in enumerate(url_unique):
+        clusters.setdefault(find(index), []).append(candidate)
+    canonical = []
+    for members in clusters.values():
+        winner = min(members, key=candidate_sort_key)
+        canonical.append(winner)
+        rejected.extend(
+            rejected_candidate(candidate, "similar_title")
+            for candidate in members
+            if candidate is not winner
+        )
+    canonical.sort(key=candidate_sort_key)
 
     selected, excess = canonical[:max_items], canonical[max_items:]
     rejected.extend(rejected_candidate(candidate, "max_items_exceeded") for candidate in excess)

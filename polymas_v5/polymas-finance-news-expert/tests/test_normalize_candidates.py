@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT = (
     Path(__file__).parents[1]
@@ -36,7 +38,9 @@ def candidate(**overrides):
 
 def run_cli(tmp_path, candidates, **arguments):
     payload = {
-        "course": {"course_name": "货币金融学", "course_id": "course-1"},
+        "course": arguments.get(
+            "course", {"course_name": "货币金融学", "course_id": "course-1"}
+        ),
         "candidates": candidates,
     }
     input_path = tmp_path / "candidates.json"
@@ -227,6 +231,125 @@ def test_cli_rejects_investment_advice_language(tmp_path):
     output = output_of(result)
     assert output["items"] == []
     assert output["rejected"][0]["reason"] == "investment_advice_language"
+
+
+@pytest.mark.parametrize(
+    "citation_field",
+    ["course_name", "knowledge_point", "resource_title", "excerpt"],
+)
+def test_cli_rejects_investment_advice_in_each_citation_string(tmp_path, citation_field):
+    prohibited_text = "建议买入该资产"
+    citation = dict(candidate()["theory_citations"][0])
+    citation[citation_field] = prohibited_text
+
+    result = run_cli(
+        tmp_path,
+        [
+            candidate(
+                theory_citations=[citation],
+                url=f"https://www.pbc.gov.cn/news/advice-{citation_field}",
+            )
+        ],
+    )
+
+    output = output_of(result)
+    assert output["items"] == []
+    assert output["rejected"][0]["reason"] == "investment_advice_language"
+
+
+def test_cli_rejects_investment_advice_in_course_metadata_before_output(tmp_path):
+    result = run_cli(
+        tmp_path,
+        [],
+        course={"course_name": "建议买入该资产", "course_id": "course-1"},
+    )
+
+    assert result.returncode != 0
+    assert result.stderr == ""
+    assert json.loads(result.stdout)["error"] == "input.course contains investment advice language"
+
+
+def test_cli_uses_complete_content_tie_breaker_independent_of_input_order(tmp_path):
+    alpha = candidate(
+        source_tier="official",
+        fact_summary="alpha fact summary",
+        url="https://www.pbc.gov.cn/news/same-rank?utm_source=a",
+    )
+    beta = candidate(
+        source_tier="official",
+        fact_summary="beta fact summary",
+        url="https://www.pbc.gov.cn/news/same-rank?utm_source=b",
+    )
+
+    forward = output_of(run_cli(tmp_path, [alpha, beta]))
+    reverse = output_of(run_cli(tmp_path, [beta, alpha]))
+
+    assert forward == reverse
+    assert forward["items"][0]["fact_summary"] == "alpha fact summary"
+    assert forward["rejected"][0]["reason"] == "duplicate_url"
+
+
+def test_cli_clusters_transitively_similar_titles_before_selecting_winner(tmp_path):
+    prefix = "财经新闻abcdefghijklmnopqrstu0123456789"
+    first = candidate(
+        title=f"{prefix}甲乙丙丁",
+        url="https://example.com/cluster/a",
+        source="权威财经媒体",
+        source_tier="authoritative_media",
+    )
+    bridge = candidate(
+        title=f"{prefix}甲乙戊己",
+        url="https://example.com/cluster/b",
+        source="其他公开页面",
+        source_tier="other",
+    )
+    winner = candidate(
+        title=f"{prefix}庚辛戊己",
+        url="https://example.com/cluster/c",
+        source="监管公告",
+        source_tier="official",
+    )
+
+    output = output_of(run_cli(tmp_path, [first, bridge, winner]))
+
+    assert [item["title"] for item in output["items"]] == [winner["title"]]
+    assert [entry["reason"] for entry in output["rejected"]] == [
+        "similar_title",
+        "similar_title",
+    ]
+
+
+def test_cli_treats_default_ports_as_the_same_canonical_url(tmp_path):
+    explicit_default_port = candidate(
+        title="明确默认端口",
+        url="https://www.pbc.gov.cn:443/news/default-port",
+    )
+    implicit_default_port = candidate(
+        title="省略默认端口",
+        url="https://www.pbc.gov.cn/news/default-port",
+    )
+
+    output = output_of(run_cli(tmp_path, [explicit_default_port, implicit_default_port]))
+
+    assert len(output["items"]) == 1
+    assert output["items"][0]["url"] == "https://www.pbc.gov.cn/news/default-port"
+    assert output["rejected"][0]["reason"] == "duplicate_url"
+
+
+def test_cli_rejects_course_without_a_recognizable_name(tmp_path):
+    result = run_cli(tmp_path, [candidate()], course={"course_id": "course-1"})
+
+    assert result.returncode != 0
+    assert result.stderr == ""
+    assert json.loads(result.stdout)["error"] == "input.course must include a recognizable name"
+
+
+def test_cli_rejects_max_items_above_three(tmp_path):
+    result = run_cli(tmp_path, [candidate()], max_items=4)
+
+    assert result.returncode != 0
+    assert result.stderr == ""
+    assert json.loads(result.stdout)["error"] == "max-items must be between 1 and 3"
 
 
 def test_cli_returns_a_single_json_error_and_nonzero_exit_for_bad_input(tmp_path):
