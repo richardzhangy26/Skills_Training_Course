@@ -33,7 +33,8 @@ python scripts/package_skill.py --output finance-news-course-commentary.zip
 ## Cron 与投递操作清单
 
 - 查询或创建 Cron 时显式带当前 `--agent-id`，并先以 `job_key` 查询现有任务。
-- 修改计划严格采用：暂停已验证旧任务 → 创建初始暂停的候选任务 → 校验候选 → 写订阅新 ID/version → 启用候选 → 删除旧任务。候选启用失败则删除候选并恢复旧订阅/旧任务；候选删除失败或旧任务删除失败则新旧保持暂停、记录待清理，禁止双发。
+- 修改计划严格采用：暂停已验证旧任务 → 创建初始暂停的候选任务 → 校验候选 → 写订阅新 ID/version → 启用候选 → 删除旧任务。只有新订阅写入+候选启用成功后才删除旧任务。
+- 候选创建失败：恢复旧任务，订阅保持旧 ID/version。候选创建成功但校验失败：先删除候选；删除成功后恢复旧订阅/旧任务；删除失败则新旧均保持暂停、记录 `orphaned_candidate`、订阅status=paused、停止投递。候选校验成功但写订阅新ID/version失败：执行同一删除候选与恢复/暂停补偿矩阵。
 - 每个 Cron 定时触发正文必须带 `trigger_cron_job_id`、`trigger_job_key`、`trigger_plan_version`、`trigger_agent_id`。发送前重读 subscription，逐一比对当前 Cron ID、任务键、版本和专家 agent-id；任一失配返回 `skipped_stale_trigger`，不调用 `channel-message`、不更新成功历史。
 - 个人会话无法唯一定位时停止；绝不降级到班级群。只有 `channel-message` 返回发送成功后才更新成功时间与历史。
 
@@ -44,6 +45,7 @@ python scripts/package_skill.py --output finance-news-course-commentary.zip
 - Skill 上传、专家保存和八项挂载是否均成功。
 - 多课程候选是否通过 `ask_user_question` 选择；学生自己填写计划后是否确实需要确认。
 - 订阅字段、稳定 `job_key`、Cron 两阶段切换、候选启用失败、候选删除失败、旧任务删除失败、回滚和暂停/恢复/退订是否符合平台实际接口。
+- 候选创建失败是否恢复旧任务且订阅仍为旧 ID/version；候选创建成功但校验失败、候选校验成功但写订阅新ID/version失败时，是否按“删除成功恢复旧订阅/旧任务，删除失败双方暂停并记录 `orphaned_candidate`”执行。
 - stale trigger（Cron ID、任务键、版本或 agent-id 失配）是否返回 `skipped_stale_trigger`，且没有任何 `channel-message` 调用或成功历史更新。
 - 唯一个人会话的发送成功、失败重试，以及多候选时停止不群发。
 - `ready`、无课程证据、无候选和互动新闻展开是否能在 PDS 中得到可追溯输出。

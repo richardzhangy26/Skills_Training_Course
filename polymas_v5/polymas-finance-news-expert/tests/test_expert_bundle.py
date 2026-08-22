@@ -49,6 +49,56 @@ def validate_workflow_text(config):
         "不调用 `channel-message`",
         "不更新成功历史",
     )
+    compensation_branches = (
+        (
+            "候选创建失败",
+            "恢复旧任务",
+            "订阅保持旧ID/version",
+        ),
+        (
+            "候选创建成功但校验失败",
+            "先删除候选",
+            "删除成功后恢复旧订阅/旧任务",
+            "删除失败则新旧均保持暂停",
+            "orphaned_candidate",
+            "订阅status=paused",
+            "停止投递",
+        ),
+        (
+            "候选校验成功但写订阅新ID/version失败",
+            "先删除候选",
+            "删除成功后恢复旧订阅/旧任务",
+            "删除失败则新旧均保持暂停",
+            "orphaned_candidate",
+            "订阅status=paused",
+            "停止投递",
+        ),
+        (
+            "候选启用失败",
+            "先删除候选",
+            "删除成功后恢复旧订阅/旧任务",
+            "删除失败则新旧均保持暂停",
+            "orphaned_candidate",
+            "订阅status=paused",
+            "停止投递",
+        ),
+    )
+    if any(branch[0] not in cron for branch in compensation_branches):
+        return False
+
+    def branch_has_ordered_compensation(index):
+        branch = compensation_branches[index]
+        start = cron.index(branch[0])
+        end = (
+            cron.index(compensation_branches[index + 1][0])
+            if index + 1 < len(compensation_branches)
+            else len(cron)
+        )
+        branch_text = cron[start:end]
+        return all(token in branch_text for token in branch) and [
+            branch_text.index(token) for token in branch
+        ] == sorted(branch_text.index(token) for token in branch)
+
     return (
         all(token in cron for token in cron_steps)
         and [cron.index(step) for step in cron_steps]
@@ -57,8 +107,9 @@ def validate_workflow_text(config):
         and "删除候选" in cron
         and "恢复旧订阅/旧任务" in cron
         and "候选删除失败" in cron
-        and "新旧保持暂停" in cron
+        and "新旧均保持暂停" in cron
         and "禁止双发" in cron
+        and all(branch_has_ordered_compensation(index) for index in range(len(compensation_branches)))
         and all(token in delivery for token in trigger_fields + required_delivery)
         and delivery.index("发送前重读 subscription")
         < delivery.index("channel-message 0.0.1")
@@ -181,6 +232,17 @@ def test_workflow_validator_rejects_missing_trigger_id_and_send_before_second_re
     assert not validate_workflow_text(reordered)
 
 
+def test_workflow_validator_rejects_each_required_cron_failure_branch():
+    config = read(CONFIG)
+
+    for failure_sentence in (
+        "候选创建失败",
+        "候选创建成功但校验失败",
+        "候选校验成功但写订阅新ID/version失败",
+    ):
+        assert not validate_workflow_text(config.replace(failure_sentence, "", 1))
+
+
 def test_expert_config_records_delivered_briefing_history_and_limits_expansion_scope():
     config = read(CONFIG)
     delivery = section(config, "### 4. 定时生成与安全投递", "### 5. 结果交付")
@@ -207,6 +269,9 @@ def test_deployment_document_has_safe_real_platform_checklist_and_upload_instruc
         "未验证",
         "Token",
         "Cookie",
+        "候选创建失败",
+        "候选创建成功但校验失败",
+        "候选校验成功但写订阅新ID/version失败",
     ):
         assert token in deployment
 
