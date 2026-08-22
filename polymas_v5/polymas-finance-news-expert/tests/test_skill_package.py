@@ -100,9 +100,11 @@ def test_skill_package_declares_the_required_polymas_workflow_and_boundaries():
     assert "不进入公开网检索或 normalizer" not in skill
 
     citations = workflow.index("theory_citations")
+    assigned_tier = workflow.index("source_tier")
     generated = workflow.index("theory_analysis")
     normalized = workflow.index("normalize_candidates.py")
     assert citations < generated < normalized
+    assert assigned_tier < normalized
 
 
 def test_data_contract_enforces_course_evidence_stable_ids_and_session_independent_job_key():
@@ -127,6 +129,7 @@ def test_data_contract_enforces_course_evidence_stable_ids_and_session_independe
         "status_origin",
         "candidate_filter",
         "precheck",
+        "source_tier",
     ):
         assert token in contract
     assert "不得包含会话 ID" in contract
@@ -135,6 +138,19 @@ def test_data_contract_enforces_course_evidence_stable_ids_and_session_independe
     assert "normalizer 的输入或输出字段" in contract
     assert "normalizer 强制拒绝三级来源" in contract
     assert "调用方直接使用 `skipped_no_course_evidence`" not in contract
+    assert "`source_level` 是输出" in contract
+    for tier in (
+        "official",
+        "primary",
+        "regulator",
+        "government",
+        "exchange",
+        "company_announcement",
+        "authoritative_media",
+        "media",
+        "other",
+    ):
+        assert tier in contract
 
 
 def test_source_policy_prioritizes_official_sources_and_treats_other_pages_as_leads():
@@ -148,6 +164,7 @@ def test_source_policy_prioritizes_official_sources_and_treats_other_pages_as_le
     assert "付费墙" in policy
     assert "normalizer 强制拒绝" in policy
     assert "untrusted_source" in policy
+    assert "source_tier" in policy
     for organization in (
         "国务院",
         "人民银行",
@@ -205,6 +222,56 @@ def test_package_exercises_normalizer_tier_three_rejection(tmp_path):
             "url": "https://example.com/untrusted",
             "reason": "untrusted_source",
         }
+    ]
+
+
+def test_package_exercises_normalizer_ready_official_candidate_contract(tmp_path):
+    output = run_normalizer(tmp_path, [candidate()])
+
+    assert output["status"] == "ready"
+    assert output["status_origin"] == "normalizer"
+    assert output["retrieved_at"] == "2026-08-22T01:02:03+00:00"
+    assert output["rejected"] == []
+    assert output["items"] == [
+        {
+            "title": "央行发布流动性管理新工具",
+            "url": "https://www.pbc.gov.cn/news/liquidity",
+            "source": "中国人民银行",
+            "published_at": "2026-08-22T08:00:00+08:00",
+            "fact_summary": "中国人民银行发布流动性管理工具说明。",
+            "theory_analysis": "课程中的货币政策工具可用于解释其传导机制。",
+            "discussion_question": "该工具可能如何影响市场流动性？",
+            "theory_citations": [
+                {
+                    "course_name": "货币金融学",
+                    "knowledge_point": "货币政策工具",
+                    "resource_title": "第六章 货币政策",
+                    "excerpt": "公开市场操作通过调节基础货币影响流动性。",
+                }
+            ],
+            "source_level": 1,
+            "item_id": "F20260822-01",
+        }
+    ]
+
+
+def test_package_exercises_normalizer_requires_source_tier_and_rejects_input_source_level(
+    tmp_path,
+):
+    missing_tier = candidate()
+    missing_tier.pop("source_tier")
+    supplied_output_field = candidate(url="https://www.pbc.gov.cn/news/forged-level")
+    supplied_output_field.pop("source_tier")
+    supplied_output_field["source_level"] = 1
+
+    output = run_normalizer(tmp_path, [missing_tier, supplied_output_field])
+
+    assert output["status"] == "no_eligible_candidates"
+    assert output["status_origin"] == "normalizer"
+    assert output["items"] == []
+    assert [entry["reason"] for entry in output["rejected"]] == [
+        "missing_source_tier",
+        "missing_source_tier",
     ]
 
 

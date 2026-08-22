@@ -34,6 +34,7 @@ normalizer 的输入为一个 JSON 对象：
 | `title` | 新闻标题，非空字符串 |
 | `url` | 可公开访问的 `http` 或 `https` URL |
 | `source` | 来源名称 |
+| `source_tier` | 必填来源分层；由平台通用工具返回候选后，编排方按 `source-policy.md` 在 normalizer 前赋值，允许值和映射见下表 |
 | `published_at` | 带时区的 ISO8601 发布时间 |
 | `fact_summary` | 与来源可核对的事实摘要 |
 | `theory_analysis` | 基于已取得课程依据的学习分析，不含投资建议；只能在 citations 完整后、normalizer 前生成 |
@@ -41,6 +42,18 @@ normalizer 的输入为一个 JSON 对象：
 | `theory_citations` | 非空数组，每项见下表 |
 
 每条 `theory_citations` 必须同时包含非空的 `course_name`、`knowledge_point`、`resource_title`、`excerpt`。其中 `course_name` 必须等于所选课程；缺失、跨课程或不可核验都视为无课程证据。
+
+### `source_tier` 枚举与映射
+
+`source_tier` 是候选的必填输入字段。编排方必须依据来源策略赋值，normalizer 随后强制校验并将它映射为输出 `source_level`：
+
+| `source_tier` 允许值 | 输出 `source_level` | 含义 |
+|---|---:|---|
+| `official`、`primary`、`regulator`、`government`、`exchange`、`company_announcement` | 1 | 官方/一级来源 |
+| `authoritative_media`、`media` | 2 | 权威财经媒体/二级来源 |
+| `other` | 3 | 三级公开线索；normalizer 强制拒绝并记录 `untrusted_source` |
+
+`source_level` 是输出，不是调用方输入。调用方不得以 `source_level` 替代 `source_tier`，也不得根据来源名称自行写入输出等级。
 
 `retrieved_at` 属于 normalizer 的输入或输出字段：它作为顶层必填输入，经 ISO8601 解析并规范化后回传到输出。调用方在公开网检索开始时写入该值；展示模板只读取 normalizer 输出中的 `retrieved_at`。
 
@@ -73,7 +86,7 @@ stdout 只输出一个 JSON 对象；成功对象包含 `status`、`status_origi
 
 `edition_id` 为 `FYYYYMMDD`。每个入选条目的 `item_id` 由排名后的位置确定，格式为 `FYYYYMMDD-01`、`FYYYYMMDD-02`、`FYYYYMMDD-03`；同一输入、时间窗、日期和上限必须得到相同 ID。不得自行改写 normalizer 的排序、去重或拒绝原因。
 
-normalizer 强制拒绝三级来源：`source_level` 为 3 的候选进入 `rejected`，原因为 `untrusted_source`，不得出现在 `items`。一级来源优先于二级来源，再由发布时间、标题和 URL 作确定性排序；三级来源不会成为可展示候选。
+normalizer 强制拒绝三级来源：它先强制校验 `source_tier`，映射后的 `source_level` 为 3 的候选进入 `rejected`，原因为 `untrusted_source`，不得出现在 `items`。一级来源优先于二级来源，再由发布时间、标题和 URL 作确定性排序；三级来源不会成为可展示候选。
 
 ## 与订阅工作流的边界
 

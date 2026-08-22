@@ -40,9 +40,9 @@ finance-news-course-commentary/
 ## 执行流程
 
 1. `[DETERMINE] 学生教学计划/学习资源`：读取已确认的单一课程、其教学计划和学习资源，提取可用于关联的课程名、知识点和原文摘录，并设置顶层布尔值 `course_evidence_available`。无论该值为真或假，都记录带时区的 `retrieved_at` 并构造 normalizer 输入；不得由调用方直接构造 `skipped_no_course_evidence`。
-2. `[CALL] 平台通用工具公开网检索`：在 `course_evidence_available: true` 时，按课程主题和用户指定时间窗召回公开新闻，记录标题、URL、来源、发布时间、事实摘要和 `retrieved_at`；不使用付费墙内容或登录态。若为 false，不生成点评候选，但仍将空候选数组交给 normalizer。
+2. `[CALL] 平台通用工具公开网检索`：在 `course_evidence_available: true` 时，按课程主题和用户指定时间窗召回公开新闻，记录标题、URL、来源、发布时间、事实摘要和 `retrieved_at`；不使用付费墙内容或登录态。平台通用工具返回候选后，编排方必须依据 `source-policy.md` 在 normalizer 前为每条候选赋 `source_tier`，不得传入 `source_level`。若为 false，不生成点评候选，但仍将空候选数组交给 normalizer。
 3. `[CALL] 知识检索助手课程证据`：为每条候选检索同一门课程的 `course_name`、`knowledge_point`、`resource_title` 和 `excerpt`，并组装为 `theory_citations`。只有取得完整且同课程的 citations 后，才能生成 `theory_analysis` 和 `discussion_question`；两者必须在 normalizer 前生成。找不到完整证据的候选仍交给 normalizer 判定，不得补写为通用理论点评。
-4. `[BUILD] normalize_candidates.py`：按数据契约对通过/未通过来源候选进行强制校验与排序，校验顶层 `retrieved_at`、`course_evidence_available`、时间窗、URL、重复新闻、课程证据与投资建议边界。normalizer 强制拒绝三级来源并标记为 `untrusted_source`；仅使用其 JSON 输出中的 `status`、`status_origin`、`retrieved_at`、`items` 与 `rejected`。
+4. `[BUILD] normalize_candidates.py`：按数据契约对带有 `source_tier` 的通过/未通过来源候选进行强制校验与排序，校验顶层 `retrieved_at`、`course_evidence_available`、时间窗、URL、重复新闻、课程证据与投资建议边界。normalizer 将 tier 映射为输出 `source_level`，并强制拒绝三级来源、标记为 `untrusted_source`；仅使用其 JSON 输出中的 `status`、`status_origin`、`retrieved_at`、`items` 与 `rejected`。
 5. `[BUILD] briefing`：将通过的条目按展示模板输出，保留来源 URL、发布时间、课程依据、理论分析和讨论问题；每期至多三条。
 
 ## 暂停确认规则
@@ -57,6 +57,7 @@ finance-news-course-commentary/
 - 一份简报只对应学生已选的一门课程；理论引用中的 `course_name` 必须与该课程一致。
 - 严格执行“学生教学计划/学习资源 → 平台通用工具公开网检索 → 知识检索助手课程证据 → normalize_candidates.py → briefing”的顺序。`theory_analysis` 和 `discussion_question` 只能在 citations 完整后、normalizer 前生成。
 - 公开来源按官方优先策略排序；其他公开页面只可帮助发现线索，不能在无独立可靠来源时支撑事实结论。normalizer 强制拒绝三级来源，返回 `untrusted_source`；调用方不得把脚本拒绝职责仅托付给提示词或人工判断。
+- 平台通用工具返回候选后、normalizer 前，编排方必须按 `source-policy.md` 赋必填 `source_tier`；`source_level` 是 normalizer 输出，不能作为调用方输入。
 - 所有路径都调用 normalizer：`course_evidence_available: false` 时返回 `skipped_no_course_evidence` / `precheck`；候选全部缺失或跨课程证据时返回同一状态 / `candidate_filter`；其他结果的状态来源为 `normalizer`。
 - 不创建 Cron、不调用 channel-message、不保存订阅；也不更新发送历史或 `last_success_at`。
 - 不输出投资建议、交易指令、目标价、收益承诺或投资组合建议。财经内容仅用于课程学习，不构成投资建议。

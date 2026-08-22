@@ -16,7 +16,9 @@
 
 来源等级相同时，优先发布时间更明确、原始材料更完整且与课程知识点更贴近的页面。重复 URL 或同一新闻的相似标题由 normalizer 按确定性规则保留一个候选。
 
-normalizer 强制拒绝三级来源：无论三级页面是否被误传入，都会进入 `rejected` 并标记 `untrusted_source`，不得成为最终 `source`、`url` 或 `items`。三级页面可保留在检索笔记中，但事实结论仍需由一级或二级允许来源支撑。
+平台通用工具返回候选后，编排方必须在 normalizer 前为每条候选赋 `source_tier`：一级来源使用 `official`、`primary`、`regulator`、`government`、`exchange` 或 `company_announcement`；二级来源使用 `authoritative_media` 或 `media`；三级线索使用 `other`。不得传入 `source_level`，因为它只由 normalizer 在输出中生成。
+
+normalizer 强制拒绝三级来源：它先强制校验 `source_tier`，无论 `other` 页面是否被误传入，都会进入 `rejected` 并标记 `untrusted_source`，不得成为最终 `source`、`url` 或 `items`。三级页面可保留在检索笔记中，但事实结论仍需由一级或二级允许来源支撑。
 
 ## 允许与禁止
 
