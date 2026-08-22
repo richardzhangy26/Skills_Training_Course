@@ -269,6 +269,18 @@ def test_cli_rejects_investment_advice_in_course_metadata_before_output(tmp_path
     assert json.loads(result.stdout)["error"] == "input.course contains investment advice language"
 
 
+def test_cli_rejects_investment_advice_in_course_metadata_key_before_output(tmp_path):
+    result = run_cli(
+        tmp_path,
+        [],
+        course={"course_name": "货币金融学", "建议买入该资产": "课程备注"},
+    )
+
+    assert result.returncode != 0
+    assert result.stderr == ""
+    assert json.loads(result.stdout)["error"] == "input.course contains investment advice language"
+
+
 def test_cli_uses_complete_content_tie_breaker_independent_of_input_order(tmp_path):
     alpha = candidate(
         source_tier="official",
@@ -333,6 +345,23 @@ def test_cli_treats_default_ports_as_the_same_canonical_url(tmp_path):
 
     assert len(output["items"]) == 1
     assert output["items"][0]["url"] == "https://www.pbc.gov.cn/news/default-port"
+    assert output["rejected"][0]["reason"] == "duplicate_url"
+
+
+def test_cli_preserves_ipv6_brackets_while_normalizing_default_port(tmp_path):
+    explicit_default_port = candidate(
+        title="IPv6 明确默认端口",
+        url="https://[2001:db8::1]:443/a",
+    )
+    implicit_default_port = candidate(
+        title="IPv6 省略默认端口",
+        url="https://[2001:db8::1]/a",
+    )
+
+    output = output_of(run_cli(tmp_path, [explicit_default_port, implicit_default_port]))
+
+    assert len(output["items"]) == 1
+    assert output["items"][0]["url"] == "https://[2001:db8::1]/a"
     assert output["rejected"][0]["reason"] == "duplicate_url"
 
 

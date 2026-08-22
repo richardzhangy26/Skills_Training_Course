@@ -94,13 +94,14 @@ def canonical_url(value):
     hostname = parsed.hostname.lower()
     if parsed.username or parsed.password:
         raise InputError("invalid_url")
-    netloc = hostname
+    display_hostname = f"[{hostname}]" if ":" in hostname else hostname
+    netloc = display_hostname
     port = parsed.port
     if port and not (
         (parsed.scheme.lower() == "http" and port == 80)
         or (parsed.scheme.lower() == "https" and port == 443)
     ):
-        netloc = f"{hostname}:{port}"
+        netloc = f"{display_hostname}:{port}"
     path = parsed.path or "/"
     if path != "/":
         path = path.rstrip("/")
@@ -220,7 +221,8 @@ def string_values(value):
     if isinstance(value, str):
         yield value
     elif isinstance(value, dict):
-        for nested_value in value.values():
+        for key, nested_value in value.items():
+            yield from string_values(key)
             yield from string_values(nested_value)
     elif isinstance(value, list):
         for nested_value in value:
