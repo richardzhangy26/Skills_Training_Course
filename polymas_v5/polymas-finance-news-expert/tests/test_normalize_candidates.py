@@ -483,13 +483,24 @@ def test_cli_rejects_tier_three_source_before_candidate_selection(tmp_path):
     assert output["rejected"][0]["reason"] == "untrusted_source"
 
 
-@pytest.mark.parametrize("tier", [None, "   "])
+@pytest.mark.parametrize("tier", ["", "   "])
 def test_cli_rejects_empty_source_tier(tmp_path, tier):
     result = run_cli(tmp_path, [candidate(source_tier=tier)])
 
     output = output_of(result)
     assert output["items"] == []
     assert output["rejected"][0]["reason"] == "missing_source_tier"
+
+
+@pytest.mark.parametrize("tier", [None, 1, True, [], {}])
+def test_cli_rejects_non_string_source_tier_without_crashing(tmp_path, tier):
+    result = run_cli(tmp_path, [candidate(source_tier=tier)])
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    output = json.loads(result.stdout)
+    assert output["items"] == []
+    assert output["rejected"][0]["reason"] == "invalid_source_tier"
 
 
 def test_cli_rejects_missing_source_tier_even_when_source_level_is_injected(tmp_path):

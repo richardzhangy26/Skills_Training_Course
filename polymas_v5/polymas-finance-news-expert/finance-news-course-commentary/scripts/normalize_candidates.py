@@ -245,9 +245,15 @@ def validate_candidate(candidate, since, until, selected_course):
     if not isinstance(candidate, dict):
         return None, rejected_candidate(candidate, "invalid_candidate")
     for field in REQUIRED_CANDIDATE_FIELDS:
-        if field not in candidate or (
-            field != "theory_citations"
-            and (not isinstance(candidate[field], str) or not candidate[field].strip())
+        if field not in candidate:
+            return None, rejected_candidate(candidate, f"missing_{field}")
+        if field == "source_tier":
+            if not isinstance(candidate[field], str):
+                return None, rejected_candidate(candidate, "invalid_source_tier")
+            if not candidate[field].strip():
+                return None, rejected_candidate(candidate, "missing_source_tier")
+        elif field != "theory_citations" and (
+            not isinstance(candidate[field], str) or not candidate[field].strip()
         ):
             return None, rejected_candidate(candidate, f"missing_{field}")
     try:
