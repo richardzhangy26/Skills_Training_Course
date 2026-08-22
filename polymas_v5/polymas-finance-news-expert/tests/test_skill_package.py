@@ -1,11 +1,69 @@
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 
 SKILL_ROOT = Path(__file__).parents[1] / "finance-news-course-commentary"
+NORMALIZER = SKILL_ROOT / "scripts" / "normalize_candidates.py"
 
 
 def read(relative_path):
     return (SKILL_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def candidate(**overrides):
+    value = {
+        "title": "央行发布流动性管理新工具",
+        "url": "https://www.pbc.gov.cn/news/liquidity",
+        "source": "中国人民银行",
+        "source_tier": "official",
+        "published_at": "2026-08-22T08:00:00+08:00",
+        "fact_summary": "中国人民银行发布流动性管理工具说明。",
+        "theory_analysis": "课程中的货币政策工具可用于解释其传导机制。",
+        "discussion_question": "该工具可能如何影响市场流动性？",
+        "theory_citations": [
+            {
+                "course_name": "货币金融学",
+                "knowledge_point": "货币政策工具",
+                "resource_title": "第六章 货币政策",
+                "excerpt": "公开市场操作通过调节基础货币影响流动性。",
+            }
+        ],
+    }
+    value.update(overrides)
+    return value
+
+
+def run_normalizer(tmp_path, candidates, *, course_evidence_available=True):
+    payload = {
+        "course": {"course_id": "course-1", "course_name": "货币金融学"},
+        "retrieved_at": "2026-08-22T01:02:03Z",
+        "course_evidence_available": course_evidence_available,
+        "candidates": candidates,
+    }
+    input_path = tmp_path / "candidates.json"
+    input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(NORMALIZER),
+            "--input",
+            str(input_path),
+            "--since",
+            "2026-08-22T00:00:00+08:00",
+            "--until",
+            "2026-08-22T23:59:59+08:00",
+            "--edition-date",
+            "2026-08-22",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert result.stderr == ""
+    return json.loads(result.stdout)
 
 
 def test_skill_package_declares_the_required_polymas_workflow_and_boundaries():
@@ -36,9 +94,15 @@ def test_skill_package_declares_the_required_polymas_workflow_and_boundaries():
     assert "不创建 Cron" in skill
     assert "不调用 channel-message" in skill
     assert "不保存订阅" in skill
-    assert "前置课程证据查询为空" in skill
-    assert "直接输出 `skipped_no_course_evidence`" in skill
-    assert "不得把三级来源传入 normalizer 作为可展示候选" in skill
+    assert "所有路径都调用 normalizer" in skill
+    assert "强制拒绝三级来源" in skill
+    assert "untrusted_source" in skill
+    assert "不进入公开网检索或 normalizer" not in skill
+
+    citations = workflow.index("theory_citations")
+    generated = workflow.index("theory_analysis")
+    normalized = workflow.index("normalize_candidates.py")
+    assert citations < generated < normalized
 
 
 def test_data_contract_enforces_course_evidence_stable_ids_and_session_independent_job_key():
@@ -59,12 +123,18 @@ def test_data_contract_enforces_course_evidence_stable_ids_and_session_independe
         "excerpt",
         "skipped_no_course_evidence",
         "finance-news:{schoolId}:{userId}:{courseId}",
+        "course_evidence_available",
+        "status_origin",
+        "candidate_filter",
+        "precheck",
     ):
         assert token in contract
     assert "不得包含会话 ID" in contract
     assert "无课程证据" in contract
     assert "retrieved_at" in contract
-    assert "normalizer 不负责拒绝三级来源" in contract
+    assert "normalizer 的输入或输出字段" in contract
+    assert "normalizer 强制拒绝三级来源" in contract
+    assert "调用方直接使用 `skipped_no_course_evidence`" not in contract
 
 
 def test_source_policy_prioritizes_official_sources_and_treats_other_pages_as_leads():
@@ -76,7 +146,26 @@ def test_source_policy_prioritizes_official_sources_and_treats_other_pages_as_le
     assert first < second < third
     assert "不得绕过" in policy
     assert "付费墙" in policy
-    assert "不得把三级来源传入 normalizer 作为可展示候选" in policy
+    assert "normalizer 强制拒绝" in policy
+    assert "untrusted_source" in policy
+    for organization in (
+        "国务院",
+        "人民银行",
+        "财政部",
+        "国家统计局",
+        "金融监管总局",
+        "证监会",
+        "上交所",
+        "深交所",
+        "北交所",
+        "公司公告",
+        "新华社",
+        "央视财经",
+        "中国证券报",
+        "上海证券报",
+        "证券时报",
+    ):
+        assert organization in policy
 
 
 def test_briefing_template_separates_facts_course_evidence_analysis_and_discussion():
@@ -89,5 +178,89 @@ def test_briefing_template_separates_facts_course_evidence_analysis_and_discussi
         "讨论问题",
         "财经内容仅用于课程学习，不构成投资建议",
         "skipped_no_course_evidence",
+        "status_origin",
+        "retrieved_at",
     ):
         assert token in briefing
+
+
+def test_package_exercises_normalizer_tier_three_rejection(tmp_path):
+    output = run_normalizer(
+        tmp_path,
+        [
+            candidate(
+                source="未署名聚合页",
+                source_tier="other",
+                url="https://example.com/untrusted",
+            )
+        ],
+    )
+
+    assert output["status"] == "no_eligible_candidates"
+    assert output["status_origin"] == "normalizer"
+    assert output["items"] == []
+    assert output["rejected"] == [
+        {
+            "title": "央行发布流动性管理新工具",
+            "url": "https://example.com/untrusted",
+            "reason": "untrusted_source",
+        }
+    ]
+
+
+def test_package_exercises_normalizer_cross_course_evidence_rejection(tmp_path):
+    output = run_normalizer(
+        tmp_path,
+        [
+            candidate(
+                theory_citations=[
+                    {
+                        "course_name": "证券投资学",
+                        "knowledge_point": "投资组合",
+                        "resource_title": "第三章",
+                        "excerpt": "分散化可以降低非系统性风险。",
+                    }
+                ]
+            )
+        ],
+    )
+
+    assert output["status"] == "skipped_no_course_evidence"
+    assert output["status_origin"] == "candidate_filter"
+    assert output["items"] == []
+    assert output["rejected"][0]["reason"] == "course_mismatch"
+
+
+def test_package_exercises_normalizer_all_missing_evidence_status(tmp_path):
+    output = run_normalizer(
+        tmp_path,
+        [
+            candidate(
+                title="缺少课程证据的候选",
+                url="https://www.pbc.gov.cn/news/no-evidence",
+                theory_citations=[],
+            )
+        ],
+    )
+
+    assert output["status"] == "skipped_no_course_evidence"
+    assert output["status_origin"] == "candidate_filter"
+    assert output["items"] == []
+    assert output["rejected"][0]["reason"] == "missing_course_evidence"
+
+
+def test_package_exercises_normalizer_global_evidence_precheck_and_retrieval_echo(tmp_path):
+    output = run_normalizer(
+        tmp_path,
+        [candidate()],
+        course_evidence_available=False,
+    )
+
+    assert output["status"] == "skipped_no_course_evidence"
+    assert output["status_origin"] == "precheck"
+    assert output["course_evidence_available"] is False
+    assert output["retrieved_at"] == "2026-08-22T01:02:03+00:00"
+    assert output["items"] == []
+    assert output["rejected"] == [
+        {"title": "", "url": "", "reason": "course_evidence_unavailable"}
+    ]

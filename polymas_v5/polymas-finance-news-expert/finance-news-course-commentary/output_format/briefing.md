@@ -1,11 +1,12 @@
 # 财经新闻课程学习简报
 
-仅在 normalizer 返回 `status: ready` 时展示以下模板。`items` 为空时不得填充占位新闻。
+所有展示均以 normalizer 输出的 `status`、`status_origin` 与 `retrieved_at` 为唯一依据。仅在 `status: ready` 时展示以下完整模板；`items` 为空时不得填充占位新闻。
 
 ```markdown
 ## {{edition_id}}｜{{course.course_name}} 财经新闻课程学习简报
 
 检索时间：{{retrieved_at}}
+状态来源：{{status_origin}}
 说明：财经内容仅用于课程学习，不构成投资建议。
 
 ### {{item.item_id}}｜{{item.title}}
@@ -38,7 +39,19 @@
 ```markdown
 ## {{edition_id}}｜本期暂不生成课程点评
 
+检索时间：{{retrieved_at}}
+状态来源：{{status_origin}}
 未取得所选课程的充分课程证据，已跳过本期新闻的课程点评（skipped_no_course_evidence）。请在课程教学计划或学习资源可检索后再试。
 ```
 
-若 `status: no_eligible_candidates`，如实说明该时间窗没有同时满足公开来源、时间窗和课程证据要求的候选。所有状态都不得出现买卖建议、目标价、收益承诺或交易操作。
+若 `status: no_eligible_candidates`，使用以下状态输出：
+
+```markdown
+## {{edition_id}}｜本期没有合格候选
+
+检索时间：{{retrieved_at}}
+状态来源：{{status_origin}}
+该时间窗没有同时满足公开来源、时间窗和课程证据要求的候选。
+```
+
+所有状态都不得出现买卖建议、目标价、收益承诺或交易操作。

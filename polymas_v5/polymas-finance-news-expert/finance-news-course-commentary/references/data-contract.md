@@ -12,9 +12,20 @@ normalizer 的输入为一个 JSON 对象：
     "course_id": "课程标识",
     "course_name": "课程名称"
   },
+  "retrieved_at": "2026-08-22T01:02:03+08:00",
+  "course_evidence_available": true,
   "candidates": []
 }
 ```
+
+顶层字段均为 normalizer 输入：
+
+| 字段 | 约束 |
+|---|---|
+| `course` | 含可识别课程名称的对象 |
+| `retrieved_at` | 必填，带时区的 ISO8601 检索时间；必须在公开网检索开始时记录，不能用新闻发布时间替代 |
+| `course_evidence_available` | 必填布尔值；仅当学生教学计划/学习资源能提供所选课程的可核验知识点和摘录时为 `true` |
+| `candidates` | 数组；即使 `course_evidence_available` 为 `false` 也必须提供（通常为空数组） |
 
 `course` 必须含可识别的课程名称。每个 `candidates` 元素必须包含：
 
@@ -25,13 +36,13 @@ normalizer 的输入为一个 JSON 对象：
 | `source` | 来源名称 |
 | `published_at` | 带时区的 ISO8601 发布时间 |
 | `fact_summary` | 与来源可核对的事实摘要 |
-| `theory_analysis` | 基于课程依据的学习分析，不含投资建议 |
-| `discussion_question` | 供学生讨论的开放问题，不引导交易 |
+| `theory_analysis` | 基于已取得课程依据的学习分析，不含投资建议；只能在 citations 完整后、normalizer 前生成 |
+| `discussion_question` | 供学生讨论的开放问题，不引导交易；只能在 citations 完整后、normalizer 前生成 |
 | `theory_citations` | 非空数组，每项见下表 |
 
 每条 `theory_citations` 必须同时包含非空的 `course_name`、`knowledge_point`、`resource_title`、`excerpt`。其中 `course_name` 必须等于所选课程；缺失、跨课程或不可核验都视为无课程证据。
 
-`retrieved_at` 是简报运行上下文中必须保留的、带时区的 ISO8601 检索时间。它不属于 normalizer 的输入或输出字段，应由调用方在调用公开网检索时记录，并在展示模板中传入；不得以新闻发布时间替代。
+`retrieved_at` 属于 normalizer 的输入或输出字段：它作为顶层必填输入，经 ISO8601 解析并规范化后回传到输出。调用方在公开网检索开始时写入该值；展示模板只读取 normalizer 输出中的 `retrieved_at`。
 
 ## normalizer 调用与输出
 
@@ -44,19 +55,25 @@ python3 scripts/normalize_candidates.py \
   --max-items 3
 ```
 
-stdout 只输出一个 JSON 对象；成功对象包含 `status`、`edition_id`、`course`、`items`、`rejected`。`items` 是可以展示的候选，每项保留输入字段、`source_level` 与 `item_id`；`rejected` 记录未采用候选及原因。
+stdout 只输出一个 JSON 对象；成功对象包含 `status`、`status_origin`、`edition_id`、`course`、`retrieved_at`、`course_evidence_available`、`items`、`rejected`。`items` 是可以展示的候选，每项保留输入字段、`source_level` 与 `item_id`；`rejected` 记录未采用候选及原因。
 
 | `status` | 含义与后续动作 |
 |---|---|
-| `ready` | 使用 `items` 生成简报 |
-| `no_eligible_candidates` | 如实报告本期没有合格公开候选 |
-| `skipped_no_course_evidence` | 不生成通用点评，说明未取得所选课程的充分证据 |
+| `ready` | `status_origin: normalizer`；使用 `items` 生成简报 |
+| `no_eligible_candidates` | `status_origin: normalizer`；如实报告本期没有合格公开候选 |
+| `skipped_no_course_evidence` | 不生成通用点评；见下列唯一状态来源 |
+
+| 条件 | `status` | `status_origin` |
+|---|---|---|
+| `course_evidence_available: false` | `skipped_no_course_evidence` | `precheck` |
+| 所有候选均因 `missing_course_evidence` 或 `course_mismatch` 被拒绝 | `skipped_no_course_evidence` | `candidate_filter` |
+| 其他路径 | 由 normalizer 正常判定 | `normalizer` |
+
+所有路径都必须调用 normalizer。调用方不得直接构造状态或 `status_origin`；前置证据不可用时，仍传入 `course_evidence_available: false` 及 `candidates` 数组，由 normalizer 返回 `precheck`。
 
 `edition_id` 为 `FYYYYMMDD`。每个入选条目的 `item_id` 由排名后的位置确定，格式为 `FYYYYMMDD-01`、`FYYYYMMDD-02`、`FYYYYMMDD-03`；同一输入、时间窗、日期和上限必须得到相同 ID。不得自行改写 normalizer 的排序、去重或拒绝原因。
 
-normalizer 不负责拒绝三级来源：调用方必须先按来源策略过滤候选，且不得把三级来源传入 normalizer 作为可展示候选。normalizer 返回的 `source_level` 仅是通过前置来源门禁后，供确定性优先排序使用的字段。
-
-若前置课程证据查询为空，调用方直接使用 `skipped_no_course_evidence`，不将空 `candidates` 交给 normalizer。空 `candidates` 的 `no_eligible_candidates` 只表示已具备前置课程证据，但在时间窗和来源门禁后没有可处理新闻。
+normalizer 强制拒绝三级来源：`source_level` 为 3 的候选进入 `rejected`，原因为 `untrusted_source`，不得出现在 `items`。一级来源优先于二级来源，再由发布时间、标题和 URL 作确定性排序；三级来源不会成为可展示候选。
 
 ## 与订阅工作流的边界
 
