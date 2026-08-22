@@ -16,6 +16,68 @@ def read(path):
     return path.read_text(encoding="utf-8")
 
 
+def section(text, heading, next_heading):
+    return text[text.index(heading) : text.index(next_heading, text.index(heading))]
+
+
+def validate_workflow_text(config):
+    """Validate the documented stale-trigger and no-double-send safety seam."""
+    cron = section(config, "### 3. Cron 两阶段切换", "### 4. 定时生成与安全投递")
+    delivery = section(config, "### 4. 定时生成与安全投递", "### 5. 结果交付")
+    cron_steps = (
+        "暂停已验证旧任务",
+        "创建候选任务",
+        "初始暂停",
+        "校验候选任务",
+        "写订阅新ID/version",
+        "启用候选任务",
+        "删除旧任务",
+    )
+    trigger_fields = (
+        "trigger_cron_job_id",
+        "trigger_job_key",
+        "trigger_plan_version",
+        "trigger_agent_id",
+    )
+    required_delivery = (
+        "发送前重读 subscription",
+        "当前 `cron_job_id`",
+        "当前 `job_key`",
+        "当前 `plan_version`",
+        "当前专家 `agent-id`",
+        "skipped_stale_trigger",
+        "不调用 `channel-message`",
+        "不更新成功历史",
+    )
+    return (
+        all(token in cron for token in cron_steps)
+        and [cron.index(step) for step in cron_steps]
+        == sorted(cron.index(step) for step in cron_steps)
+        and "候选启用失败" in cron
+        and "删除候选" in cron
+        and "恢复旧订阅/旧任务" in cron
+        and "候选删除失败" in cron
+        and "新旧保持暂停" in cron
+        and "禁止双发" in cron
+        and all(token in delivery for token in trigger_fields + required_delivery)
+        and delivery.index("发送前重读 subscription")
+        < delivery.index("channel-message 0.0.1")
+        and "briefing_history.jsonl" in delivery
+        and all(
+            field in delivery
+            for field in (
+                "edition_id",
+                "item_id",
+                "source_url",
+                "theory_citations",
+                "course_id",
+                "target_session_id",
+                "message_receipt",
+            )
+        )
+    )
+
+
 def test_expert_config_declares_identity_complete_agent_and_exact_skill_mounts():
     config = read(CONFIG)
 
@@ -71,6 +133,9 @@ def test_expert_config_requires_course_plan_and_consent_before_subscription():
     assert "学生自己填写计划" in config
     assert "确认" in config
     assert "不预先绑定课程" in config
+    for plan_field in ("频率", "每日", "工作日", "每周", "自定义", "星期", "时间", "IANA时区", "主题"):
+        assert plan_field in config
+    assert "真正等待确认" in config
 
 
 def test_expert_config_covers_subscription_delivery_interaction_and_lifecycle_routes():
@@ -93,24 +158,38 @@ def test_expert_config_covers_subscription_delivery_interaction_and_lifecycle_ro
 def test_expert_config_enforces_cron_swap_and_delivery_safety():
     config = read(CONFIG)
 
-    for token in (
-        "--agent-id",
-        "job_key",
-        "两阶段切换",
-        "新任务",
-        "旧任务",
-        "回滚",
-        "订阅状态",
-        "plan_version",
-        "个人会话",
-        "唯一",
-        "停止",
-        "不得降级到班级群",
-        "channel-message",
-        "发送成功",
-        "last_success_at",
-    ):
-        assert token in config
+    assert validate_workflow_text(config)
+
+
+def test_workflow_validator_rejects_missing_trigger_id_and_send_before_second_read():
+    config = read(CONFIG)
+    delivery = section(config, "### 4. 定时生成与安全投递", "### 5. 结果交付")
+    missing_delivery = delivery.replace("trigger_cron_job_id", "")
+    missing_trigger = config.replace(delivery, missing_delivery, 1)
+    assert not validate_workflow_text(missing_trigger)
+
+    reordered_delivery = (
+        delivery.replace("发送前重读 subscription", "TEMP", 1)
+        .replace(
+            "channel-message 0.0.1",
+            "发送前重读 subscription\n使用 channel-message 0.0.1",
+            1,
+        )
+        .replace("TEMP", "使用 channel-message 0.0.1", 1)
+    )
+    reordered = config.replace(delivery, reordered_delivery, 1)
+    assert not validate_workflow_text(reordered)
+
+
+def test_expert_config_records_delivered_briefing_history_and_limits_expansion_scope():
+    config = read(CONFIG)
+    delivery = section(config, "### 4. 定时生成与安全投递", "### 5. 结果交付")
+    route = section(config, "### 1. 任务接收与路由", "### 2. 订阅记录与版本")
+
+    assert "成功投递后" in delivery
+    assert "briefing_history.jsonl" in delivery
+    assert "最近已投递记录" in route
+    assert "同一学生/课程/会话" in route
 
 
 def test_deployment_document_has_safe_real_platform_checklist_and_upload_instructions():
