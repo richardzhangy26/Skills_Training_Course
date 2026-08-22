@@ -22,12 +22,12 @@ normalizer 的输入为一个 JSON 对象：
 
 | 字段 | 约束 |
 |---|---|
-| `course` | 含可识别课程名称的对象 |
+| `course` | 必须同时含非空 `course_id` 和 `course_name`；输出只输出 `course_id` 和 `course_name`，其他课程元数据不回显 |
 | `retrieved_at` | 必填，带时区的 ISO8601 检索时间；必须在公开网检索开始时记录，不能用新闻发布时间替代 |
 | `course_evidence_available` | 必填布尔值；仅当学生教学计划/学习资源能提供所选课程的可核验知识点和摘录时为 `true` |
 | `candidates` | 数组；即使 `course_evidence_available` 为 `false` 也必须提供（通常为空数组） |
 
-`course` 必须含可识别的课程名称。每个 `candidates` 元素必须包含：
+`course` 必须精确提供 `course_id` 和 `course_name`。每个 `candidates` 元素必须包含：
 
 | 字段 | 约束 |
 |---|---|
@@ -41,7 +41,13 @@ normalizer 的输入为一个 JSON 对象：
 | `discussion_question` | 供学生讨论的开放问题，不引导交易；只能在 citations 完整后、normalizer 前生成 |
 | `theory_citations` | 非空数组，每项见下表 |
 
-每条 `theory_citations` 必须同时包含非空的 `course_name`、`knowledge_point`、`resource_title`、`excerpt`。其中 `course_name` 必须等于所选课程；缺失、跨课程或不可核验都视为无课程证据。
+每条 `theory_citations` 必须同时包含非空的 `course_id`、`course_name`、`knowledge_point`、`resource_title`、`excerpt`。数组中每一条 citation 的 `course_id` 与 `course_name` 都必须等于所选课程；任一条混入其他课程即整个候选 `course_mismatch`，按无课程证据处理。
+
+## 资源上限
+
+- 输入文件最大 1 MiB，`candidates` 最多 100 条，每条 `theory_citations` 最多 10 条。
+- `title`/`source` 最长 300 字符；`fact_summary`/`theory_analysis`/`discussion_question` 各最长 4000 字符；`excerpt` 最长 2000 字符。
+- 超限、过深 JSON、解码、`RecursionError` 或 `MemoryError` 均返回单一 stdout JSON 错误且非零退出；字符串扫描使用有界迭代遍历。
 
 ### `source_tier` 枚举与映射
 
@@ -68,7 +74,7 @@ python3 scripts/normalize_candidates.py \
   --max-items 3
 ```
 
-stdout 只输出一个 JSON 对象；成功对象包含 `status`、`status_origin`、`edition_id`、`course`、`retrieved_at`、`course_evidence_available`、`items`、`rejected`。`items` 是可以展示的候选，每项保留输入字段、`source_level` 与 `item_id`；`rejected` 记录未采用候选及原因。
+stdout 只输出一个 JSON 对象；成功对象包含 `status`、`status_origin`、`edition_id`、`course`、`retrieved_at`、`course_evidence_available`、`items`、`rejected`。`items` 是可以展示的候选，每项保留允许字段、`source_level` 与 `item_id`。`rejected` 每项严格为 `{candidate_index, reason}`，不回显标题、URL 或正文。
 
 | `status` | 含义与后续动作 |
 |---|---|

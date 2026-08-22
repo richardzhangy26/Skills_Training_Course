@@ -1,4 +1,6 @@
 import hashlib
+import json
+import re
 import subprocess
 import sys
 import zipfile
@@ -129,6 +131,91 @@ def validate_workflow_text(config):
     )
 
 
+def validate_course_change_and_compensation(config):
+    cron = section(config, "### 3. Cron 两阶段切换", "### 4. 定时生成与安全投递")
+    course_change_steps = (
+        "课程变更禁止进入同 `job_key` 计划切换",
+        "创建新课程订阅候选",
+        "校验新课程订阅候选",
+        "启用新课程订阅",
+        "停用旧课程 Cron",
+        "旧订阅 `status=unsubscribed`",
+        "superseded_by_job_key",
+    )
+    second_order_tokens = (
+        "旧任务暂停失败",
+        "原订阅、旧任务和旧版本保持不变",
+        "恢复旧任务失败",
+        "恢复旧订阅失败",
+        "新旧任务均保持暂停",
+        "status=paused",
+        "recovery_required=true",
+        "orphaned_cron_job_ids",
+    )
+    course_failure_tokens = (
+        "新课程候选失败",
+        "删除或暂停新候选",
+        "旧订阅继续 `active`",
+    )
+    return (
+        all(token in cron for token in course_change_steps)
+        and [cron.index(token) for token in course_change_steps]
+        == sorted(cron.index(token) for token in course_change_steps)
+        and all(token in cron for token in second_order_tokens)
+        and cron.index("旧任务暂停失败")
+        < cron.index("创建候选任务")
+        and all(token in cron for token in course_failure_tokens)
+    )
+
+
+def validate_delivery_ledger_and_history(config):
+    route = section(config, "### 1. 任务接收与路由", "### 2. 订阅记录与版本")
+    delivery = section(config, "### 4. 定时生成与安全投递", "### 5. 结果交付")
+    ledger_steps = (
+        "读取 delivery ledger",
+        "写入 `pending`",
+        "正式调用 `channel-message`",
+        "原子更新为 `sent`",
+    )
+    ledger_states = (
+        "delivery_key={job_key}:{plan_version}:{edition_id}",
+        "`sent` 返回 `skipped_duplicate`",
+        "`pending` 或 `uncertain` 返回 `delivery_uncertain`",
+        "metadata.delivery_key",
+        "发送成功但账本写入失败",
+        "不自动重发",
+    )
+    history_tokens = (
+        "finance_news/{schoolId}/{userId}/briefing_history.jsonl",
+        "https://www.pbc.gov.cn/example",
+        '"job_key"',
+        '"course": {"course_id"',
+        '"target_session_id"',
+        '"message_receipt"',
+        '"items": [',
+        '"item_id"',
+        '"title"',
+        '"fact_summary"',
+        '"theory_analysis"',
+        '"discussion_question"',
+        '"source_url"',
+        '"theory_citations"',
+    )
+    followup_tokens = (
+        "运行时 `schoolId/userId` 路径",
+        "当前 `job_key`",
+        "完整 `course_id/course_name`",
+        "当前 `target_session_id`",
+        "读取 `item_id` 之前",
+    )
+    return (
+        all(token in delivery for token in ledger_steps + ledger_states + history_tokens)
+        and [delivery.index(token) for token in ledger_steps]
+        == sorted(delivery.index(token) for token in ledger_steps)
+        and all(token in route for token in followup_tokens)
+    )
+
+
 def test_expert_config_declares_identity_complete_agent_and_exact_skill_mounts():
     config = read(CONFIG)
 
@@ -187,6 +274,9 @@ def test_expert_config_requires_course_plan_and_consent_before_subscription():
     for plan_field in ("频率", "每日", "工作日", "每周", "自定义", "星期", "时间", "IANA时区", "主题"):
         assert plan_field in config
     assert "真正等待确认" in config
+    assert "综合财经" in config
+    assert "仅作推荐项" in config
+    assert "学生确认后" in config
 
 
 def test_expert_config_covers_subscription_delivery_interaction_and_lifecycle_routes():
@@ -243,6 +333,46 @@ def test_workflow_validator_rejects_each_required_cron_failure_branch():
         assert not validate_workflow_text(config.replace(failure_sentence, "", 1))
 
 
+def test_expert_config_separates_course_migration_and_covers_second_order_compensation():
+    config = read(CONFIG)
+
+    assert validate_course_change_and_compensation(config)
+
+
+def test_course_change_and_compensation_validator_rejects_missing_critical_tokens():
+    config = read(CONFIG)
+
+    for token in (
+        "课程变更禁止进入同 `job_key` 计划切换",
+        "旧任务暂停失败",
+        "恢复旧任务失败",
+        "恢复旧订阅失败",
+        "recovery_required=true",
+        "superseded_by_job_key",
+    ):
+        assert not validate_course_change_and_compensation(config.replace(token, ""))
+
+
+def test_expert_config_defines_delivery_idempotency_and_complete_edition_history():
+    config = read(CONFIG)
+
+    assert validate_delivery_ledger_and_history(config)
+
+
+def test_delivery_and_history_validator_rejects_missing_state_or_scope_check():
+    config = read(CONFIG)
+
+    for token in (
+        "delivery_key={job_key}:{plan_version}:{edition_id}",
+        "写入 `pending`",
+        "发送成功但账本写入失败",
+        "finance_news/{schoolId}/{userId}/briefing_history.jsonl",
+        "运行时 `schoolId/userId` 路径",
+        "完整 `course_id/course_name`",
+    ):
+        assert not validate_delivery_ledger_and_history(config.replace(token, ""))
+
+
 def test_expert_config_records_delivered_briefing_history_and_limits_expansion_scope():
     config = read(CONFIG)
     delivery = section(config, "### 4. 定时生成与安全投递", "### 5. 结果交付")
@@ -272,6 +402,13 @@ def test_deployment_document_has_safe_real_platform_checklist_and_upload_instruc
         "候选创建失败",
         "候选创建成功但校验失败",
         "候选校验成功但写订阅新ID/version失败",
+        "课程变更",
+        "superseded_by_job_key",
+        "recovery_required=true",
+        "delivery_key",
+        "skipped_duplicate",
+        "delivery_uncertain",
+        "briefing_history.jsonl",
     ):
         assert token in deployment
 
@@ -306,3 +443,29 @@ def test_packager_produces_deterministic_upload_root_without_sensitive_or_test_f
         assert all("test" not in Path(name).parts for name in names)
         assert all("__pycache__" not in Path(name).parts for name in names)
         assert all("token" not in name.lower() and "cookie" not in name.lower() for name in names)
+        credential_patterns = (
+            re.compile(
+                r"(?i)\b(?:authorization|cookie|token|api[_-]?key)\b\s*[:=]\s*[\"']?[A-Za-z0-9._~+/=-]{8,}"
+            ),
+            re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
+        )
+        for name in names:
+            body = archive.read(name)
+            relative = Path(name).relative_to(SKILL_NAME)
+            source = ROOT / SKILL_NAME / relative
+            assert hashlib.sha256(body).digest() == hashlib.sha256(source.read_bytes()).digest()
+            text = body.decode("utf-8")
+            assert all(pattern.search(text) is None for pattern in credential_patterns)
+
+
+def test_packager_unknown_arguments_return_stdout_json_and_nonzero():
+    result = subprocess.run(
+        [sys.executable, str(PACKAGER), "--unexpected"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert result.stderr == ""
+    assert json.loads(result.stdout) == {"error": "invalid command-line arguments"}

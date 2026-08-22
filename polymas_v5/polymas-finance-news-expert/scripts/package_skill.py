@@ -23,6 +23,12 @@ INCLUDED_FILES = (
 FIXED_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
 
+class JsonArgumentParser(argparse.ArgumentParser):
+    def error(self, message):  # pragma: no cover - exercised through the CLI.
+        del message
+        raise ValueError("invalid command-line arguments")
+
+
 def archive_members() -> list[tuple[Path, str]]:
     """Return the sole allowlisted files, in stable archive-name order."""
     members = []
@@ -53,20 +59,20 @@ def write_archive(output: Path) -> list[str]:
     return [archive_name for _, archive_name in members]
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="生成可上传的财经新闻课程点评 Skill ZIP")
+def parse_args(argv=None) -> argparse.Namespace:
+    parser = JsonArgumentParser(description="生成可上传的财经新闻课程点评 Skill ZIP")
     parser.add_argument(
         "--output",
         type=Path,
         default=ROOT / f"{SKILL_NAME}.zip",
         help="ZIP 输出路径",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> int:
-    args = parse_args()
+def main(argv=None) -> int:
     try:
+        args = parse_args(argv)
         members = write_archive(args.output)
     except (OSError, ValueError, zipfile.BadZipFile) as error:
         print(json.dumps({"error": str(error)}, ensure_ascii=False))

@@ -24,6 +24,7 @@ def candidate(**overrides):
         "discussion_question": "该工具可能如何影响市场流动性？",
         "theory_citations": [
             {
+                "course_id": "course-1",
                 "course_name": "货币金融学",
                 "knowledge_point": "货币政策工具",
                 "resource_title": "第六章 货币政策",
@@ -96,6 +97,9 @@ def test_skill_package_declares_the_required_polymas_workflow_and_boundaries():
     assert "不保存订阅" in skill
     assert "所有路径都调用 normalizer" in skill
     assert "强制拒绝三级来源" in skill
+    assert "内部 hostname allowlist" in skill
+    assert "调用方不能提升来源等级" in skill
+    assert "course_id" in skill
     assert "untrusted_source" in skill
     assert "不进入公开网检索或 normalizer" not in skill
 
@@ -120,6 +124,7 @@ def test_data_contract_enforces_course_evidence_stable_ids_and_session_independe
         "FYYYYMMDD-01",
         "theory_citations",
         "course_name",
+        "course_id",
         "knowledge_point",
         "resource_title",
         "excerpt",
@@ -130,6 +135,13 @@ def test_data_contract_enforces_course_evidence_stable_ids_and_session_independe
         "candidate_filter",
         "precheck",
         "source_tier",
+        "candidate_index",
+        "1 MiB",
+        "100",
+        "10",
+        "300",
+        "4000",
+        "2000",
     ):
         assert token in contract
     assert "不得包含会话 ID" in contract
@@ -139,6 +151,8 @@ def test_data_contract_enforces_course_evidence_stable_ids_and_session_independe
     assert "normalizer 强制拒绝三级来源" in contract
     assert "调用方直接使用 `skipped_no_course_evidence`" not in contract
     assert "`source_level` 是输出" in contract
+    assert "只输出 `course_id` 和 `course_name`" in contract
+    assert "不回显标题、URL 或正文" in contract
     for tier in (
         "official",
         "primary",
@@ -165,6 +179,10 @@ def test_source_policy_prioritizes_official_sources_and_treats_other_pages_as_le
     assert "normalizer 强制拒绝" in policy
     assert "untrusted_source" in policy
     assert "source_tier" in policy
+    assert "内部 hostname allowlist" in policy
+    assert "私网" in policy
+    assert "userinfo" in policy
+    assert "source_tier_mismatch" in policy
     for organization in (
         "国务院",
         "人民银行",
@@ -218,8 +236,7 @@ def test_package_exercises_normalizer_tier_three_rejection(tmp_path):
     assert output["items"] == []
     assert output["rejected"] == [
         {
-            "title": "央行发布流动性管理新工具",
-            "url": "https://example.com/untrusted",
+            "candidate_index": 0,
             "reason": "untrusted_source",
         }
     ]
@@ -243,6 +260,7 @@ def test_package_exercises_normalizer_ready_official_candidate_contract(tmp_path
             "discussion_question": "该工具可能如何影响市场流动性？",
             "theory_citations": [
                 {
+                    "course_id": "course-1",
                     "course_name": "货币金融学",
                     "knowledge_point": "货币政策工具",
                     "resource_title": "第六章 货币政策",
@@ -282,6 +300,7 @@ def test_package_exercises_normalizer_cross_course_evidence_rejection(tmp_path):
             candidate(
                 theory_citations=[
                     {
+                        "course_id": "course-2",
                         "course_name": "证券投资学",
                         "knowledge_point": "投资组合",
                         "resource_title": "第三章",
@@ -329,5 +348,5 @@ def test_package_exercises_normalizer_global_evidence_precheck_and_retrieval_ech
     assert output["retrieved_at"] == "2026-08-22T01:02:03+00:00"
     assert output["items"] == []
     assert output["rejected"] == [
-        {"title": "", "url": "", "reason": "course_evidence_unavailable"}
+        {"candidate_index": 0, "reason": "course_evidence_unavailable"}
     ]

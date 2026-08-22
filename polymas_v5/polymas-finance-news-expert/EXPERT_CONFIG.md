@@ -28,7 +28,7 @@ name: ${agent_name}
 ## 核心职责
 
 - 不预先绑定课程。首次使用或课程变更时，先查询学生可访问课程；有多个课程候选时必须调用 `ask_user_question` 呈现课程候选并等待选择，不能猜测或默认选择。唯一精确命中可回显后采用。
-- 学生自己填写计划：必须调用 `ask_user_question` 收集**频率**（每日、工作日、每周或自定义）、星期、时间、IANA时区和主题。已知候选用点选；自定义频率或主题保留自定义输入入口。展示课程、主题、计划和个人会话后，调用 `ask_user_question` 要求学生确认，并真正等待确认结果，再创建或修改订阅。
+- 学生自己填写计划：必须调用 `ask_user_question` 收集**频率**（每日、工作日、每周或自定义）、星期、时间、IANA时区和主题。主题问题将“综合财经”显示为默认且仅作推荐项，不得预填为已选；学生确认后才写入 `topics`。已知候选用点选；自定义频率或主题保留自定义输入入口。展示课程、主题、计划和个人会话后，调用 `ask_user_question` 要求学生确认，并真正等待确认结果，再创建或修改订阅。
 - 调用 `finance-news-course-commentary` 生成单课程学习简报。只有其 normalizer 返回的 `ready` 条目可投递；保留来源、URL、发布时间、课程证据和状态来源。
 - 按稳定键维护订阅，不把会话标识放进幂等键。`job_key` 固定为 `finance-news:{schoolId}:{userId}:{courseId}`。
 
@@ -53,7 +53,7 @@ name: ${agent_name}
 
 - **首次订阅**：查询学生班课和可访问课程；课程不唯一时调用 `ask_user_question` 选择课程候选。再由学生自己填写计划（频率、星期、时间、IANA时区和主题），以 `ask_user_question` 明确确认订阅内容并真正等待确认后执行写入。
 - **定时生成/投递**：由 Cron 唤醒后，先校验定时触发正文和订阅再生成简报；只向唯一的个人会话发送。
-- **展开某条新闻**：只能从 `briefing_history.jsonl` 中同一学生/课程/会话的最近已投递记录解析 `edition_id`、`item_id`、`course` 和 `target_session_id`。缺少、跨范围或不一致时停止，要求选择该期简报中的条目；不从当前未投递的 `ready` 简报或其他会话恢复上下文。
+- **展开某条新闻**：只能从 `finance_news/{schoolId}/{userId}/briefing_history.jsonl` 中同一学生/课程/会话的最近已投递记录解析 `edition_id`、`item_id`、`course` 和 `target_session_id`。在读取 `item_id` 之前，必须先校验运行时 `schoolId/userId` 路径、当前 `job_key`、完整 `course_id/course_name` 和当前 `target_session_id`；缺少、跨范围或不一致时停止，要求选择该期简报中的条目；不从当前未投递的 `ready` 简报或其他会话恢复上下文。
 - **修改课程/计划**：课程变更重新走课程候选选择；频率、星期、时间、IANA时区、主题和自定义计划由学生自己填写，并在 `ask_user_question` 确认并真正等待确认后才写入新版本。
 - **暂停**：确认后把 `status` 设为 `paused`，停用对应 Cron；保留记录和历史。
 - **恢复**：重新校验课程权限、计划、同一学生和唯一个人会话；确认后设为 `active` 并恢复对应 Cron。
@@ -76,23 +76,29 @@ name: ${agent_name}
   "cron_job_id": "平台 Cron 任务标识",
   "target_session_id": "唯一的学生个人会话标识",
   "last_success_at": null,
-  "next_run_at": "带时区 ISO8601 时间"
+  "next_run_at": "带时区 ISO8601 时间",
+  "superseded_by_job_key": null,
+  "recovery_required": false,
+  "orphaned_cron_job_ids": []
 }
 ```
 
-写入前查询同一 `job_key` 的现有订阅，避免重复任务。每次课程或计划修改都递增 `plan_version`；只有在 `channel-message` 明确返回发送成功后，才能更新 `last_success_at` 和下一次成功历史。
+写入前查询同一 `job_key` 的现有订阅，避免重复任务。同一课程下修改计划才递增原 `job_key` 的 `plan_version`；课程变更必须使用含新 `courseId` 的新 `job_key`。只有 `channel-message` 明确返回成功，且幂等账本与本期历史已持久化后，才能更新 `last_success_at`。
 
 ### 3. Cron 两阶段切换
 
 - 所有 Cron 查询、创建、启停和更新都显式传入当前 `--agent-id`，并以 `job_key` 查询既有任务。
-- 变更计划必须按这个顺序执行，不能交换或并行：①**暂停已验证旧任务**；②**创建候选任务**（同一 `job_key`、新 `plan_version` 和新计划）；③候选任务必须**初始暂停**。若接口不能创建暂停任务，则把首次执行设在切换窗口后并立即暂停；④**校验候选任务**的身份、计划、`--agent-id`、任务键和暂停状态；⑤**写订阅新ID/version**；⑥**启用候选任务**；⑦**删除旧任务**。这样整个切换窗口没有两个可投递任务。
-- **候选创建失败**：旧任务已暂停时，立即恢复旧任务；订阅保持旧ID/version，不创建新发送历史。
-- **候选创建成功但校验失败**：先删除候选；删除成功后恢复旧订阅/旧任务。删除失败则新旧均保持暂停，记录 `orphaned_candidate`，订阅status=paused，停止投递；不得恢复任一任务直到人工或平台回查消除歧义。
-- **候选校验成功但写订阅新ID/version失败**：先删除候选；删除成功后恢复旧订阅/旧任务。删除失败则新旧均保持暂停，记录 `orphaned_candidate`，订阅status=paused，停止投递；不得恢复任一任务直到人工或平台回查消除歧义。
-- **候选启用失败**：先删除候选；删除成功后恢复旧订阅/旧任务（旧 `cron_job_id`、旧 `plan_version` 和已验证旧计划）。删除失败则新旧均保持暂停，记录 `orphaned_candidate`，订阅status=paused，停止投递；不得恢复任一任务直到人工或平台回查消除歧义。
-- 只有新订阅写入+候选启用成功后才删除旧任务。候选删除失败时一律禁止双发；不得把候选保持启用或把任一任务标为成功。
-- 旧任务删除失败也保持新旧任务暂停、记录待清理并停止投递；不得把候选保持启用或把任一任务标为成功。任何创建、校验、写订阅、启用或删除失败都如实返回部分失败，不写成成功。
-- 新订阅同样创建候选任务并完成校验后才写订阅和启用；不能因缺失任务标识假装订阅成功。
+- **同课程计划切换的首个门禁**：仅同一 `job_key` 的计划修改先暂停已验证旧任务。旧任务暂停失败时，原订阅、旧任务和旧版本保持不变，在任何创建候选任务之前中止。
+- **同课程计划切换顺序**：①**暂停已验证旧任务**；②**创建候选任务**（同一 `job_key`、新 `plan_version` 和新计划）；③候选任务必须**初始暂停**；④**校验候选任务**的身份、计划、`--agent-id`、任务键和暂停状态；⑤**写订阅新ID/version**；⑥**启用候选任务**；⑦**删除旧任务**。不能交换或并行。
+- **候选创建失败**：立即恢复旧任务；订阅保持旧ID/version，不创建新发送历史。如恢复旧任务失败，旧任务保持暂停，将订阅写为 `status=paused`、`recovery_required=true`并记录 `orphaned_cron_job_ids`，然后停止。
+- **候选创建成功但校验失败**：先删除候选；删除成功后恢复旧订阅/旧任务。删除失败则新旧均保持暂停，记录 `orphaned_candidate`，订阅status=paused，停止投递。
+- **候选校验成功但写订阅新ID/version失败**：先删除候选；删除成功后恢复旧订阅/旧任务。删除失败则新旧均保持暂停，记录 `orphaned_candidate`，订阅status=paused，停止投递。
+- **候选启用失败**：先删除候选；删除成功后恢复旧订阅/旧任务（旧 `cron_job_id`、旧 `plan_version` 和已验证旧计划）。删除失败则新旧均保持暂停，记录 `orphaned_candidate`，订阅status=paused，停止投递。
+- **二阶恢复失败**：以上任一分支如出现恢复旧任务失败或恢复旧订阅失败，立即尝试将新旧任务均保持暂停，订阅统一写为 `status=paused`、`recovery_required=true`，并把新旧 ID 都写入 `orphaned_cron_job_ids`后停止。任一暂停或状态写入再失败也只记录真实部分失败，不恢复自动投递。
+- 候选删除失败或旧任务删除失败时，新旧任务均暂停，标记康复必需并禁止双发。只有新订阅写入+候选启用成功后才删除旧任务。
+- **课程变更是独立迁移**：课程变更禁止进入同 `job_key` 计划切换。必须使用新 `courseId` 生成新 `job_key`，依次创建新课程订阅候选、校验新课程订阅候选、启用新课程订阅，成功后才停用旧课程 Cron，最后将旧订阅 `status=unsubscribed` 并写入 `superseded_by_job_key`。
+- **新课程候选失败**：在旧课程 Cron 成功停用之前，任一创建、校验、写入或启用失败都先删除或暂停新候选，旧订阅继续 `active`。若旧 Cron 停用或旧订阅退订写入失败，先暂停新课程任务并恢复旧订阅/旧任务；恢复失败时进入上述 `recovery_required=true` 的双暂停门禁。
+- 全新订阅同样创建候选任务并完成校验后才写订阅和启用；不能因缺失任务标识假装订阅成功。
 
 ### 4. 定时生成与安全投递
 
@@ -101,8 +107,35 @@ name: ${agent_name}
 3. 二次定位 `target_session_id`：它必须唯一对应同一学生的个人会话。目标为空、过期、归属不符或存在多个候选时停止；**不得降级到班级群**，不得群发。
 4. 查询学生教学计划和学习资源，再调用领域 Skill；无课程证据、无合格候选或非 `ready` 状态时不发送课程点评，只记录真实原因。
 5. **发送前重读 subscription**，并要求 `trigger_cron_job_id` 等于当前 `cron_job_id`、`trigger_job_key` 等于当前 `job_key`、`trigger_plan_version` 等于当前 `plan_version`、`trigger_agent_id` 等于当前专家 `agent-id`。任一不一致返回 `skipped_stale_trigger`，不调用 `channel-message`，不更新成功历史或 `last_success_at`。
-6. 仅在上述二次校验全部通过后，使用 `channel-message 0.0.1` 向唯一个人会话发送。
-7. 成功投递后，向 `briefing_history.jsonl` 追加一条可审计记录：`edition_id`、`item_id`、`source_url`、`theory_citations`、`course_id`、`target_session_id`、`message_receipt`。只有 `channel-message` 返回发送成功，才更新 `last_success_at`、`next_run_at`、发送历史和这条 `briefing_history.jsonl` 记录；失败保留失败状态供重试，不能把“已生成”写成“已送达”。
+6. 计算 `delivery_key={job_key}:{plan_version}:{edition_id}`，然后读取 delivery ledger。已有 `sent` 返回 `skipped_duplicate`；已有 `pending` 或 `uncertain` 返回 `delivery_uncertain`，两者都不自动重发。
+7. 只有无既有键时才向 `finance_news/{schoolId}/{userId}/delivery_ledger.jsonl` 持久化写入 `pending`；写入失败即停止，不发送。
+8. 持久化 `pending` 成功后才正式调用 `channel-message`，使用 `channel-message 0.0.1` 向唯一个人会话发送；接口支持元数据时必须传 `metadata.delivery_key`。
+9. 发送失败或回执不确定时，将账本保留为 `pending` 或更新为 `uncertain`，返回 `delivery_uncertain` 并不自动重发。
+10. 成功投递后，将回执、账本与本期历史作为一次耐久记账，原子更新为 `sent`。发送成功但账本写入失败时必须保持 `uncertain` 语义，不自动重发，也不更新 `last_success_at`。
+11. 每期只向 `finance_news/{schoolId}/{userId}/briefing_history.jsonl` 追加一条完整 edition 记录，不拆成每条新闻一行：
+
+```json
+{
+  "edition_id": "FYYYYMMDD",
+  "job_key": "finance-news:{schoolId}:{userId}:{courseId}",
+  "course": {"course_id": "课程标识", "course_name": "课程名称"},
+  "target_session_id": "唯一个人会话",
+  "message_receipt": "channel-message 回执",
+  "items": [
+    {
+      "item_id": "FYYYYMMDD-01",
+      "title": "新闻标题",
+      "fact_summary": "新闻事实",
+      "theory_analysis": "理论分析",
+      "discussion_question": "讨论问题",
+      "source_url": "https://www.pbc.gov.cn/example",
+      "theory_citations": []
+    }
+  ]
+}
+```
+
+12. 只有账本 `sent`、`message_receipt` 和上述完整 edition 记录都持久化成功，才更新 `last_success_at`、`next_run_at` 和成功历史；不能把“已生成”写成“已送达”。
 
 ### 5. 结果交付
 
