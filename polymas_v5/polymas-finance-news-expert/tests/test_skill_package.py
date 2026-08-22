@@ -99,6 +99,10 @@ def test_skill_package_declares_the_required_polymas_workflow_and_boundaries():
     assert "强制拒绝三级来源" in skill
     assert "内部 hostname allowlist" in skill
     assert "调用方不能提升来源等级" in skill
+    assert "`source_tier` 只是调用方断言" in skill
+    assert "输出 `source` 由 hostname allowlist" in skill
+    assert "NFKC" in skill
+    assert "提示词与动作词组合" in skill
     assert "course_id" in skill
     assert "untrusted_source" in skill
     assert "不进入公开网检索或 normalizer" not in skill
@@ -153,6 +157,9 @@ def test_data_contract_enforces_course_evidence_stable_ids_and_session_independe
     assert "`source_level` 是输出" in contract
     assert "只输出 `course_id` 和 `course_name`" in contract
     assert "不回显标题、URL 或正文" in contract
+    assert "`source_tier` 只是调用方断言" in contract
+    assert "忽略输入 `source`" in contract
+    assert "canonical source label" in contract
     for tier in (
         "official",
         "primary",
@@ -183,6 +190,8 @@ def test_source_policy_prioritizes_official_sources_and_treats_other_pages_as_le
     assert "私网" in policy
     assert "userinfo" in policy
     assert "source_tier_mismatch" in policy
+    assert "`source_tier` 只是调用方断言" in policy
+    assert "canonical source label" in policy
     for organization in (
         "国务院",
         "人民银行",

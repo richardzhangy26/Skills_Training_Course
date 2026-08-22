@@ -76,6 +76,24 @@ MEDIA_HOSTS = frozenset(
         "stcn.com",
     }
 )
+CANONICAL_SOURCE_LABELS = (
+    ("pbc.gov.cn", "中国人民银行"),
+    ("stats.gov.cn", "国家统计局"),
+    ("nfra.gov.cn", "国家金融监督管理总局"),
+    ("csrc.gov.cn", "中国证监会"),
+    ("mof.gov.cn", "财政部"),
+    ("sse.com.cn", "上海证券交易所"),
+    ("szse.cn", "深圳证券交易所"),
+    ("bse.cn", "北京证券交易所"),
+    ("cninfo.com.cn", "巨潮资讯"),
+    ("gov.cn", "中国政府网"),
+    ("news.cn", "新华网"),
+    ("xinhuanet.com", "新华网"),
+    ("cctv.com", "央视网"),
+    ("cs.com.cn", "中国证券报"),
+    ("cnstock.com", "上海证券报"),
+    ("stcn.com", "证券时报"),
+)
 TRACKING_PARAMETERS = {
     "dclid",
     "fbclid",
@@ -130,6 +148,52 @@ INVESTMENT_ADVICE_PHRASES = (
     "guaranteed return",
     "guaranteed returns",
     "guaranteed profit",
+    "overweight",
+    "underweight",
+)
+INVESTMENT_ADVICE_HINTS = (
+    "建议",
+    "推荐",
+    "应该",
+    "可考虑",
+    "值得",
+    "维持",
+    "评级",
+    "看多",
+    "看空",
+    "recommend",
+    "should",
+    "consider",
+    "worth",
+    "maintain",
+    "rating",
+    "bullish",
+    "bearish",
+)
+INVESTMENT_ADVICE_ACTIONS = (
+    "持有",
+    "增持",
+    "减持",
+    "做多",
+    "做空",
+    "买进",
+    "购入",
+    "卖出",
+    "加仓",
+    "减仓",
+    "目标价",
+    "buy",
+    "sell",
+    "hold",
+    "long",
+    "short",
+    "overweight",
+    "underweight",
+    "target price",
+    "guaranteed return",
+)
+UNRESERVED_URL_CHARACTERS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
 )
 
 CANDIDATE_LENGTH_LIMITS = {
@@ -195,7 +259,16 @@ def host_is_private_or_local(hostname):
 
 def normalize_url_path(path):
     normalized_segments = []
-    for segment in path.split("/"):
+    for raw_segment in path.split("/"):
+        segment = re.sub(
+            r"%([0-9A-Fa-f]{2})",
+            lambda match: (
+                chr(int(match.group(1), 16))
+                if chr(int(match.group(1), 16)) in UNRESERVED_URL_CHARACTERS
+                else f"%{match.group(1).upper()}"
+            ),
+            raw_segment,
+        )
         decoded_segment = unquote(segment)
         if not segment or decoded_segment == ".":
             continue
@@ -259,6 +332,14 @@ def derived_source_level(url):
     return None
 
 
+def canonical_source_label(url):
+    hostname = normalize_hostname(urlsplit(url).hostname or "")
+    for allowed_hostname, label in CANONICAL_SOURCE_LABELS:
+        if hostname_matches(hostname, {allowed_hostname}):
+            return label
+    raise InputError("untrusted_source")
+
+
 def normalized_title(value):
     return re.sub(r"[\W_]+", "", value.casefold(), flags=re.UNICODE)
 
@@ -278,15 +359,22 @@ def similar_title(left, right):
 
 
 def normalize_advice_text(value):
+    normalized_value = unicodedata.normalize("NFKC", value).casefold()
     return "".join(
         character
-        for character in value.casefold()
+        for character in normalized_value
         if unicodedata.category(character)[0] in {"L", "N"}
     )
 
 
 NORMALIZED_ADVICE_PHRASES = tuple(
     normalize_advice_text(phrase) for phrase in INVESTMENT_ADVICE_PHRASES
+)
+NORMALIZED_ADVICE_HINTS = tuple(
+    normalize_advice_text(phrase) for phrase in INVESTMENT_ADVICE_HINTS
+)
+NORMALIZED_ADVICE_ACTIONS = tuple(
+    normalize_advice_text(phrase) for phrase in INVESTMENT_ADVICE_ACTIONS
 )
 
 
@@ -312,6 +400,10 @@ def contains_investment_advice(value):
     for text in bounded_string_values(value):
         normalized = normalize_advice_text(text)
         if any(pattern in normalized for pattern in NORMALIZED_ADVICE_PHRASES):
+            return True
+        if any(hint in normalized for hint in NORMALIZED_ADVICE_HINTS) and any(
+            action in normalized for action in NORMALIZED_ADVICE_ACTIONS
+        ):
             return True
     return False
 
@@ -456,7 +548,7 @@ def validate_candidate(candidate, candidate_index, since, until, selected_course
         return reject(evidence_problem)
     try:
         url = canonical_url(candidate["url"])
-    except InputError as error:
+    except (InputError, ValueError, UnicodeError) as error:
         reason = str(error) if str(error) == "untrusted_source" else "invalid_url"
         return reject(reason)
     try:
@@ -476,7 +568,7 @@ def validate_candidate(candidate, candidate_index, since, until, selected_course
     prepared = {
         "title": candidate["title"].strip(),
         "url": url,
-        "source": candidate["source"].strip(),
+        "source": canonical_source_label(url),
         "published_at": candidate["published_at"].strip(),
         "fact_summary": candidate["fact_summary"].strip(),
         "theory_analysis": candidate["theory_analysis"].strip(),

@@ -21,6 +21,7 @@ INCLUDED_FILES = (
     "scripts/normalize_candidates.py",
 )
 FIXED_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
+HELP_TEXT = "生成可上传的财经新闻课程点评 Skill ZIP"
 
 
 class JsonArgumentParser(argparse.ArgumentParser):
@@ -60,7 +61,8 @@ def write_archive(output: Path) -> list[str]:
 
 
 def parse_args(argv=None) -> argparse.Namespace:
-    parser = JsonArgumentParser(description="生成可上传的财经新闻课程点评 Skill ZIP")
+    parser = JsonArgumentParser(description=HELP_TEXT, add_help=False)
+    parser.add_argument("--help", action="store_true")
     parser.add_argument(
         "--output",
         type=Path,
@@ -73,6 +75,15 @@ def parse_args(argv=None) -> argparse.Namespace:
 def main(argv=None) -> int:
     try:
         args = parse_args(argv)
+        if args.help:
+            print(
+                json.dumps(
+                    {"help": HELP_TEXT, "options": ["--output"]},
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+            )
+            return 0
         members = write_archive(args.output)
     except (OSError, ValueError, zipfile.BadZipFile) as error:
         print(json.dumps({"error": str(error)}, ensure_ascii=False))

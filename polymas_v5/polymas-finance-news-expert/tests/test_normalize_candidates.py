@@ -292,7 +292,7 @@ def test_cli_rejects_investment_advice_in_course_metadata_before_output(tmp_path
     assert json.loads(result.stdout)["error"] == "input.course contains investment advice language"
 
 
-def test_cli_rejects_investment_advice_in_course_metadata_key_before_output(tmp_path):
+def test_cli_strips_arbitrary_course_metadata_before_output(tmp_path):
     result = run_cli(
         tmp_path,
         [],
@@ -700,10 +700,16 @@ def test_cli_derives_representative_official_and_media_levels(
     "phrase",
     [
         "买\u200b 进",
+        "买 入",
         "购-入",
         "卖\n出",
+        "建议持有该股票",
+        "建议做多该品种",
+        "维持增持评级",
+        "overweight this stock",
         "S.T.R.O.N.G  B-U-Y",
         "buy\tnow",
+        "ｂｕｙ　ｎｏｗ",
         "target_price",
         "guaranteed\u200b return",
     ],
@@ -735,6 +741,63 @@ def test_cli_normalizes_trailing_host_dot_and_url_dot_segments(tmp_path):
     )
 
     assert output["items"][0]["url"] == "https://www.pbc.gov.cn/a/news"
+
+
+def test_cli_normalizes_percent_encoded_unreserved_but_preserves_reserved_path_bytes(
+    tmp_path,
+):
+    output = output_of(
+        run_cli(
+            tmp_path,
+            [
+                candidate(
+                    url="https://www.pbc.gov.cn/news/%7Euser/%2freserved"
+                )
+            ],
+        )
+    )
+
+    assert output["items"][0]["url"] == (
+        "https://www.pbc.gov.cn/news/~user/%2Freserved"
+    )
+
+
+def test_cli_rejects_malformed_url_per_candidate_without_losing_valid_peer(tmp_path):
+    output = output_of(
+        run_cli(
+            tmp_path,
+            [
+                candidate(title="畸形 URL", url="https://[bad"),
+                candidate(
+                    title="正常候选",
+                    url="https://www.pbc.gov.cn/news/valid-peer",
+                ),
+            ],
+        )
+    )
+
+    assert [item["title"] for item in output["items"]] == ["正常候选"]
+    assert output["rejected"] == [
+        {"candidate_index": 0, "reason": "invalid_url"}
+    ]
+
+
+def test_cli_uses_hostname_derived_canonical_source_label(tmp_path):
+    output = output_of(
+        run_cli(
+            tmp_path,
+            [
+                candidate(
+                    url="https://www.news.cn/finance/canonical-source",
+                    source="中国人民银行",
+                    source_tier="authoritative_media",
+                )
+            ],
+        )
+    )
+
+    assert output["items"][0]["source"] == "新华网"
+    assert output["items"][0]["source_level"] == 2
 
 
 def test_cli_rejects_more_than_one_hundred_candidates(tmp_path):

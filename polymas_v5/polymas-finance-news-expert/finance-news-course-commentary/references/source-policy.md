@@ -16,9 +16,11 @@
 
 来源等级相同时，优先发布时间更明确、原始材料更完整且与课程知识点更贴近的页面。重复 URL 或同一新闻的相似标题由 normalizer 按确定性规则保留一个候选。
 
-平台通用工具返回候选后，编排方必须在 normalizer 前为每条候选声明 `source_tier`：一级使用 `official`、`primary`、`regulator`、`government`、`exchange` 或 `company_announcement`；二级使用 `authoritative_media` 或 `media`；三级使用 `other`。但声明不是信任依据：normalizer 使用内部 hostname allowlist 推导等级，声明与推导不一致时返回 `source_tier_mismatch`；未列入域名返回 `untrusted_source`。
+平台通用工具返回候选后，编排方必须在 normalizer 前为每条候选声明 `source_tier`，但 `source_tier` 只是调用方断言，不是信任依据。normalizer 使用内部 hostname allowlist 推导等级，声明与推导不一致时返回 `source_tier_mismatch`；未列入域名返回 `untrusted_source`。
 
 内部 hostname allowlist 的一级根域为 `gov.cn`、`pbc.gov.cn`、`mof.gov.cn`、`stats.gov.cn`、`nfra.gov.cn`、`csrc.gov.cn`、`sse.com.cn`、`szse.cn`、`bse.cn`、`cninfo.com.cn`；二级根域为 `news.cn`、`xinhuanet.com`、`cctv.com`、`cs.com.cn`、`cnstock.com`、`stcn.com`。只匹配根域本身或真实子域，不使用字符串后缀猜测。不得传入 `source_level`。
+
+最终 `source` 由命中的 hostname 映射为 canonical source label，输入的来源名称不得回显或覆盖该标签。
 
 normalizer 强制拒绝三级来源：它先强制校验 `source_tier`，无论 `other` 页面是否被误传入，都会进入 `rejected` 并标记 `untrusted_source`，不得成为最终 `source`、`url` 或 `items`。三级页面可保留在检索笔记中，但事实结论仍需由一级或二级允许来源支撑。
 

@@ -12,6 +12,13 @@ CONFIG = ROOT / "EXPERT_CONFIG.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
 PACKAGER = ROOT / "scripts" / "package_skill.py"
 SKILL_NAME = "finance-news-course-commentary"
+CREDENTIAL_PATTERNS = (
+    re.compile(
+        r"(?i)[\"']?(?:authorization|cookie|token|api[_-]?key)[\"']?"
+        r"\s*[:=]\s*[\"']?(?:bearer\s+)?[A-Za-z0-9._~+/=-]{8,}"
+    ),
+    re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
+)
 
 
 def read(path):
@@ -216,6 +223,89 @@ def validate_delivery_ledger_and_history(config):
     )
 
 
+def validate_initial_activation_and_course_migration(config):
+    cron = section(config, "### 3. Cron 两阶段切换", "### 4. 定时生成与安全投递")
+    initial_steps = (
+        "全新订阅激活顺序",
+        "`status=pending_activation`",
+        "`cron_job_id=null`",
+        "创建初始暂停的候选任务",
+        "校验全新订阅候选",
+        "写入候选 `cron_job_id`",
+        "启用全新订阅候选",
+        "确认任务已启用",
+        "`status=active`",
+    )
+    initial_failures = (
+        "全新订阅任一步失败",
+        "候选删除成功",
+        "`status=paused`",
+        "`cron_job_id=null`",
+        "`activation_error`",
+        "候选删除失败",
+        "`recovery_required=true`",
+        "`orphaned_cron_job_ids`",
+        "禁止 active 无任务",
+    )
+    migration_steps = (
+        "改课迁移顺序",
+        "新订阅 `status=pending_activation`",
+        "创建新课程订阅候选",
+        "校验新课程订阅候选",
+        "启用新课程订阅候选",
+        "停用旧课程 Cron",
+        "旧订阅 `status=unsubscribed`",
+        "新订阅 `status=active`",
+    )
+    migration_failures = (
+        "旧 Cron 停用失败",
+        "旧订阅退订写入失败",
+        "暂停新任务",
+        "恢复旧订阅和旧任务为 `active`",
+        "新订阅置为 `status=paused`",
+        "`migration_error`",
+        "清理新候选",
+        "恢复或清理失败",
+        "双方 `status=paused`",
+        "`recovery_required=true`",
+        "`orphaned_cron_job_ids`",
+    )
+    return (
+        all(token in cron for token in initial_steps + initial_failures)
+        and [cron.index(token) for token in initial_steps]
+        == sorted(cron.index(token) for token in initial_steps)
+        and all(token in cron for token in migration_steps + migration_failures)
+        and [cron.index(token) for token in migration_steps]
+        == sorted(cron.index(token) for token in migration_steps)
+    )
+
+
+def validate_atomic_delivery_and_next_run(config):
+    delivery = section(config, "### 4. 定时生成与安全投递", "### 5. 结果交付")
+    atomic_tokens = (
+        "平台持久化层的原子 `create-if-absent`/唯一约束",
+        "`channel-message` 原生幂等键",
+        "只有拿到原子锁的执行者",
+        "正式调用 `channel-message`",
+        "`sent` 返回 `skipped_duplicate`",
+        "`pending` 或 `uncertain` 返回 `delivery_uncertain`",
+        "`delivery_atomicity_unavailable`",
+        "禁用自动发送",
+        "不得用普通“读后追加”冒充原子锁",
+    )
+    next_run_tokens = (
+        "无论 `sent`、`skipped`、`failed` 或 `uncertain`",
+        "从当前 Cron 状态回读",
+        "更新 `next_run_at`",
+        "`last_success_at` 仅在 `sent`",
+    )
+    return (
+        all(token in delivery for token in atomic_tokens + next_run_tokens)
+        and delivery.index("只有拿到原子锁的执行者")
+        < delivery.index("正式调用 `channel-message`")
+    )
+
+
 def test_expert_config_declares_identity_complete_agent_and_exact_skill_mounts():
     config = read(CONFIG)
 
@@ -373,6 +463,46 @@ def test_delivery_and_history_validator_rejects_missing_state_or_scope_check():
         assert not validate_delivery_ledger_and_history(config.replace(token, ""))
 
 
+def test_expert_config_defines_safe_initial_activation_and_course_migration():
+    assert validate_initial_activation_and_course_migration(read(CONFIG))
+
+
+def test_activation_and_migration_validator_rejects_missing_failure_state():
+    config = read(CONFIG)
+
+    for token in (
+        "`status=pending_activation`",
+        "`activation_error`",
+        "禁止 active 无任务",
+        "新订阅 `status=pending_activation`",
+        "`migration_error`",
+        "双方 `status=paused`",
+    ):
+        assert not validate_initial_activation_and_course_migration(
+            config.replace(token, "")
+        )
+
+
+def test_expert_config_requires_atomic_delivery_and_refreshes_next_run_every_trigger():
+    assert validate_atomic_delivery_and_next_run(read(CONFIG))
+
+
+def test_atomic_delivery_validator_rejects_read_then_append_or_missing_fallback():
+    config = read(CONFIG)
+    assert not validate_atomic_delivery_and_next_run(
+        config.replace(
+            "平台持久化层的原子 `create-if-absent`/唯一约束",
+            "普通读取后追加",
+        )
+    )
+    assert not validate_atomic_delivery_and_next_run(
+        config.replace("`delivery_atomicity_unavailable`", "")
+    )
+    assert not validate_atomic_delivery_and_next_run(
+        config.replace("更新 `next_run_at`", "")
+    )
+
+
 def test_expert_config_records_delivered_briefing_history_and_limits_expansion_scope():
     config = read(CONFIG)
     delivery = section(config, "### 4. 定时生成与安全投递", "### 5. 结果交付")
@@ -409,6 +539,13 @@ def test_deployment_document_has_safe_real_platform_checklist_and_upload_instruc
         "skipped_duplicate",
         "delivery_uncertain",
         "briefing_history.jsonl",
+        "pending_activation",
+        "activation_error",
+        "migration_error",
+        "create-if-absent",
+        "delivery_atomicity_unavailable",
+        "next_run_at",
+        "last_success_at",
     ):
         assert token in deployment
 
@@ -443,19 +580,13 @@ def test_packager_produces_deterministic_upload_root_without_sensitive_or_test_f
         assert all("test" not in Path(name).parts for name in names)
         assert all("__pycache__" not in Path(name).parts for name in names)
         assert all("token" not in name.lower() and "cookie" not in name.lower() for name in names)
-        credential_patterns = (
-            re.compile(
-                r"(?i)\b(?:authorization|cookie|token|api[_-]?key)\b\s*[:=]\s*[\"']?[A-Za-z0-9._~+/=-]{8,}"
-            ),
-            re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
-        )
         for name in names:
             body = archive.read(name)
             relative = Path(name).relative_to(SKILL_NAME)
             source = ROOT / SKILL_NAME / relative
             assert hashlib.sha256(body).digest() == hashlib.sha256(source.read_bytes()).digest()
             text = body.decode("utf-8")
-            assert all(pattern.search(text) is None for pattern in credential_patterns)
+            assert all(pattern.search(text) is None for pattern in CREDENTIAL_PATTERNS)
 
 
 def test_packager_unknown_arguments_return_stdout_json_and_nonzero():
@@ -469,3 +600,29 @@ def test_packager_unknown_arguments_return_stdout_json_and_nonzero():
     assert result.returncode != 0
     assert result.stderr == ""
     assert json.loads(result.stdout) == {"error": "invalid command-line arguments"}
+
+
+def test_packager_help_returns_stdout_json_and_zero_without_usage_stderr():
+    result = subprocess.run(
+        [sys.executable, str(PACKAGER), "--help"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert json.loads(result.stdout) == {
+        "help": "生成可上传的财经新闻课程点评 Skill ZIP",
+        "options": ["--output"],
+    }
+
+
+def test_zip_credential_patterns_detect_json_token_and_bearer_header_examples():
+    examples = (
+        '"token": "secretvalue123"',
+        "Authorization: Bearer abcdefghijklmnopqrstuvwxyz",
+    )
+
+    for example in examples:
+        assert any(pattern.search(example) for pattern in CREDENTIAL_PATTERNS)

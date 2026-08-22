@@ -65,7 +65,7 @@ name: ${agent_name}
 
 ```json
 {
-  "status": "active | paused | unsubscribed",
+  "status": "pending_activation | active | paused | unsubscribed",
   "course": {"course_id": "平台课程标识", "course_name": "课程名称"},
   "topics": ["学生确认的主题"],
   "schedule": "学生确认的计划表达式",
@@ -79,7 +79,9 @@ name: ${agent_name}
   "next_run_at": "带时区 ISO8601 时间",
   "superseded_by_job_key": null,
   "recovery_required": false,
-  "orphaned_cron_job_ids": []
+  "orphaned_cron_job_ids": [],
+  "activation_error": null,
+  "migration_error": null
 }
 ```
 
@@ -96,9 +98,11 @@ name: ${agent_name}
 - **候选启用失败**：先删除候选；删除成功后恢复旧订阅/旧任务（旧 `cron_job_id`、旧 `plan_version` 和已验证旧计划）。删除失败则新旧均保持暂停，记录 `orphaned_candidate`，订阅status=paused，停止投递。
 - **二阶恢复失败**：以上任一分支如出现恢复旧任务失败或恢复旧订阅失败，立即尝试将新旧任务均保持暂停，订阅统一写为 `status=paused`、`recovery_required=true`，并把新旧 ID 都写入 `orphaned_cron_job_ids`后停止。任一暂停或状态写入再失败也只记录真实部分失败，不恢复自动投递。
 - 候选删除失败或旧任务删除失败时，新旧任务均暂停，标记康复必需并禁止双发。只有新订阅写入+候选启用成功后才删除旧任务。
-- **课程变更是独立迁移**：课程变更禁止进入同 `job_key` 计划切换。必须使用新 `courseId` 生成新 `job_key`，依次创建新课程订阅候选、校验新课程订阅候选、启用新课程订阅，成功后才停用旧课程 Cron，最后将旧订阅 `status=unsubscribed` 并写入 `superseded_by_job_key`。
-- **新课程候选失败**：在旧课程 Cron 成功停用之前，任一创建、校验、写入或启用失败都先删除或暂停新候选，旧订阅继续 `active`。若旧 Cron 停用或旧订阅退订写入失败，先暂停新课程任务并恢复旧订阅/旧任务；恢复失败时进入上述 `recovery_required=true` 的双暂停门禁。
-- 全新订阅同样创建候选任务并完成校验后才写订阅和启用；不能因缺失任务标识假装订阅成功。
+- **全新订阅激活顺序**（不存在可恢复的旧订阅/旧任务）：①先写订阅草稿 `status=pending_activation`、`cron_job_id=null`；②创建初始暂停的候选任务；③校验全新订阅候选的 `job_key`、`plan_version`、`--agent-id`、计划和暂停状态；④在仍为 pending 时写入候选 `cron_job_id`；⑤启用全新订阅候选；⑥回读并确认任务已启用；⑦最后才写 `status=active`。禁止 active 无任务。
+- **全新订阅任一步失败**：若尚未创建候选，删除草稿，或保留 `status=paused`、`cron_job_id=null`和 `activation_error`。若候选已存在，先暂停并删除；候选删除成功后写 `status=paused`、`cron_job_id=null`、`activation_error`；候选删除失败时写 `status=paused`、`recovery_required=true`、`orphaned_cron_job_ids`和 `activation_error`，停止自动恢复。
+- **课程变更是独立迁移**：课程变更禁止进入同 `job_key` 计划切换。**改课迁移顺序**：①使用新 `courseId` 生成新 `job_key`，写新订阅 `status=pending_activation`；②创建新课程订阅候选；③校验新课程订阅候选；④在仍为 pending 时写入新 `cron_job_id` 并启用新课程订阅候选；⑤新订阅仍保持 pending，所以新 Cron 暂不能投递；⑥停用旧课程 Cron；⑦将旧订阅 `status=unsubscribed` 并写入 `superseded_by_job_key`；⑧最后才将新订阅 `status=active`。
+- **新课程候选失败**：在旧课程 Cron 成功停用之前，任一创建、校验、写入或启用失败都先删除或暂停新候选并清理，新订阅置为 `status=paused`、`migration_error`，旧订阅继续 `active`，旧任务也继续正常执行。
+- **旧 Cron 停用失败或旧订阅退订写入失败**：立即暂停新任务，恢复旧订阅和旧任务为 `active`，新订阅置为 `status=paused`、写 `migration_error`，然后清理新候选。恢复或清理失败时，立即将双方 `status=paused`，新旧任务均暂停，写 `recovery_required=true`、`orphaned_cron_job_ids` 和真实错误后停止。
 
 ### 4. 定时生成与安全投递
 
@@ -107,9 +111,9 @@ name: ${agent_name}
 3. 二次定位 `target_session_id`：它必须唯一对应同一学生的个人会话。目标为空、过期、归属不符或存在多个候选时停止；**不得降级到班级群**，不得群发。
 4. 查询学生教学计划和学习资源，再调用领域 Skill；无课程证据、无合格候选或非 `ready` 状态时不发送课程点评，只记录真实原因。
 5. **发送前重读 subscription**，并要求 `trigger_cron_job_id` 等于当前 `cron_job_id`、`trigger_job_key` 等于当前 `job_key`、`trigger_plan_version` 等于当前 `plan_version`、`trigger_agent_id` 等于当前专家 `agent-id`。任一不一致返回 `skipped_stale_trigger`，不调用 `channel-message`，不更新成功历史或 `last_success_at`。
-6. 计算 `delivery_key={job_key}:{plan_version}:{edition_id}`，然后读取 delivery ledger。已有 `sent` 返回 `skipped_duplicate`；已有 `pending` 或 `uncertain` 返回 `delivery_uncertain`，两者都不自动重发。
-7. 只有无既有键时才向 `finance_news/{schoolId}/{userId}/delivery_ledger.jsonl` 持久化写入 `pending`；写入失败即停止，不发送。
-8. 持久化 `pending` 成功后才正式调用 `channel-message`，使用 `channel-message 0.0.1` 向唯一个人会话发送；接口支持元数据时必须传 `metadata.delivery_key`。
+6. 计算 `delivery_key={job_key}:{plan_version}:{edition_id}`。必须使用平台持久化层的原子 `create-if-absent`/唯一约束创建 `pending`，或使用 `channel-message` 原生幂等键取得等价的原子所有权。原子操作内部读取 delivery ledger：已有 `sent` 返回 `skipped_duplicate`；已有 `pending` 或 `uncertain` 返回 `delivery_uncertain`，两者都不自动重发。
+7. 只有拿到原子锁的执行者才可写入 `pending` 并正式调用 `channel-message`，使用 `channel-message 0.0.1` 向唯一个人会话发送，并在接口支持时传 `metadata.delivery_key`。不得用普通“读后追加”冒充原子锁。
+8. 如平台既无原子 `create-if-absent`/唯一约束，也无消息原生幂等键，立即返回 `delivery_atomicity_unavailable` 并禁用自动发送，不得降级为非原子账本。
 9. 发送失败或回执不确定时，将账本保留为 `pending` 或更新为 `uncertain`，返回 `delivery_uncertain` 并不自动重发。
 10. 成功投递后，将回执、账本与本期历史作为一次耐久记账，原子更新为 `sent`。发送成功但账本写入失败时必须保持 `uncertain` 语义，不自动重发，也不更新 `last_success_at`。
 11. 每期只向 `finance_news/{schoolId}/{userId}/briefing_history.jsonl` 追加一条完整 edition 记录，不拆成每条新闻一行：
@@ -135,7 +139,8 @@ name: ${agent_name}
 }
 ```
 
-12. 只有账本 `sent`、`message_receipt` 和上述完整 edition 记录都持久化成功，才更新 `last_success_at`、`next_run_at` 和成功历史；不能把“已生成”写成“已送达”。
+12. 只有账本 `sent`、`message_receipt` 和上述完整 edition 记录都持久化成功，才更新 `last_success_at` 和成功历史；`last_success_at` 仅在 `sent` 时更新，不能把“已生成”写成“已送达”。
+13. 每次 Cron 触发的所有退出分支都走同一 finalizer：无论 `sent`、`skipped`、`failed` 或 `uncertain`，都显式传当前 `--agent-id` 从当前 Cron 状态回读并更新 `next_run_at`。回读失败记录 `schedule_state_error`，不伪造时间，也不改写本次投递的真实结果。
 
 ### 5. 结果交付
 

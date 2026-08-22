@@ -33,8 +33,8 @@ normalizer 的输入为一个 JSON 对象：
 |---|---|
 | `title` | 新闻标题，非空字符串 |
 | `url` | 可公开访问的 `http` 或 `https` URL |
-| `source` | 来源名称 |
-| `source_tier` | 必填来源分层；由平台通用工具返回候选后，编排方按 `source-policy.md` 在 normalizer 前赋值，允许值和映射见下表 |
+| `source` | 调用方的来源名称仅供输入追踪；normalizer 忽略输入 `source`，输出 hostname 映射的 canonical source label |
+| `source_tier` | 必填；`source_tier` 只是调用方断言，normalizer 必须与 hostname 推导等级比对 |
 | `published_at` | 带时区的 ISO8601 发布时间 |
 | `fact_summary` | 与来源可核对的事实摘要 |
 | `theory_analysis` | 基于已取得课程依据的学习分析，不含投资建议；只能在 citations 完整后、normalizer 前生成 |
@@ -51,7 +51,7 @@ normalizer 的输入为一个 JSON 对象：
 
 ### `source_tier` 枚举与映射
 
-`source_tier` 是候选的必填输入字段。编排方必须依据来源策略赋值，normalizer 随后强制校验并将它映射为输出 `source_level`：
+`source_tier` 只是调用方断言。normalizer 不依据它授信，而是用 hostname allowlist 推导实际等级并要求两者一致：
 
 | `source_tier` 允许值 | 输出 `source_level` | 含义 |
 |---|---:|---|
@@ -60,6 +60,12 @@ normalizer 的输入为一个 JSON 对象：
 | `other` | 3 | 三级公开线索；normalizer 强制拒绝并记录 `untrusted_source` |
 
 `source_level` 是输出，不是调用方输入。调用方不得以 `source_level` 替代 `source_tier`，也不得根据来源名称自行写入输出等级。
+
+输出 `source` 同样不信任输入文字；它由命中的 allowlist 根域映射为 canonical source label。例如 `news.cn` 始终输出“新华网”，即使输入 `source` 声称“中国人民银行”也不回显该伪造名称。
+
+URL path 会将 percent-encoded unreserved 字符（如 `%7E`）还原为字面值，reserved 字符（如 `%2F`）保持编码并规范化十六进制大写。
+
+投资建议检测对所有将输出的字符串和键值执行 Unicode `NFKC` + casefold，删除零宽、空白和标点后，匹配直接禁语及“建议/推荐/应该/可考虑/维持/评级/看多看空”等提示词与“持有/增持/减持/做多/做空/buy/sell/hold/overweight/underweight”等动作词组合。
 
 `retrieved_at` 属于 normalizer 的输入或输出字段：它作为顶层必填输入，经 ISO8601 解析并规范化后回传到输出。调用方在公开网检索开始时写入该值；展示模板只读取 normalizer 输出中的 `retrieved_at`。
 
