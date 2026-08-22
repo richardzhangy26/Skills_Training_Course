@@ -435,7 +435,28 @@ def test_cli_skips_all_candidates_when_course_evidence_precheck_is_false(tmp_pat
     assert output["items"] == []
     assert output["rejected"] == [
         {
-            "title": "即使结构无效也不能绕过预检",
+            "title": "",
+            "url": "",
+            "reason": "course_evidence_unavailable",
+        }
+    ]
+
+
+def test_cli_precheck_does_not_echo_investment_advice_from_candidate_title(tmp_path):
+    prohibited_text = "建议买入"
+    result = run_cli(
+        tmp_path,
+        [candidate(title=f"{prohibited_text}该资产")],
+        course_evidence_available=False,
+    )
+
+    output = output_of(result)
+    assert prohibited_text not in result.stdout
+    assert output["status"] == "skipped_no_course_evidence"
+    assert output["status_origin"] == "precheck"
+    assert output["rejected"] == [
+        {
+            "title": "",
             "url": "",
             "reason": "course_evidence_unavailable",
         }

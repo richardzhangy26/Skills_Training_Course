@@ -245,6 +245,14 @@ def rejected_candidate(candidate, reason):
     }
 
 
+def precheck_rejected_candidate():
+    return {
+        "title": "",
+        "url": "",
+        "reason": "course_evidence_unavailable",
+    }
+
+
 def sort_rejected(rejected):
     rejected.sort(key=lambda entry: (entry["reason"], str(entry["title"]), str(entry["url"])))
 
@@ -346,10 +354,7 @@ def normalize(payload, since, until, edition_date, max_items):
         raise InputError("max-items must be between 1 and 3")
     edition_id = f"F{edition_date.strftime('%Y%m%d')}"
     if not course_evidence_available:
-        rejected = [
-            rejected_candidate(candidate, "course_evidence_unavailable")
-            for candidate in candidates
-        ]
+        rejected = [precheck_rejected_candidate() for _ in candidates]
         return result_payload(
             "skipped_no_course_evidence",
             "precheck",
