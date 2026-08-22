@@ -15,6 +15,7 @@ REQUIRED_CANDIDATE_FIELDS = (
     "title",
     "url",
     "source",
+    "source_tier",
     "published_at",
     "fact_summary",
     "theory_analysis",
@@ -27,7 +28,20 @@ REQUIRED_CITATION_FIELDS = (
     "resource_title",
     "excerpt",
 )
-OUTPUT_CANDIDATE_FIELDS = REQUIRED_CANDIDATE_FIELDS + ("source_level",)
+OUTPUT_CANDIDATE_FIELDS = tuple(
+    field for field in REQUIRED_CANDIDATE_FIELDS if field != "source_tier"
+) + ("source_level",)
+SOURCE_TIER_LEVELS = {
+    "official": 1,
+    "primary": 1,
+    "regulator": 1,
+    "government": 1,
+    "exchange": 1,
+    "company_announcement": 1,
+    "authoritative_media": 2,
+    "media": 2,
+    "other": 3,
+}
 TRACKING_PARAMETERS = {
     "dclid",
     "fbclid",
@@ -115,60 +129,7 @@ def canonical_url(value):
 
 
 def source_level(candidate):
-    supplied = str(
-        candidate.get("source_tier", candidate.get("source_level", ""))
-    ).strip().lower()
-    explicit_levels = {
-        "1": 1,
-        "official": 1,
-        "primary": 1,
-        "regulator": 1,
-        "government": 1,
-        "exchange": 1,
-        "company_announcement": 1,
-        "2": 2,
-        "authoritative_media": 2,
-        "media": 2,
-        "3": 3,
-        "other": 3,
-    }
-    if supplied in explicit_levels:
-        return explicit_levels[supplied]
-
-    source = str(candidate.get("source", "")).lower()
-    url = str(candidate.get("url", "")).lower()
-    official_markers = (
-        ".gov.",
-        "gov.cn",
-        "pbc.gov.cn",
-        "csrc.gov.cn",
-        "safe.gov.cn",
-        "sse.com.cn",
-        "szse.cn",
-        "cninfo.com.cn",
-        "sec.gov",
-        "中国人民银行",
-        "证监会",
-        "交易所",
-        "公司公告",
-        "监管",
-    )
-    media_markers = (
-        "reuters",
-        "路透",
-        "bloomberg",
-        "彭博",
-        "financial times",
-        "华尔街日报",
-        "wsj",
-        "财新",
-        "cnbc",
-    )
-    if any(marker in source or marker in url for marker in official_markers):
-        return 1
-    if any(marker in source or marker in url for marker in media_markers):
-        return 2
-    return 3
+    return SOURCE_TIER_LEVELS[candidate["source_tier"].strip().lower()]
 
 
 def normalized_title(value):
@@ -301,13 +262,19 @@ def validate_candidate(candidate, since, until, selected_course):
         return None, rejected_candidate(candidate, "outside_time_window")
     if contains_investment_advice(candidate):
         return None, rejected_candidate(candidate, "investment_advice_language")
+    if candidate["source_tier"].strip().lower() not in SOURCE_TIER_LEVELS:
+        return None, rejected_candidate(candidate, "invalid_source_tier")
     candidate_source_level = source_level(candidate)
     if candidate_source_level == 3:
         return None, rejected_candidate(candidate, "untrusted_source")
     evidence_problem = validate_course_evidence(candidate, selected_course)
     if evidence_problem:
         return None, rejected_candidate(candidate, evidence_problem)
-    prepared = {field: candidate[field] for field in REQUIRED_CANDIDATE_FIELDS}
+    prepared = {
+        field: candidate[field]
+        for field in OUTPUT_CANDIDATE_FIELDS
+        if field != "source_level"
+    }
     prepared["url"] = url
     prepared["source_level"] = candidate_source_level
     prepared["_published_at"] = published_at

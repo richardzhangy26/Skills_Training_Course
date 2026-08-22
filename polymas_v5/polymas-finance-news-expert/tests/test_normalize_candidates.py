@@ -19,6 +19,7 @@ def candidate(**overrides):
         "title": "央行发布流动性管理新工具",
         "url": "https://www.pbc.gov.cn/news/liquidity?utm_source=daily#section",
         "source": "中国人民银行",
+        "source_tier": "official",
         "published_at": "2026-08-22T08:00:00+08:00",
         "fact_summary": "中国人民银行发布流动性管理工具说明。",
         "theory_analysis": "可用于讨论货币政策工具的传导机制。",
@@ -480,6 +481,78 @@ def test_cli_rejects_tier_three_source_before_candidate_selection(tmp_path):
     assert output["status_origin"] == "normalizer"
     assert output["items"] == []
     assert output["rejected"][0]["reason"] == "untrusted_source"
+
+
+@pytest.mark.parametrize("tier", [None, "   "])
+def test_cli_rejects_empty_source_tier(tmp_path, tier):
+    result = run_cli(tmp_path, [candidate(source_tier=tier)])
+
+    output = output_of(result)
+    assert output["items"] == []
+    assert output["rejected"][0]["reason"] == "missing_source_tier"
+
+
+def test_cli_rejects_missing_source_tier_even_when_source_level_is_injected(tmp_path):
+    injected = candidate(source_level=1)
+    del injected["source_tier"]
+
+    output = output_of(run_cli(tmp_path, [injected]))
+
+    assert output["items"] == []
+    assert output["rejected"][0]["reason"] == "missing_source_tier"
+
+
+def test_cli_rejects_unknown_source_tier_without_falling_back_to_source_name(tmp_path):
+    output = output_of(
+        run_cli(tmp_path, [candidate(source_tier="governmental")])
+    )
+
+    assert output["items"] == []
+    assert output["rejected"][0]["reason"] == "invalid_source_tier"
+
+
+def test_cli_ignores_injected_source_level_when_source_tier_is_valid(tmp_path):
+    output = output_of(
+        run_cli(tmp_path, [candidate(source_tier="official", source_level=3)])
+    )
+
+    assert output["items"][0]["source_level"] == 1
+
+
+@pytest.mark.parametrize(
+    ("tier", "expected_level"),
+    [
+        ("official", 1),
+        ("primary", 1),
+        ("regulator", 1),
+        ("government", 1),
+        ("exchange", 1),
+        ("company_announcement", 1),
+        ("authoritative_media", 2),
+        ("media", 2),
+        ("other", 3),
+    ],
+)
+def test_cli_maps_each_allowed_source_tier_deterministically(
+    tmp_path, tier, expected_level
+):
+    output = output_of(
+        run_cli(
+            tmp_path,
+            [
+                candidate(
+                    source_tier=tier,
+                    url=f"https://example.com/source-tier/{tier}",
+                )
+            ],
+        )
+    )
+
+    if expected_level == 3:
+        assert output["items"] == []
+        assert output["rejected"][0]["reason"] == "untrusted_source"
+    else:
+        assert output["items"][0]["source_level"] == expected_level
 
 
 def test_cli_returns_a_single_json_error_and_nonzero_exit_for_bad_input(tmp_path):
