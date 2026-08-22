@@ -43,6 +43,14 @@ def run_cli(tmp_path, candidates, **arguments):
         ),
         "candidates": candidates,
     }
+    if not arguments.get("omit_retrieved_at"):
+        payload["retrieved_at"] = arguments.get(
+            "retrieved_at", "2026-08-22T00:00:00Z"
+        )
+    if not arguments.get("omit_course_evidence_available"):
+        payload["course_evidence_available"] = arguments.get(
+            "course_evidence_available", True
+        )
     input_path = tmp_path / "candidates.json"
     input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     command = [
@@ -76,6 +84,8 @@ def test_cli_normalizes_tracking_parameters_and_only_emits_json(tmp_path):
     assert output["items"][0]["url"] == "https://www.pbc.gov.cn/news/liquidity"
     assert output["items"][0]["item_id"] == "F20260822-01"
     assert output["edition_id"] == "F20260822"
+    assert output["retrieved_at"] == "2026-08-22T00:00:00+00:00"
+    assert output["status_origin"] == "normalizer"
 
 
 def test_cli_keeps_highest_source_level_for_duplicate_canonical_url(tmp_path):
@@ -83,7 +93,7 @@ def test_cli_keeps_highest_source_level_for_duplicate_canonical_url(tmp_path):
         title="媒体转述央行流动性工具",
         url="https://www.pbc.gov.cn/news/liquidity?from=media&utm_campaign=morning",
         source="财经自媒体",
-        source_tier="other",
+        source_tier="authoritative_media",
     )
     official = candidate(source_tier="official")
 
@@ -143,6 +153,8 @@ def test_cli_rejects_invalid_urls_and_missing_course_evidence(tmp_path):
 
     output = output_of(result)
     assert output["items"] == []
+    assert output["status"] == "no_eligible_candidates"
+    assert output["status_origin"] == "normalizer"
     assert {entry["reason"] for entry in output["rejected"]} == {
         "invalid_url",
         "missing_course_evidence",
@@ -178,6 +190,8 @@ def test_cli_rejects_incomplete_or_wrong_course_citations(tmp_path):
 
     output = output_of(result)
     assert output["items"] == []
+    assert output["status"] == "skipped_no_course_evidence"
+    assert output["status_origin"] == "candidate_filter"
     assert {entry["reason"] for entry in output["rejected"]} == {
         "missing_course_evidence",
         "course_mismatch",
@@ -195,7 +209,7 @@ def test_cli_prioritizes_source_levels_limits_results_and_assigns_stable_ids(tmp
         )
         for i, (source, tier, hour) in enumerate(
             [
-                ("其他页面", "other", 8),
+                ("另一权威财经媒体", "authoritative_media", 8),
                 ("权威财经媒体", "authoritative_media", 9),
                 ("监管公告", "official", 10),
                 ("另一监管公告", "official", 7),
@@ -312,8 +326,8 @@ def test_cli_clusters_transitively_similar_titles_before_selecting_winner(tmp_pa
     bridge = candidate(
         title=f"{prefix}甲乙戊己",
         url="https://example.com/cluster/b",
-        source="其他公开页面",
-        source_tier="other",
+        source="另一权威财经媒体",
+        source_tier="authoritative_media",
     )
     winner = candidate(
         title=f"{prefix}庚辛戊己",
@@ -379,6 +393,72 @@ def test_cli_rejects_max_items_above_three(tmp_path):
     assert result.returncode != 0
     assert result.stderr == ""
     assert json.loads(result.stdout)["error"] == "max-items must be between 1 and 3"
+
+
+def test_cli_requires_retrieved_at_with_timezone(tmp_path):
+    missing = run_cli(tmp_path, [candidate()], omit_retrieved_at=True)
+    without_timezone = run_cli(
+        tmp_path, [candidate()], retrieved_at="2026-08-22T00:00:00"
+    )
+
+    assert missing.returncode != 0
+    assert missing.stderr == ""
+    assert json.loads(missing.stdout)["error"] == "input.retrieved_at is required"
+    assert without_timezone.returncode != 0
+    assert without_timezone.stderr == ""
+    assert json.loads(without_timezone.stdout)["error"] == "retrieved_at must include a timezone"
+
+
+@pytest.mark.parametrize("value", [None, "false", 1])
+def test_cli_requires_boolean_course_evidence_available(tmp_path, value):
+    result = run_cli(tmp_path, [candidate()], course_evidence_available=value)
+
+    assert result.returncode != 0
+    assert result.stderr == ""
+    assert (
+        json.loads(result.stdout)["error"]
+        == "input.course_evidence_available must be a boolean"
+    )
+
+
+def test_cli_skips_all_candidates_when_course_evidence_precheck_is_false(tmp_path):
+    result = run_cli(
+        tmp_path,
+        [{"title": "即使结构无效也不能绕过预检"}],
+        course_evidence_available=False,
+    )
+
+    output = output_of(result)
+    assert output["status"] == "skipped_no_course_evidence"
+    assert output["status_origin"] == "precheck"
+    assert output["course_evidence_available"] is False
+    assert output["items"] == []
+    assert output["rejected"] == [
+        {
+            "title": "即使结构无效也不能绕过预检",
+            "url": "",
+            "reason": "course_evidence_unavailable",
+        }
+    ]
+
+
+def test_cli_rejects_tier_three_source_before_candidate_selection(tmp_path):
+    result = run_cli(
+        tmp_path,
+        [
+            candidate(
+                source="普通公开页面",
+                source_tier="other",
+                url="https://example.com/untrusted-source",
+            )
+        ],
+    )
+
+    output = output_of(result)
+    assert output["status"] == "no_eligible_candidates"
+    assert output["status_origin"] == "normalizer"
+    assert output["items"] == []
+    assert output["rejected"][0]["reason"] == "untrusted_source"
 
 
 def test_cli_returns_a_single_json_error_and_nonzero_exit_for_bad_input(tmp_path):

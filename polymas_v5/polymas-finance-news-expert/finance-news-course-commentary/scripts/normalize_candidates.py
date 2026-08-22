@@ -245,6 +245,33 @@ def rejected_candidate(candidate, reason):
     }
 
 
+def sort_rejected(rejected):
+    rejected.sort(key=lambda entry: (entry["reason"], str(entry["title"]), str(entry["url"])))
+
+
+def result_payload(
+    status,
+    status_origin,
+    edition_id,
+    course,
+    retrieved_at,
+    course_evidence_available,
+    items,
+    rejected,
+):
+    sort_rejected(rejected)
+    return {
+        "status": status,
+        "status_origin": status_origin,
+        "edition_id": edition_id,
+        "course": course,
+        "retrieved_at": retrieved_at.isoformat(),
+        "course_evidence_available": course_evidence_available,
+        "items": items,
+        "rejected": rejected,
+    }
+
+
 def validate_candidate(candidate, since, until, selected_course):
     if not isinstance(candidate, dict):
         return None, rejected_candidate(candidate, "invalid_candidate")
@@ -266,12 +293,15 @@ def validate_candidate(candidate, since, until, selected_course):
         return None, rejected_candidate(candidate, "outside_time_window")
     if contains_investment_advice(candidate):
         return None, rejected_candidate(candidate, "investment_advice_language")
+    candidate_source_level = source_level(candidate)
+    if candidate_source_level == 3:
+        return None, rejected_candidate(candidate, "untrusted_source")
     evidence_problem = validate_course_evidence(candidate, selected_course)
     if evidence_problem:
         return None, rejected_candidate(candidate, evidence_problem)
     prepared = {field: candidate[field] for field in REQUIRED_CANDIDATE_FIELDS}
     prepared["url"] = url
-    prepared["source_level"] = source_level(candidate)
+    prepared["source_level"] = candidate_source_level
     prepared["_published_at"] = published_at
     return prepared, None
 
@@ -294,6 +324,14 @@ def candidate_sort_key(candidate):
 def normalize(payload, since, until, edition_date, max_items):
     if not isinstance(payload, dict):
         raise InputError("input must be an object")
+    if "retrieved_at" not in payload:
+        raise InputError("input.retrieved_at is required")
+    retrieved_at = parse_timestamp(payload["retrieved_at"], "retrieved_at")
+    if "course_evidence_available" not in payload or type(
+        payload["course_evidence_available"]
+    ) is not bool:
+        raise InputError("input.course_evidence_available must be a boolean")
+    course_evidence_available = payload["course_evidence_available"]
     course = payload.get("course")
     candidates = payload.get("candidates")
     if not isinstance(course, dict):
@@ -306,6 +344,22 @@ def normalize(payload, since, until, edition_date, max_items):
         raise InputError("input.course contains investment advice language")
     if max_items < 1 or max_items > 3:
         raise InputError("max-items must be between 1 and 3")
+    edition_id = f"F{edition_date.strftime('%Y%m%d')}"
+    if not course_evidence_available:
+        rejected = [
+            rejected_candidate(candidate, "course_evidence_unavailable")
+            for candidate in candidates
+        ]
+        return result_payload(
+            "skipped_no_course_evidence",
+            "precheck",
+            edition_id,
+            course,
+            retrieved_at,
+            course_evidence_available,
+            [],
+            rejected,
+        )
 
     rejected = []
     accepted = []
@@ -359,7 +413,6 @@ def normalize(payload, since, until, edition_date, max_items):
 
     selected, excess = canonical[:max_items], canonical[max_items:]
     rejected.extend(rejected_candidate(candidate, "max_items_exceeded") for candidate in excess)
-    edition_id = f"F{edition_date.strftime('%Y%m%d')}"
     items = []
     for position, candidate in enumerate(selected, start=1):
         item = {key: value for key, value in candidate.items() if not key.startswith("_")}
@@ -368,19 +421,23 @@ def normalize(payload, since, until, edition_date, max_items):
 
     rejection_reasons = {entry["reason"] for entry in rejected}
     status = "ready" if items else "no_eligible_candidates"
+    status_origin = "normalizer"
     if not items and rejection_reasons and rejection_reasons <= {
         "missing_course_evidence",
         "course_mismatch",
     }:
         status = "skipped_no_course_evidence"
-    rejected.sort(key=lambda entry: (entry["reason"], str(entry["title"]), str(entry["url"])))
-    return {
-        "status": status,
-        "edition_id": edition_id,
-        "course": course,
-        "items": items,
-        "rejected": rejected,
-    }
+        status_origin = "candidate_filter"
+    return result_payload(
+        status,
+        status_origin,
+        edition_id,
+        course,
+        retrieved_at,
+        course_evidence_available,
+        items,
+        rejected,
+    )
 
 
 def build_parser():
