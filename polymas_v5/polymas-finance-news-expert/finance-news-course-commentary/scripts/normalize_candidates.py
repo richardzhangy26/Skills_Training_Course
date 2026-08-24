@@ -194,6 +194,10 @@ SENSITIVE_PARAMETER_MARKERS = (
     "accesskey",
     "apikey",
     "sessionkey",
+    "authorization",
+    "authcode",
+    "jwt",
+    "sigv",
 )
 INVESTMENT_ADVICE_ACTIONS = (
     "持有",
@@ -262,6 +266,17 @@ DIRECT_TRANSACTION_ACTIONS = (
     "go short",
     "long position",
     "short position",
+)
+DIRECT_COMMAND_PREFIXES = (
+    "请",
+    "请你",
+    "请您",
+    "全仓",
+    "满仓",
+    "半仓",
+    "重仓",
+    "轻仓",
+    "空仓",
 )
 IMMEDIATE_TIME_CUES = ("现在", "此刻", "today", "now")
 IMMEDIATE_HIGH_RISK_ACTIONS = tuple(
@@ -484,6 +499,9 @@ NORMALIZED_ADVICE_ACTIONS = tuple(
 NORMALIZED_DIRECT_TRANSACTION_ACTIONS = tuple(
     normalize_advice_text(phrase) for phrase in DIRECT_TRANSACTION_ACTIONS
 )
+NORMALIZED_DIRECT_COMMAND_PREFIXES = tuple(
+    normalize_advice_text(phrase) for phrase in DIRECT_COMMAND_PREFIXES
+)
 NORMALIZED_IMMEDIATE_TIME_CUES = tuple(
     normalize_advice_text(phrase) for phrase in IMMEDIATE_TIME_CUES
 )
@@ -515,19 +533,31 @@ def contains_investment_advice(value):
         normalized = normalize_advice_text(text)
         if any(pattern in normalized for pattern in NORMALIZED_ADVICE_PHRASES):
             return True
-        if any(hint in normalized for hint in NORMALIZED_ADVICE_HINTS) and any(
-            action in normalized for action in NORMALIZED_ADVICE_ACTIONS
-        ):
-            return True
-        if any(cue in normalized for cue in NORMALIZED_IMMEDIATE_TIME_CUES) and any(
-            action in normalized for action in NORMALIZED_IMMEDIATE_HIGH_RISK_ACTIONS
-        ):
-            return True
-        if any(
-            normalized.endswith(action)
-            for action in NORMALIZED_DIRECT_TRANSACTION_ACTIONS
-        ):
-            return True
+        segments = (
+            normalize_advice_text(segment)
+            for segment in re.split(r"[。！？!?；;：:]+", text)
+        )
+        for segment in (item for item in segments if item):
+            if any(hint in segment for hint in NORMALIZED_ADVICE_HINTS) and any(
+                action in segment for action in NORMALIZED_ADVICE_ACTIONS
+            ):
+                return True
+            if any(cue in segment for cue in NORMALIZED_IMMEDIATE_TIME_CUES) and any(
+                action in segment
+                for action in NORMALIZED_IMMEDIATE_HIGH_RISK_ACTIONS
+            ):
+                return True
+            if any(
+                segment.startswith(action)
+                for action in NORMALIZED_DIRECT_TRANSACTION_ACTIONS
+            ):
+                return True
+            if any(
+                segment.startswith(f"{prefix}{action}")
+                for prefix in NORMALIZED_DIRECT_COMMAND_PREFIXES
+                for action in NORMALIZED_DIRECT_TRANSACTION_ACTIONS
+            ):
+                return True
     return False
 
 

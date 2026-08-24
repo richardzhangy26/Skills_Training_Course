@@ -44,14 +44,14 @@ git diff --check
 
 本轮新鲜结果（2026-08-24）：
 
-- 财经目录全量：`174 passed in 8.44s`。
+- 财经目录全量：`187 passed in 5.77s`。
 - Skill 基础校验：`Skill is valid!`。
 - 上述 5 个新增/修改 Python 文件 `py_compile` 退出码为 0。
 - `git diff --check` 退出码为 0。
 
 ## 确定性 ZIP 与凭证扫描
 
-- 实际上传包 SHA-256：`4019c8f03c5b6ec185631cd3a77e75fc8adb3b71dc0d9f69f025980636a988f0`；独立重建两次得到相同 SHA-256，每个 ZIP 成员均与当前源码 SHA-256 一致。
+- 实际上传包 SHA-256：`be8cf94cad8c29af2506772860fe8575171ab47adb0fce4943b4a304a3923107`；独立重建两次得到相同 SHA-256，每个 ZIP 成员均与当前源码 SHA-256 一致。
 - ZIP 仅含 5 个排序后白名单成员：`SKILL.md`、`output_format/briefing.md`、`references/data-contract.md`、`references/source-policy.md`、`scripts/normalize_candidates.py`。
 - 每个 ZIP 成员的 SHA-256 都与当前源文件一致。
 - 逐成员 UTF-8 正文扫描 Authorization/Cookie/Token/API key、password、secret/private/access key、session credential、数据库凭证 URI、Bearer/Basic Authorization、JWT、私钥头和 SSH 公钥形态：`credential_pattern_hits: 0`。相应正则反例已纳入测试。
@@ -76,7 +76,7 @@ git diff --check
 
 ## 与本目录无关的仓库基线
 
-既有仓库基线记录为 `107 passed, 12 failed`；12 项失败来自清洁 worktree 缺少主工作区未跟踪的课程夹具/素材，与财经专家目录修改无关。本轮未重跑该缺失夹具的全仓命令，只将其作为历史基线记录；本轮完成门禁以上述财经目录 `174 passed` 为当前证据。
+既有仓库基线记录为 `107 passed, 12 failed`；12 项失败来自清洁 worktree 缺少主工作区未跟踪的课程夹具/素材，与财经专家目录修改无关。本轮未重跑该缺失夹具的全仓命令，只将其作为历史基线记录；本轮完成门禁以上述财经目录 `187 passed` 为当前证据。
 
 ## 2026-08-24 最终独立 forward-test
 

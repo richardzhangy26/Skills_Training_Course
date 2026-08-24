@@ -26,14 +26,17 @@ HELP_TEXT = "生成可上传的财经新闻课程点评 Skill ZIP"
 CREDENTIAL_PATTERNS = (
     re.compile(
         r"(?i)[\"']?[A-Za-z0-9_-]*(?:authorization|cookie|token|api[_-]?key|password|passwd|secret(?:[_-]access)?[_-]?key|private[_-]?key|client[_-]?secret|session(?:[_-]?(?:id|token))?|credential|access[_-]?key|database[_-]?url)[A-Za-z0-9_-]*[\"']?"
-        r"\s*[:=]\s*[\"']?(?:(?:bearer|basic)\s+)?[A-Za-z0-9._~+/:@?&%=-]{8,}"
+        r"\s*[:=]\s*(?:[\"'][^\"'\r\n]{8,}[\"']|(?:(?:bearer|basic)\s+)?[^\s,;}\]]{8,})"
     ),
     re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
     re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     re.compile(r"(?i)\bssh-(?:rsa|ed25519)\s+AAAA[A-Za-z0-9+/=]{8,}"),
-    re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://[^/\s:@]+:[^/\s@]+@"),
+    re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://[^/\s:@]*:[^/\s@]+@"),
     re.compile(
-        r"\b(?:(?:AKIA|ASIA)[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9_-]{20,})\b"
+        r"(?i)[?&](?:sig|signature|token|access[_-]?token|credential|secret|api[_-]?key)=[^&#\s\"']{8,}"
+    ),
+    re.compile(
+        r"\b(?:(?:AKIA|ASIA)[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9_-]{20,}|sk_(?:live|test)_[A-Za-z0-9_-]{16,})\b"
     ),
 )
 

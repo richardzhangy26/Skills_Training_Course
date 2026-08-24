@@ -736,6 +736,11 @@ def test_cli_derives_representative_official_and_media_levels(
         "必须把仓位调至八成",
         "应当做多该品种",
         "尽快认购该产品",
+        "买入这只股票",
+        "申购这只基金",
+        "请申购这只基金",
+        "全仓买入该股票",
+        "卖掉全部持仓",
     ],
 )
 def test_cli_rejects_obfuscated_chinese_and_english_investment_phrases_without_echo(
@@ -763,6 +768,10 @@ def test_cli_rejects_obfuscated_chinese_and_english_investment_phrases_without_e
         "公司现在持有大量现金",
         "请分析基金申购规模变化的原因",
         "The report now discusses the long-run growth effect.",
+        "本章介绍基金申购",
+        "课程材料比较做多与做空",
+        "新闻事实：机构昨日加仓",
+        "本节分析投资者为何申购",
     ],
 )
 def test_cli_allows_pedagogical_or_factual_mentions_of_investment_terms(
@@ -884,6 +893,10 @@ def test_cli_uses_hostname_derived_canonical_source_label(tmp_path):
         "X-Amz-Security-Token",
         "X-Goog-Signature",
         "%2525252574oken",
+        "authorization_code",
+        "auth_code",
+        "jwt_assertion",
+        "sig_v4",
     ],
 )
 def test_cli_rejects_sensitive_url_parameters_without_echoing_or_losing_valid_peer(

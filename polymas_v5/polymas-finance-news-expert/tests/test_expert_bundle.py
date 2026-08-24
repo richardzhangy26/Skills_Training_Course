@@ -754,6 +754,11 @@ def test_zip_credential_patterns_detect_json_token_and_authorization_examples():
         "postgres://user:password@example.invalid/db",
         "AKIAIOSFODNN7EXAMPLE",
         "ghp_abcdefghijklmnopqrstuvwxyz123456",
+        'PASSWORD="!S3cret-passphrase-2026"',
+        'password = "correct horse battery staple"',
+        "https://example.invalid/blob?sv=2026&sig=abcdefghijklmnopqrstuvwxyz",
+        "".join(("sk", "_live_", "abcdefghijklmnopqrstuvwxyz123456")),
+        "redis://:password@example.invalid/0",
     )
 
     for example in examples:
