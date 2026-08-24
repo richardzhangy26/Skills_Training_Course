@@ -53,3 +53,11 @@
 
 - 真实 PDS 上的 `pending_activation`、Cron 补偿、原子 create-if-absent/消息幂等键、无原子能力的持久停发、回执记账与 uncertain 对账仍是上线前联调门禁。
 - 静态投资禁语表已覆盖 findings 要求的中英文与空格/标点/零宽规避，但不能代替平台端更强的语义审核。
+
+## 2026-08-24 最终封板补充
+
+- 提交 `38b1b3f fix: close remaining finance expert review gaps`。
+- normalizer RED：`29 failed, 78 passed`；专家状态机 RED：`3 failed, 21 passed`；修复后财经目录 `142 passed in 3.73s`。
+- 新增：敏感 URL 参数拒绝、申购/赎回/认购/持仓/仓位等交易建议门禁、单一来源注册表、`source_tier=other` 统一原因码、Basic Authorization ZIP 扫描。
+- 专家新增：无原子能力持久停发状态、首次订阅失败唯一草稿删除规则、恢复 active 门禁、改课最后 active 提交失败补偿。
+- 当前 ZIP SHA-256：`a1054b930ad12092502dd6f5484b368c13e5adb7de8dbd178f6b11a52e6de178`；5 个成员均与源码一致，正文凭证命中 0。
