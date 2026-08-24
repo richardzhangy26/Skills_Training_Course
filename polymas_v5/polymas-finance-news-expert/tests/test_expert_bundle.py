@@ -361,6 +361,7 @@ def validate_activation_recovery_gate_and_final_migration_compensation(config):
         "新订阅 active 提交失败或回执不确定",
         "立即暂停新 Cron",
         "将旧订阅从 `unsubscribed` 恢复为 `active`",
+        "清空旧订阅的 `superseded_by_job_key`",
         "恢复旧 Cron",
         "新订阅写 `status=paused` 和 `migration_error`",
         "清理新候选",

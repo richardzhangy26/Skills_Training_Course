@@ -45,7 +45,7 @@ python scripts/package_skill.py --output finance-news-course-commentary.zip
 - 无原子能力时必须先暂停当前 Cron，再持久化 `status=paused`、`auto_delivery_status=disabled_atomicity`、`delivery_error=delivery_atomicity_unavailable`、`next_run_at=null`。暂停或写入失败记 `recovery_required=true` 和真实错误，仍不发送。恢复前先重新验证原子能力，通过后才可清 `delivery_error`、设 `auto_delivery_status=enabled` 并恢复 Cron。
 - 成功记账后，每期在 `finance_news/{schoolId}/{userId}/briefing_history.jsonl` 只写一条 edition，包含 `job_key`、完整课程对象、会话、回执和完整 `items` 数组。
 - 每次 Cron 触发不论发送、跳过或失败，都从 Cron 状态回读并更新 `next_run_at`；`last_success_at` 仅在 sent 并完成耐久记账后更新。
-- 改课在最后新订阅 active 提交失败或回执不确定时，立即暂停新 Cron，恢复旧订阅/旧 Cron，新订阅置 paused+`migration_error` 并清理；恢复/清理失败则双方 paused+recovery+orphans。active 提交确认前不得视为迁移完成。
+- 改课在最后新订阅 active 提交失败或回执不确定时，立即暂停新 Cron，恢复旧订阅/旧 Cron并清空旧订阅的 `superseded_by_job_key`，新订阅置 paused+`migration_error` 并清理；恢复/清理失败则双方 paused+recovery+orphans。active 提交确认前不得视为迁移完成。
 
 ## 真实联调验收
 

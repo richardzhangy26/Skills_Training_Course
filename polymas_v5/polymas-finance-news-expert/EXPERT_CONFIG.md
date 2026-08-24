@@ -105,7 +105,7 @@ name: ${agent_name}
 - **课程变更是独立迁移**：课程变更禁止进入同 `job_key` 计划切换。**改课迁移顺序**：①使用新 `courseId` 生成新 `job_key`，写新订阅 `status=pending_activation`；②创建新课程订阅候选；③校验新课程订阅候选；④在仍为 pending 时写入新 `cron_job_id` 并启用新课程订阅候选；⑤新订阅仍保持 pending，所以新 Cron 暂不能投递；⑥停用旧课程 Cron；⑦将旧订阅 `status=unsubscribed` 并写入 `superseded_by_job_key`；⑧最后才将新订阅 `status=active`。
 - **新课程候选失败**：在旧课程 Cron 成功停用之前，任一创建、校验、写入或启用失败都先删除或暂停新候选并清理，新订阅置为 `status=paused`、`migration_error`，旧订阅继续 `active`，旧任务也继续正常执行。
 - **旧 Cron 停用失败或旧订阅退订写入失败**：立即暂停新任务，恢复旧订阅和旧任务为 `active`，新订阅置为 `status=paused`、写 `migration_error`，然后清理新候选。恢复或清理失败时，立即将双方 `status=paused`，新旧任务均暂停，写 `recovery_required=true`、`orphaned_cron_job_ids` 和真实错误后停止。
-- **新订阅 active 提交失败或回执不确定**：立即暂停新 Cron，将旧订阅从 `unsubscribed` 恢复为 `active` 并恢复旧 Cron；新订阅写 `status=paused` 和 `migration_error`，再清理新候选。恢复或清理任一失败时，立即将双方 `status=paused`，新旧 Cron 均暂停，写 `recovery_required=true`、`orphaned_cron_job_ids` 和真实错误。active 提交确认成功前不得视为迁移完成。
+- **新订阅 active 提交失败或回执不确定**：立即暂停新 Cron，将旧订阅从 `unsubscribed` 恢复为 `active`、清空旧订阅的 `superseded_by_job_key` 并恢复旧 Cron；新订阅写 `status=paused` 和 `migration_error`，再清理新候选。恢复或清理任一失败时，立即将双方 `status=paused`，新旧 Cron 均暂停，写 `recovery_required=true`、`orphaned_cron_job_ids` 和真实错误。active 提交确认成功前不得视为迁移完成。
 
 ### 4. 定时生成与安全投递
 
