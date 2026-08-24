@@ -16,6 +16,12 @@
 - package `--help` JSON 和 ZIP 凭证反例首次定向执行：`2 failed`；其中 argparse 返回普通 help 文本，旧正则同时漏掉 `"token": "..."` 和 `Authorization: Bearer ...`。
 - Skill/数据契约/部署文档补充测试首次定向执行：`4 failed`；同步后 Skill+专家测试为 `30 passed`。
 
+### 最终封板补充 RED
+
+- normalizer 补充敏感 URL、更多交易建议、来源单一注册表和来源原因码测试后，首次执行为 `29 failed, 78 passed`；实现后 normalizer 定向测试全部通过。
+- 专家补充无原子能力持久停发、首次订阅唯一失败态、恢复门禁和改课最终提交失败补偿测试后，首次执行为 `3 failed, 21 passed`；实现后专家定向测试全部通过。
+- package 帮助输出、Basic Authorization 与 ZIP 正文凭证反例均先观察到失败，再补齐 JSON-only 和扫描规则。
+
 ## GREEN 与完成门禁
 
 当前定向命令：
@@ -35,19 +41,19 @@ python -m py_compile \
 git diff --check
 ```
 
-本轮新鲜结果：
+本轮新鲜结果（2026-08-24）：
 
-- 财经目录全量：`108 passed in 2.64s`。
+- 财经目录全量：`142 passed in 3.73s`。
 - Skill 基础校验：`Skill is valid!`。
 - 上述 5 个新增/修改 Python 文件 `py_compile` 退出码为 0。
 - `git diff --check` 退出码为 0。
 
 ## 确定性 ZIP 与凭证扫描
 
-- 实际上传包与独立第二次构建的 SHA-256 一致：`d04f8f7f45fa2d87f1b8df637e45f3a4fb20ccbeef1e32d3ac70f786e7e376d5`。
+- 实际上传包 SHA-256：`a1054b930ad12092502dd6f5484b368c13e5adb7de8dbd178f6b11a52e6de178`；每个 ZIP 成员均与当前源码 SHA-256 一致。
 - ZIP 仅含 5 个排序后白名单成员：`SKILL.md`、`output_format/briefing.md`、`references/data-contract.md`、`references/source-policy.md`、`scripts/normalize_candidates.py`。
 - 每个 ZIP 成员的 SHA-256 都与当前源文件一致。
-- 逐成员 UTF-8 正文扫描 Authorization/Cookie/Token/API key 赋值模式和 JWT 模式：`credential_pattern_hits: 0`。正则反例已证明能命中 `"token": "secretvalue123"` 和 `Authorization: Bearer ...`。
+- 逐成员 UTF-8 正文扫描 Authorization/Cookie/Token/API key 赋值模式、Bearer/Basic Authorization 和 JWT 模式：`credential_pattern_hits: 0`。正则反例覆盖 JSON token、Bearer 和 Basic Authorization。
 
 ## 独立 forward-test（final review）
 
