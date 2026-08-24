@@ -34,7 +34,7 @@ git diff --check
 
 当前本地结果：
 
-- 财经专家目录：`166 passed`。
+- 财经专家目录：`168 passed`。
 - Skill 校验：`Skill is valid!`。
 - normalizer、打包器、订阅状态机和四个测试文件 `py_compile` 退出码为 0。
 - `git diff --check` 退出码为 0。
@@ -66,6 +66,8 @@ git diff --check
 - 计划候选启用失败会恢复旧 `cron_job_id`、旧 `plan_version`、旧计划和旧 Cron；二阶失败进入双暂停 recovery。
 - edition 历史保存检索时间，以及每条新闻的规范化来源、URL、发布时间和来源等级。
 - normalizer 明确拒绝旧 `course`、`course_evidence_available` 和 `theory_citations` 字段，不再静默忽略。
+
+最终独立复审对完整范围 `2d1eda4..67ce2ce` 给出 `READY`，没有未解决的 Critical 或 Important；复审方重跑结果同为 `168 passed`，Skill 校验、Python 编译、diff 检查和 ZIP 源码一致性均通过。
 
 ## 线上联调边界
 
