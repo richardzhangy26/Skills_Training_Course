@@ -23,6 +23,7 @@ class FakeStore:
     def __init__(self):
         self._lock = threading.Lock()
         self.subscriptions = {}
+        self.fail_next_replace = False
 
     def create_if_absent(self, draft):
         with self._lock:
@@ -38,6 +39,9 @@ class FakeStore:
 
     def replace(self, job_key, expected, replacement):
         with self._lock:
+            if self.fail_next_replace:
+                self.fail_next_replace = False
+                return False
             current = self.subscriptions[job_key]
             if any(current.get(key) != value for key, value in expected.items()):
                 return False
@@ -193,3 +197,22 @@ def test_rebind_resume_failure_restores_old_binding_in_paused_recovery_state():
     assert recovered["recovery_required"] is True
     assert recovered["target_session_id"] == old["target_session_id"]
     assert recovered["binding_version"] == old["binding_version"]
+
+
+def test_rebind_cas_and_old_cron_resume_failure_marks_paused_recovery():
+    contract = load_contract()
+    store = FakeStore()
+    cron = FakeCron()
+    old = contract.activate_subscription(store, cron, draft())["subscription"]
+    store.fail_next_replace = True
+    cron.fail_enable_for.add(old["cron_job_id"])
+
+    with pytest.raises(contract.TransitionError, match="binding_rollback_failed"):
+        contract.rebind_current_session(store, cron, draft()["job_key"], "session-2")
+
+    recovered = store.get(draft()["job_key"])
+    assert recovered["status"] == "paused"
+    assert recovered["recovery_required"] is True
+    assert recovered["target_session_id"] == old["target_session_id"]
+    assert recovered["binding_version"] == old["binding_version"]
+    assert recovered["orphaned_cron_job_ids"] == [old["cron_job_id"]]

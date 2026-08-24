@@ -102,7 +102,11 @@ def rebind_current_session(store, cron, job_key, target_session_id):
         "target_session_id": old["target_session_id"],
     }
     if not store.replace(job_key, expected, rebound):
-        cron.enable(old["cron_job_id"])
+        try:
+            cron.enable(old["cron_job_id"])
+        except Exception as error:
+            store.force_replace(job_key, _recovery_state(old, old["cron_job_id"]))
+            raise TransitionError("binding_rollback_failed") from error
         raise TransitionError("binding_compare_and_swap_failed")
     try:
         cron.enable(old["cron_job_id"])
