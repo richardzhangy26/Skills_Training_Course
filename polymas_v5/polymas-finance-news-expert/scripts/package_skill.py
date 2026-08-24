@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL_NAME = "finance-news-course-commentary"
+SKILL_NAME = "finance-news-commentary"
 SKILL_ROOT = ROOT / SKILL_NAME
 INCLUDED_FILES = (
     "SKILL.md",
@@ -22,7 +22,7 @@ INCLUDED_FILES = (
     "scripts/normalize_candidates.py",
 )
 FIXED_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
-HELP_TEXT = "生成可上传的财经新闻课程点评 Skill ZIP"
+HELP_TEXT = "生成可上传的财经新闻通用点评 Skill ZIP"
 CREDENTIAL_PATTERNS = (
     re.compile(
         r"(?i)[\"']?[A-Za-z0-9_-]*(?:authorization|cookie|token|api[_-]?key|password|passwd|secret(?:[_-]access)?[_-]?key|private[_-]?key|client[_-]?secret|session(?:[_-]?(?:id|token))?|credential|access[_-]?key|database[_-]?url)[A-Za-z0-9_-]*[\"']?"

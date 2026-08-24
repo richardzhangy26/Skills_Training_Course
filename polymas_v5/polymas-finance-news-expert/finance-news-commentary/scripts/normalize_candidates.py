@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministically validate and prepare finance-news course briefings."""
+"""Deterministically validate and prepare general finance-news briefings."""
 
 import argparse
 import ipaddress
@@ -15,11 +15,9 @@ from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
 MAX_INPUT_BYTES = 1024 * 1024
 MAX_CANDIDATES = 100
-MAX_CITATIONS = 10
 MAX_JSON_DEPTH = 100
 MAX_TRAVERSAL_NODES = 20_000
 
-COURSE_FIELDS = ("course_id", "course_name")
 REQUIRED_CANDIDATE_FIELDS = (
     "title",
     "url",
@@ -29,14 +27,6 @@ REQUIRED_CANDIDATE_FIELDS = (
     "fact_summary",
     "theory_analysis",
     "discussion_question",
-    "theory_citations",
-)
-REQUIRED_CITATION_FIELDS = (
-    "course_id",
-    "course_name",
-    "knowledge_point",
-    "resource_title",
-    "excerpt",
 )
 OUTPUT_CANDIDATE_FIELDS = tuple(
     field for field in REQUIRED_CANDIDATE_FIELDS if field != "source_tier"
@@ -298,15 +288,6 @@ CANDIDATE_LENGTH_LIMITS = {
     "theory_analysis": 4000,
     "discussion_question": 4000,
 }
-CITATION_LENGTH_LIMITS = {
-    "course_id": 300,
-    "course_name": 300,
-    "knowledge_point": 300,
-    "resource_title": 300,
-    "excerpt": 2000,
-}
-
-
 class InputError(ValueError):
     """An input or command-line argument cannot produce a valid briefing."""
 
@@ -577,74 +558,8 @@ def validate_json_structure(value):
             stack.extend((item, depth + 1) for item in current)
 
 
-def validate_course(course):
-    if not isinstance(course, dict):
-        raise InputError("input.course must be an object")
-    selected_course = {}
-    for field in COURSE_FIELDS:
-        value = course.get(field)
-        if not isinstance(value, str) or not value.strip():
-            raise InputError(f"input.course.{field} is required")
-        if len(value) > 300:
-            raise InputError(f"input.course.{field} exceeds 300 characters")
-        selected_course[field] = value.strip()
-    if contains_investment_advice(selected_course):
-        raise InputError("input.course contains investment advice language")
-    return selected_course
-
-
-def validate_course_evidence(candidate, selected_course):
-    citations = candidate.get("theory_citations")
-    if not isinstance(citations, list) or not citations:
-        return None, "missing_course_evidence"
-    if len(citations) > MAX_CITATIONS:
-        return None, "too_many_theory_citations"
-    validated = []
-    for citation in citations:
-        if not isinstance(citation, dict):
-            return None, "missing_course_evidence"
-        safe_citation = {}
-        for field in REQUIRED_CITATION_FIELDS:
-            value = citation.get(field)
-            if not isinstance(value, str) or not value.strip():
-                return None, "missing_course_evidence"
-            if len(value) > CITATION_LENGTH_LIMITS[field]:
-                return None, "field_too_long"
-            safe_citation[field] = value.strip()
-        if contains_investment_advice(safe_citation):
-            return None, "investment_advice_language"
-        if any(
-            safe_citation[field] != selected_course[field]
-            for field in COURSE_FIELDS
-        ):
-            return None, "course_mismatch"
-        validated.append(safe_citation)
-    return validated, None
-
-
 def rejected_candidate(candidate_index, reason):
     return {"candidate_index": candidate_index, "reason": reason}
-
-
-def candidate_limit_problem(candidate):
-    if not isinstance(candidate, dict):
-        return None
-    for field, limit in CANDIDATE_LENGTH_LIMITS.items():
-        value = candidate.get(field)
-        if isinstance(value, str) and len(value) > limit:
-            return "field_too_long"
-    citations = candidate.get("theory_citations")
-    if isinstance(citations, list):
-        if len(citations) > MAX_CITATIONS:
-            return "too_many_theory_citations"
-        for citation in citations:
-            if not isinstance(citation, dict):
-                continue
-            for field, limit in CITATION_LENGTH_LIMITS.items():
-                value = citation.get(field)
-                if isinstance(value, str) and len(value) > limit:
-                    return "field_too_long"
-    return None
 
 
 def sort_rejected(rejected):
@@ -655,9 +570,7 @@ def result_payload(
     status,
     status_origin,
     edition_id,
-    course,
     retrieved_at,
-    course_evidence_available,
     items,
     rejected,
 ):
@@ -666,9 +579,7 @@ def result_payload(
         "status": status,
         "status_origin": status_origin,
         "edition_id": edition_id,
-        "course": course,
         "retrieved_at": retrieved_at.isoformat(),
-        "course_evidence_available": course_evidence_available,
         "items": items,
         "rejected": rejected,
     }
@@ -677,15 +588,13 @@ def result_payload(
     return result
 
 
-def validate_candidate(candidate, candidate_index, since, until, selected_course):
+def validate_candidate(candidate, candidate_index, since, until):
     reject = lambda reason: (None, rejected_candidate(candidate_index, reason))
     if not isinstance(candidate, dict):
         return reject("invalid_candidate")
     for field in REQUIRED_CANDIDATE_FIELDS:
         if field not in candidate:
             return reject(f"missing_{field}")
-        if field == "theory_citations":
-            continue
         value = candidate[field]
         if field == "source_tier":
             if not isinstance(value, str):
@@ -696,9 +605,6 @@ def validate_candidate(candidate, candidate_index, since, until, selected_course
             return reject(f"missing_{field}")
         if isinstance(value, str) and len(value) > CANDIDATE_LENGTH_LIMITS[field]:
             return reject("field_too_long")
-    citations, evidence_problem = validate_course_evidence(candidate, selected_course)
-    if evidence_problem:
-        return reject(evidence_problem)
     try:
         url = canonical_url(candidate["url"])
     except (InputError, ValueError, UnicodeError) as error:
@@ -732,7 +638,6 @@ def validate_candidate(candidate, candidate_index, since, until, selected_course
         "fact_summary": candidate["fact_summary"].strip(),
         "theory_analysis": candidate["theory_analysis"].strip(),
         "discussion_question": candidate["discussion_question"].strip(),
-        "theory_citations": citations,
         "source_level": derived_level,
         "_published_at": published_at,
         "_candidate_index": candidate_index,
@@ -765,12 +670,6 @@ def normalize(payload, since, until, edition_date, max_items):
     if "retrieved_at" not in payload:
         raise InputError("input.retrieved_at is required")
     retrieved_at = parse_timestamp(payload["retrieved_at"], "retrieved_at")
-    if "course_evidence_available" not in payload or type(
-        payload["course_evidence_available"]
-    ) is not bool:
-        raise InputError("input.course_evidence_available must be a boolean")
-    course_evidence_available = payload["course_evidence_available"]
-    course = validate_course(payload.get("course"))
     candidates = payload.get("candidates")
     if not isinstance(candidates, list):
         raise InputError("input.candidates must be an array")
@@ -779,31 +678,11 @@ def normalize(payload, since, until, edition_date, max_items):
     if max_items < 1 or max_items > 3:
         raise InputError("max-items must be between 1 and 3")
     edition_id = f"F{edition_date.strftime('%Y%m%d')}"
-    if not course_evidence_available:
-        rejected = [
-            rejected_candidate(
-                index,
-                candidate_limit_problem(candidate) or "course_evidence_unavailable",
-            )
-            for index, candidate in enumerate(candidates)
-        ]
-        return result_payload(
-            "skipped_no_course_evidence",
-            "precheck",
-            edition_id,
-            course,
-            retrieved_at,
-            course_evidence_available,
-            [],
-            rejected,
-        )
 
     rejected = []
     accepted = []
     for candidate_index, candidate in enumerate(candidates):
-        prepared, rejected_entry = validate_candidate(
-            candidate, candidate_index, since, until, course
-        )
+        prepared, rejected_entry = validate_candidate(candidate, candidate_index, since, until)
         if rejected_entry:
             rejected.append(rejected_entry)
         else:
@@ -863,22 +742,13 @@ def normalize(payload, since, until, edition_date, max_items):
         item["item_id"] = f"{edition_id}-{position:02d}"
         items.append(item)
 
-    rejection_reasons = {entry["reason"] for entry in rejected}
     status = "ready" if items else "no_eligible_candidates"
     status_origin = "normalizer"
-    if not items and rejection_reasons and rejection_reasons <= {
-        "missing_course_evidence",
-        "course_mismatch",
-    }:
-        status = "skipped_no_course_evidence"
-        status_origin = "candidate_filter"
     return result_payload(
         status,
         status_origin,
         edition_id,
-        course,
         retrieved_at,
-        course_evidence_available,
         items,
         rejected,
     )

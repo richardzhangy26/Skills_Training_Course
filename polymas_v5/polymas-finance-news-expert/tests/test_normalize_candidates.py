@@ -8,7 +8,7 @@ import pytest
 
 SCRIPT = (
     Path(__file__).parents[1]
-    / "finance-news-course-commentary"
+    / "finance-news-commentary"
     / "scripts"
     / "normalize_candidates.py"
 )
@@ -25,34 +25,16 @@ def candidate(**overrides):
         "fact_summary": "中国人民银行发布流动性管理工具说明。",
         "theory_analysis": "可用于讨论货币政策工具的传导机制。",
         "discussion_question": "该工具可能如何影响市场流动性？",
-        "theory_citations": [
-            {
-                "course_id": "course-1",
-                "course_name": "货币金融学",
-                "knowledge_point": "货币政策工具",
-                "resource_title": "第六章 货币政策",
-                "excerpt": "公开市场操作通过调节基础货币影响流动性。",
-            }
-        ],
     }
     value.update(overrides)
     return value
 
 
 def run_cli(tmp_path, candidates, **arguments):
-    payload = {
-        "course": arguments.get(
-            "course", {"course_name": "货币金融学", "course_id": "course-1"}
-        ),
-        "candidates": candidates,
-    }
+    payload = {"candidates": candidates}
     if not arguments.get("omit_retrieved_at"):
         payload["retrieved_at"] = arguments.get(
             "retrieved_at", "2026-08-22T00:00:00Z"
-        )
-    if not arguments.get("omit_course_evidence_available"):
-        payload["course_evidence_available"] = arguments.get(
-            "course_evidence_available", True
         )
     input_path = tmp_path / "candidates.json"
     input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
@@ -76,6 +58,43 @@ def run_cli(tmp_path, candidates, **arguments):
 def output_of(result):
     assert result.stderr == ""
     return json.loads(result.stdout)
+
+
+def test_cli_accepts_general_finance_candidate_without_course_fields(tmp_path):
+    general_candidate = candidate()
+    payload = {
+        "retrieved_at": "2026-08-22T00:00:00Z",
+        "candidates": [general_candidate],
+    }
+    input_path = tmp_path / "general-candidates.json"
+    input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--input",
+            str(input_path),
+            "--since",
+            "2026-08-22T00:00:00+08:00",
+            "--until",
+            "2026-08-22T23:59:59+08:00",
+            "--edition-date",
+            "2026-08-22",
+            "--max-items",
+            "3",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    output = output_of(result)
+    assert result.returncode == 0
+    assert output["status"] == "ready"
+    assert output["items"][0]["title"] == general_candidate["title"]
+    assert "course" not in output
+    assert "course_evidence_available" not in output
+    assert "theory_citations" not in output["items"][0]
 
 
 def test_cli_normalizes_tracking_parameters_and_only_emits_json(tmp_path):
@@ -145,63 +164,16 @@ def test_cli_rejects_candidates_outside_the_inclusive_time_window(tmp_path):
     assert [entry["reason"] for entry in output["rejected"]] == ["outside_time_window"]
 
 
-def test_cli_rejects_invalid_urls_and_missing_course_evidence(tmp_path):
+def test_cli_rejects_invalid_url_without_echoing_candidate(tmp_path):
     invalid_url = candidate(url="javascript:alert(1)")
-    no_evidence = candidate(
-        title="没有课程证据",
-        url="https://www.pbc.gov.cn/news/no-evidence",
-        theory_citations=[],
-    )
-
-    result = run_cli(tmp_path, [invalid_url, no_evidence])
+    result = run_cli(tmp_path, [invalid_url])
 
     output = output_of(result)
     assert output["items"] == []
     assert output["status"] == "no_eligible_candidates"
     assert output["status_origin"] == "normalizer"
-    assert {entry["reason"] for entry in output["rejected"]} == {
-        "invalid_url",
-        "missing_course_evidence",
-    }
-
-
-def test_cli_rejects_incomplete_or_wrong_course_citations(tmp_path):
-    incomplete = candidate(
-        title="缺少摘录",
-        url="https://www.pbc.gov.cn/news/incomplete",
-        theory_citations=[
-            {
-                "course_id": "course-1",
-                "course_name": "货币金融学",
-                "knowledge_point": "货币政策工具",
-                "resource_title": "第六章",
-            }
-        ],
-    )
-    wrong_course = candidate(
-        title="错误课程",
-        url="https://www.pbc.gov.cn/news/wrong-course",
-        theory_citations=[
-            {
-                "course_id": "course-2",
-                "course_name": "证券投资学",
-                "knowledge_point": "投资组合",
-                "resource_title": "第三章",
-                "excerpt": "分散化可以降低非系统性风险。",
-            }
-        ],
-    )
-
-    result = run_cli(tmp_path, [incomplete, wrong_course])
-
-    output = output_of(result)
-    assert output["items"] == []
-    assert output["status"] == "skipped_no_course_evidence"
-    assert output["status_origin"] == "candidate_filter"
-    assert {entry["reason"] for entry in output["rejected"]} == {
-        "missing_course_evidence",
-        "course_mismatch",
-    }
+    assert output["rejected"] == [{"candidate_index": 0, "reason": "invalid_url"}]
+    assert "javascript" not in result.stdout
 
 
 def test_cli_prioritizes_source_levels_limits_results_and_assigns_stable_ids(tmp_path):
@@ -255,60 +227,6 @@ def test_cli_rejects_investment_advice_language(tmp_path):
     output = output_of(result)
     assert output["items"] == []
     assert output["rejected"][0]["reason"] == "investment_advice_language"
-
-
-@pytest.mark.parametrize(
-    "citation_field",
-    ["course_id", "course_name", "knowledge_point", "resource_title", "excerpt"],
-)
-def test_cli_rejects_investment_advice_in_each_citation_string(tmp_path, citation_field):
-    prohibited_text = "建议买入该资产"
-    citation = dict(candidate()["theory_citations"][0])
-    citation[citation_field] = prohibited_text
-
-    result = run_cli(
-        tmp_path,
-        [
-            candidate(
-                theory_citations=[citation],
-                url=f"https://www.pbc.gov.cn/news/advice-{citation_field}",
-            )
-        ],
-    )
-
-    output = output_of(result)
-    assert output["items"] == []
-    assert output["rejected"][0]["reason"] == "investment_advice_language"
-
-
-def test_cli_rejects_investment_advice_in_course_metadata_before_output(tmp_path):
-    result = run_cli(
-        tmp_path,
-        [],
-        course={"course_name": "建议买入该资产", "course_id": "course-1"},
-    )
-
-    assert result.returncode != 0
-    assert result.stderr == ""
-    assert json.loads(result.stdout)["error"] == "input.course contains investment advice language"
-
-
-def test_cli_strips_arbitrary_course_metadata_before_output(tmp_path):
-    result = run_cli(
-        tmp_path,
-        [],
-        course={
-            "course_id": "course-1",
-            "course_name": "货币金融学",
-            "teacher_name": "不应回显的教师信息",
-        },
-    )
-
-    assert result.returncode == 0
-    assert output_of(result)["course"] == {
-        "course_id": "course-1",
-        "course_name": "货币金融学",
-    }
 
 
 def test_cli_uses_complete_content_tie_breaker_independent_of_input_order(tmp_path):
@@ -399,14 +317,6 @@ def test_cli_preserves_ipv6_brackets_while_normalizing_default_port(tmp_path):
     ]
 
 
-def test_cli_rejects_course_without_a_recognizable_name(tmp_path):
-    result = run_cli(tmp_path, [candidate()], course={"course_id": "course-1"})
-
-    assert result.returncode != 0
-    assert result.stderr == ""
-    assert json.loads(result.stdout)["error"] == "input.course.course_name is required"
-
-
 def test_cli_rejects_max_items_above_three(tmp_path):
     result = run_cli(tmp_path, [candidate()], max_items=4)
 
@@ -427,58 +337,6 @@ def test_cli_requires_retrieved_at_with_timezone(tmp_path):
     assert without_timezone.returncode != 0
     assert without_timezone.stderr == ""
     assert json.loads(without_timezone.stdout)["error"] == "retrieved_at must include a timezone"
-
-
-@pytest.mark.parametrize("value", [None, "false", 1])
-def test_cli_requires_boolean_course_evidence_available(tmp_path, value):
-    result = run_cli(tmp_path, [candidate()], course_evidence_available=value)
-
-    assert result.returncode != 0
-    assert result.stderr == ""
-    assert (
-        json.loads(result.stdout)["error"]
-        == "input.course_evidence_available must be a boolean"
-    )
-
-
-def test_cli_skips_all_candidates_when_course_evidence_precheck_is_false(tmp_path):
-    result = run_cli(
-        tmp_path,
-        [{"title": "即使结构无效也不能绕过预检"}],
-        course_evidence_available=False,
-    )
-
-    output = output_of(result)
-    assert output["status"] == "skipped_no_course_evidence"
-    assert output["status_origin"] == "precheck"
-    assert output["course_evidence_available"] is False
-    assert output["items"] == []
-    assert output["rejected"] == [
-        {
-            "candidate_index": 0,
-            "reason": "course_evidence_unavailable",
-        }
-    ]
-
-
-def test_cli_precheck_does_not_echo_investment_advice_from_candidate_title(tmp_path):
-    prohibited_text = "建议买入"
-    result = run_cli(
-        tmp_path,
-        [candidate(title=f"{prohibited_text}该资产")],
-        course_evidence_available=False,
-    )
-
-    output = output_of(result)
-    assert prohibited_text not in result.stdout
-    assert output["status"] == "skipped_no_course_evidence"
-    assert output["status_origin"] == "precheck"
-    assert output["rejected"] == [
-        {
-            "candidate_index": 0,
-            "reason": "course_evidence_unavailable",
-        }
-    ]
 
 
 def test_cli_rejects_tier_three_source_before_candidate_selection(tmp_path):
@@ -613,55 +471,6 @@ def test_cli_returns_a_single_json_error_and_nonzero_exit_for_bad_input(tmp_path
     assert result.returncode != 0
     assert result.stderr == ""
     assert json.loads(result.stdout)["error"].startswith("input")
-
-
-def test_cli_rejects_mixed_course_citations_and_never_echoes_raw_candidate(tmp_path):
-    secret_title = "审核时不得回显的标题"
-    mixed = candidate(
-        title=secret_title,
-        url="https://www.pbc.gov.cn/news/mixed-course",
-        theory_citations=[
-            candidate()["theory_citations"][0],
-            {
-                "course_id": "course-2",
-                "course_name": "证券投资学",
-                "knowledge_point": "投资组合",
-                "resource_title": "第三章",
-                "excerpt": "分散化可以降低非系统性风险。",
-            },
-        ],
-    )
-
-    output = output_of(run_cli(tmp_path, [mixed]))
-
-    assert output["items"] == []
-    assert output["rejected"] == [{"candidate_index": 0, "reason": "course_mismatch"}]
-    assert secret_title not in json.dumps(output, ensure_ascii=False)
-    assert "mixed-course" not in json.dumps(output, ensure_ascii=False)
-
-
-def test_cli_requires_exact_course_identity_fields_and_strips_extra_metadata(tmp_path):
-    missing_id = run_cli(tmp_path, [], course={"course_name": "货币金融学"})
-    assert missing_id.returncode != 0
-    assert output_of(missing_id)["error"] == "input.course.course_id is required"
-
-    result = run_cli(
-        tmp_path,
-        [candidate()],
-        course={
-            "course_id": "course-1",
-            "course_name": "货币金融学",
-            "teacher": {"name": "不得输出"},
-            "internal_permissions": ["admin"],
-        },
-    )
-    output = output_of(result)
-    assert output["course"] == {
-        "course_id": "course-1",
-        "course_name": "货币金融学",
-    }
-    assert "teacher" not in result.stdout
-    assert "internal_permissions" not in result.stdout
 
 
 @pytest.mark.parametrize(
@@ -976,28 +785,18 @@ def test_cli_rejects_more_than_one_hundred_candidates(tmp_path):
     assert output_of(result)["error"] == "input.candidates exceeds 100 items"
 
 
-def test_cli_rejects_candidate_scalar_and_citation_limits_without_raw_echo(tmp_path):
+def test_cli_rejects_candidate_scalar_limits_without_raw_echo(tmp_path):
     oversized_title = "X" * 301
-    too_many_citations = [candidate()["theory_citations"][0] for _ in range(11)]
+    oversized_analysis = "Y" * 4001
     output = output_of(
         run_cli(
             tmp_path,
             [
                 candidate(title=oversized_title),
                 candidate(
-                    title="过多课程引用",
-                    url="https://www.pbc.gov.cn/news/too-many-citations",
-                    theory_citations=too_many_citations,
-                ),
-                candidate(
-                    title="摘录过长",
-                    url="https://www.pbc.gov.cn/news/long-excerpt",
-                    theory_citations=[
-                        {
-                            **candidate()["theory_citations"][0],
-                            "excerpt": "Y" * 2001,
-                        }
-                    ],
+                    title="分析过长",
+                    url="https://www.pbc.gov.cn/news/long-analysis",
+                    theory_analysis=oversized_analysis,
                 ),
             ],
         )
@@ -1006,31 +805,10 @@ def test_cli_rejects_candidate_scalar_and_citation_limits_without_raw_echo(tmp_p
     assert output["items"] == []
     assert output["rejected"] == [
         {"candidate_index": 0, "reason": "field_too_long"},
-        {"candidate_index": 2, "reason": "field_too_long"},
-        {"candidate_index": 1, "reason": "too_many_theory_citations"},
+        {"candidate_index": 1, "reason": "field_too_long"},
     ]
     assert oversized_title not in json.dumps(output, ensure_ascii=False)
-
-
-def test_cli_enforces_citation_limit_even_when_evidence_precheck_is_false(tmp_path):
-    output = output_of(
-        run_cli(
-            tmp_path,
-            [
-                candidate(
-                    theory_citations=[
-                        candidate()["theory_citations"][0] for _ in range(11)
-                    ]
-                )
-            ],
-            course_evidence_available=False,
-        )
-    )
-
-    assert output["items"] == []
-    assert output["rejected"] == [
-        {"candidate_index": 0, "reason": "too_many_theory_citations"}
-    ]
+    assert oversized_analysis not in json.dumps(output, ensure_ascii=False)
 
 
 def test_cli_rejects_oversized_input_file_before_json_decode(tmp_path):
@@ -1064,9 +842,8 @@ def test_cli_returns_json_error_for_deep_json_without_traceback(tmp_path):
     deep_value = "[" * 1100 + "0" + "]" * 1100
     input_path.write_text(
         "{"
-        '"course":{"course_id":"course-1","course_name":"货币金融学"},'
         '"retrieved_at":"2026-08-22T00:00:00Z",'
-        '"course_evidence_available":true,"candidates":[],"extra":'
+        '"candidates":[],"extra":'
         + deep_value
         + "}",
         encoding="utf-8",
