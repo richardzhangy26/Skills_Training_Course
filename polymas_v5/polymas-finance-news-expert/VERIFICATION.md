@@ -21,6 +21,7 @@
 - normalizer 补充敏感 URL、更多交易建议、来源单一注册表和来源原因码测试后，首次执行为 `29 failed, 78 passed`；实现后 normalizer 定向测试全部通过。
 - 专家补充无原子能力持久停发、首次订阅唯一失败态、恢复门禁和改课最终提交失败补偿测试后，首次执行为 `3 failed, 21 passed`；实现后专家定向测试全部通过。
 - package 帮助输出、Basic Authorization 与 ZIP 正文凭证反例均先观察到失败，再补齐 JSON-only 和扫描规则。
+- 最后一轮对抗复核继续补充命令式交易同义词、正常课程内容不误杀、敏感 URL 参数派生名与多层编码、迁移失败恢复门禁、旧订阅 superseded 指针回滚和扩展凭证模式；这些新增断言均先观察到失败，再完成最小修复。
 
 ## GREEN 与完成门禁
 
@@ -43,17 +44,17 @@ git diff --check
 
 本轮新鲜结果（2026-08-24）：
 
-- 财经目录全量：`142 passed in 3.73s`。
+- 财经目录全量：`174 passed in 8.44s`。
 - Skill 基础校验：`Skill is valid!`。
 - 上述 5 个新增/修改 Python 文件 `py_compile` 退出码为 0。
 - `git diff --check` 退出码为 0。
 
 ## 确定性 ZIP 与凭证扫描
 
-- 实际上传包 SHA-256：`a1054b930ad12092502dd6f5484b368c13e5adb7de8dbd178f6b11a52e6de178`；每个 ZIP 成员均与当前源码 SHA-256 一致。
+- 实际上传包 SHA-256：`4019c8f03c5b6ec185631cd3a77e75fc8adb3b71dc0d9f69f025980636a988f0`；独立重建两次得到相同 SHA-256，每个 ZIP 成员均与当前源码 SHA-256 一致。
 - ZIP 仅含 5 个排序后白名单成员：`SKILL.md`、`output_format/briefing.md`、`references/data-contract.md`、`references/source-policy.md`、`scripts/normalize_candidates.py`。
 - 每个 ZIP 成员的 SHA-256 都与当前源文件一致。
-- 逐成员 UTF-8 正文扫描 Authorization/Cookie/Token/API key 赋值模式、Bearer/Basic Authorization 和 JWT 模式：`credential_pattern_hits: 0`。正则反例覆盖 JSON token、Bearer 和 Basic Authorization。
+- 逐成员 UTF-8 正文扫描 Authorization/Cookie/Token/API key、password、secret/private/access key、session credential、数据库凭证 URI、Bearer/Basic Authorization、JWT、私钥头和 SSH 公钥形态：`credential_pattern_hits: 0`。相应正则反例已纳入测试。
 
 ## 独立 forward-test（final review）
 
@@ -70,12 +71,12 @@ git diff --check
 1. **相同 `delivery_key` 并发**：有持久化原子能力时只有一个执行器取得 `pending` 所有权并发送；另一个返回 `delivery_uncertain` 或 `skipped_duplicate`。无原子能力/消息幂等键时，两个均返回 `delivery_atomicity_unavailable`并不发送。关注点：真实平台如何持久禁用自动发送和统一错误响应仍需联调。
 2. **畸形 URL 混批**：`https://[bad` 候选级返回 `invalid_url`，合法人民银行候选正常进入 `ready`，输出 canonical source、`source_level: 1` 和稳定 ID；整批 stdout 为单 JSON/退出 0，且拒绝项不泄漏原 URL。
 3. **六种投资措辞**：“建议持有该股票”、“建议做多该品种”、“维持增持评级”、`overweight this stock`、`buy now`、“买 入”均被拒绝；全部拒绝后为 `no_eligible_candidates/normalizer`，`rejected` 仅含索引与 `investment_advice_language`。
-4. **全新订阅失败**：创建失败删草稿或保留 `paused/null/activation_error`；校验、启用或回读失败均暂停并删除候选；删除失败则 `paused+recovery_required+orphaned_cron_job_ids`，不进入 active。关注点：平台上的暂停失败/状态补偿写入失败和用户可见响应仍需联调。
+4. **全新订阅失败**：候选创建前失败必须删除草稿；候选已创建时，清理成功同样删除草稿并写独立 audit，只有清理失败才保留 `paused+activation_error+recovery_required+orphaned_cron_job_ids`，不进入 active。关注点：平台上的暂停失败/状态补偿写入失败和用户可见响应仍需联调。
 5. **改课迁移二阶失败**：旧 Cron 停用或旧订阅退订写入失败时，暂停新任务、恢复旧 active、新订阅 `paused+migration_error` 并清理；恢复/清理再失败则双方 paused+recovery+orphans 并停止。关注点：跨订阅/Cron/清理的耐久原子性仍取决于平台能力。
 
 ## 与本目录无关的仓库基线
 
-既有仓库基线记录为 `107 passed, 12 failed`；12 项失败来自清洁 worktree 缺少主工作区未跟踪的课程夹具/素材，与财经专家目录修改无关。本轮未重跑该缺失夹具的全仓命令，只将其作为历史基线记录；本轮完成门禁以上述财经目录 `142 passed` 为当前证据。
+既有仓库基线记录为 `107 passed, 12 failed`；12 项失败来自清洁 worktree 缺少主工作区未跟踪的课程夹具/素材，与财经专家目录修改无关。本轮未重跑该缺失夹具的全仓命令，只将其作为历史基线记录；本轮完成门禁以上述财经目录 `174 passed` 为当前证据。
 
 ## 2026-08-24 最终独立 forward-test
 

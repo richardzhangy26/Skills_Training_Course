@@ -38,7 +38,7 @@ python scripts/package_skill.py --output finance-news-course-commentary.zip
 - 旧任务暂停失败时不创建候选，状态保持不变。恢复旧任务或旧订阅失败时，新旧任务均暂停，写入 `status=paused`、`recovery_required=true` 和新旧 orphan ID，停止自动投递。
 - 全新订阅先写 `pending_activation`草稿，只有候选 Cron 创建、校验、启用并回读成功后才改 `active`；任一失败按下一条唯一失败规则处理。
 - 全新订阅在尚未创建候选时失败，或候选清理成功时，必须删除订阅草稿并另写 `activation-audit.jsonl`；不保留 paused 草稿。只有清理失败才保留 paused+`activation_error`+recovery+orphan。
-- 课程变更不使用同 `job_key` 切换：新订阅在整个迁移期间保持 `pending_activation`，新候选启用后才停旧 Cron/退订旧订阅，最后写 `superseded_by_job_key` 并激活新订阅。旧 Cron 停用或旧订阅写入失败时，暂停新任务、恢复旧 active，新订阅写 `status=paused`、`migration_error` 并清理；恢复/清理失败则双方 paused+recovery+orphans。
+- 课程变更不使用同 `job_key` 切换：新订阅在整个迁移期间保持 `pending_activation`，新候选启用后才停旧 Cron/退订旧订阅，最后写 `superseded_by_job_key` 并激活新订阅。旧 Cron 停用或旧订阅写入失败时，暂停新任务、恢复旧 active并清空旧 `superseded_by_job_key`，新订阅写 `status=paused`、`migration_error` 并清理；恢复/清理失败则双方 paused+recovery+orphans。
 - 每个 Cron 定时触发正文必须带 `trigger_cron_job_id`、`trigger_job_key`、`trigger_plan_version`、`trigger_agent_id`。发送前重读 subscription，逐一比对当前 Cron ID、任务键、版本和专家 agent-id；任一失配返回 `skipped_stale_trigger`，不调用 `channel-message`、不更新成功历史。
 - 个人会话无法唯一定位时停止；绝不降级到班级群。只有 `channel-message` 返回发送成功后才更新成功时间与历史。
 - 发送前以 `delivery_key={job_key}:{plan_version}:{edition_id}` 执行平台持久化层原子 `create-if-absent`/唯一约束，或使用 `channel-message` 原生幂等键。只有原子所有者能发送；`sent` 返回 `skipped_duplicate`，`pending/uncertain` 返回 `delivery_uncertain`。无上述能力时返回 `delivery_atomicity_unavailable` 并停止，不降级为普通读后追加。

@@ -725,6 +725,17 @@ def test_cli_derives_representative_official_and_media_levels(
         "subscribe recommendation",
         "redeem recommendation",
         "position recommendation",
+        "go long now",
+        "go short immediately",
+        "立即申购这只基金",
+        "马上赎回全部份额",
+        "请将仓位调至八成",
+        "现在做多该品种",
+        "立刻申购这只基金",
+        "赶紧赎回全部份额",
+        "必须把仓位调至八成",
+        "应当做多该品种",
+        "尽快认购该产品",
     ],
 )
 def test_cli_rejects_obfuscated_chinese_and_english_investment_phrases_without_echo(
@@ -743,6 +754,30 @@ def test_cli_rejects_obfuscated_chinese_and_english_investment_phrases_without_e
         {"candidate_index": 0, "reason": "investment_advice_language"}
     ]
     assert phrase not in rendered
+
+
+@pytest.mark.parametrize(
+    "analysis",
+    [
+        "请讨论资产配置理论如何解释这一现象",
+        "公司现在持有大量现金",
+        "请分析基金申购规模变化的原因",
+        "The report now discusses the long-run growth effect.",
+    ],
+)
+def test_cli_allows_pedagogical_or_factual_mentions_of_investment_terms(
+    tmp_path, analysis
+):
+    output = output_of(
+        run_cli(
+            tmp_path,
+            [candidate(theory_analysis=analysis)],
+        )
+    )
+
+    assert output["status"] == "ready"
+    assert output["items"][0]["theory_analysis"] == analysis
+    assert output["rejected"] == []
 
 
 def test_cli_normalizes_trailing_host_dot_and_url_dot_segments(tmp_path):
@@ -832,6 +867,23 @@ def test_cli_uses_hostname_derived_canonical_source_label(tmp_path):
         "signature",
         "sig",
         "X-API-Key",
+        "api-key",
+        "access-token",
+        "session_id",
+        "auth",
+        "client_secret",
+        "X-Amz-Signature",
+        "%2574oken",
+        "refresh_token",
+        "id_token",
+        "session_token",
+        "access_key",
+        "secret_key",
+        "aws_access_key_id",
+        "X-Amz-Credential",
+        "X-Amz-Security-Token",
+        "X-Goog-Signature",
+        "%2525252574oken",
     ],
 )
 def test_cli_rejects_sensitive_url_parameters_without_echoing_or_losing_valid_peer(

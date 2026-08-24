@@ -83,26 +83,6 @@ TRACKING_PARAMETERS = {
     "_ga",
     "_gl",
 }
-SENSITIVE_URL_PARAMETERS = frozenset(
-    {
-        "token",
-        "access_token",
-        "authorization",
-        "api_key",
-        "apikey",
-        "secret",
-        "password",
-        "passwd",
-        "cookie",
-        "session",
-        "sessionid",
-        "jwt",
-        "credential",
-        "signature",
-        "sig",
-        "x-api-key",
-    }
-)
 INVESTMENT_ADVICE_PHRASES = (
     "建议投资",
     "建议买入",
@@ -121,14 +101,6 @@ INVESTMENT_ADVICE_PHRASES = (
     "强烈买进",
     "强烈购入",
     "强烈卖出",
-    "买入",
-    "买进",
-    "购入",
-    "卖出",
-    "加仓",
-    "减仓",
-    "建仓",
-    "清仓",
     "抄底",
     "止损",
     "止盈",
@@ -160,14 +132,68 @@ INVESTMENT_ADVICE_HINTS = (
     "评级",
     "看多",
     "看空",
+    "立即",
+    "立刻",
+    "马上",
+    "赶紧",
+    "赶快",
+    "尽快",
+    "趁早",
+    "必须",
+    "应当",
+    "直接",
+    "不妨",
+    "请将",
+    "请把",
+    "请立即",
+    "请马上",
+    "务必",
     "recommend",
     "should",
+    "must",
+    "immediately",
     "consider",
     "worth",
     "maintain",
     "rating",
     "bullish",
     "bearish",
+)
+
+SENSITIVE_NORMALIZED_PARAMETER_NAMES = frozenset(
+    {
+        "token",
+        "accesstoken",
+        "authorization",
+        "auth",
+        "apikey",
+        "secret",
+        "clientsecret",
+        "password",
+        "passwd",
+        "cookie",
+        "session",
+        "sessionid",
+        "jwt",
+        "credential",
+        "signature",
+        "sig",
+        "xapikey",
+        "xamzsignature",
+    }
+)
+SENSITIVE_PARAMETER_MARKERS = (
+    "token",
+    "secret",
+    "credential",
+    "signature",
+    "password",
+    "passwd",
+    "cookie",
+    "privatekey",
+    "accesskey",
+    "apikey",
+    "sessionkey",
 )
 INVESTMENT_ADVICE_ACTIONS = (
     "持有",
@@ -196,8 +222,10 @@ INVESTMENT_ADVICE_ACTIONS = (
     "buy",
     "sell",
     "hold",
-    "long",
-    "short",
+    "go long",
+    "go short",
+    "long position",
+    "short position",
     "overweight",
     "underweight",
     "target price",
@@ -206,6 +234,40 @@ INVESTMENT_ADVICE_ACTIONS = (
     "redeem",
     "position",
     "portfolio allocation",
+)
+DIRECT_TRANSACTION_ACTIONS = (
+    "买入",
+    "买进",
+    "购入",
+    "卖出",
+    "卖掉",
+    "加仓",
+    "减仓",
+    "建仓",
+    "清仓",
+    "申购",
+    "赎回",
+    "认购",
+    "做多",
+    "做空",
+    "调仓",
+    "换仓",
+    "入场",
+    "离场",
+    "buy",
+    "sell",
+    "subscribe",
+    "redeem",
+    "go long",
+    "go short",
+    "long position",
+    "short position",
+)
+IMMEDIATE_TIME_CUES = ("现在", "此刻", "today", "now")
+IMMEDIATE_HIGH_RISK_ACTIONS = tuple(
+    action
+    for action in DIRECT_TRANSACTION_ACTIONS
+    if action not in {"持有", "配置", "hold", "portfolio allocation"}
 )
 UNRESERVED_URL_CHARACTERS = frozenset(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
@@ -324,7 +386,7 @@ def canonical_url(value):
         path = path.rstrip("/")
     parsed_query = parse_qsl(parsed.query, keep_blank_values=True)
     if any(
-        name.casefold() in SENSITIVE_URL_PARAMETERS for name, _ in parsed_query
+        sensitive_parameter_name(name) for name, _ in parsed_query
     ):
         raise InputError("sensitive_url_parameter")
     query = [
@@ -334,6 +396,21 @@ def canonical_url(value):
         and not name.lower().startswith("utm_")
     ]
     return urlunsplit((parsed.scheme.lower(), netloc, path, urlencode(sorted(query)), ""))
+
+
+def sensitive_parameter_name(name):
+    """Recognize credential-like query keys after complete repeated decoding."""
+    value = str(name)
+    for _ in range(len(value) + 1):
+        decoded = unquote(value)
+        if decoded == value:
+            break
+        value = decoded
+    normalized = unicodedata.normalize("NFKC", value).casefold()
+    normalized = re.sub(r"[^a-z0-9]", "", normalized)
+    return normalized in SENSITIVE_NORMALIZED_PARAMETER_NAMES or any(
+        marker in normalized for marker in SENSITIVE_PARAMETER_MARKERS
+    )
 
 
 def hostname_matches(hostname, allowed_hosts):
@@ -404,6 +481,15 @@ NORMALIZED_ADVICE_HINTS = tuple(
 NORMALIZED_ADVICE_ACTIONS = tuple(
     normalize_advice_text(phrase) for phrase in INVESTMENT_ADVICE_ACTIONS
 )
+NORMALIZED_DIRECT_TRANSACTION_ACTIONS = tuple(
+    normalize_advice_text(phrase) for phrase in DIRECT_TRANSACTION_ACTIONS
+)
+NORMALIZED_IMMEDIATE_TIME_CUES = tuple(
+    normalize_advice_text(phrase) for phrase in IMMEDIATE_TIME_CUES
+)
+NORMALIZED_IMMEDIATE_HIGH_RISK_ACTIONS = tuple(
+    normalize_advice_text(phrase) for phrase in IMMEDIATE_HIGH_RISK_ACTIONS
+)
 
 
 def bounded_string_values(value):
@@ -431,6 +517,15 @@ def contains_investment_advice(value):
             return True
         if any(hint in normalized for hint in NORMALIZED_ADVICE_HINTS) and any(
             action in normalized for action in NORMALIZED_ADVICE_ACTIONS
+        ):
+            return True
+        if any(cue in normalized for cue in NORMALIZED_IMMEDIATE_TIME_CUES) and any(
+            action in normalized for action in NORMALIZED_IMMEDIATE_HIGH_RISK_ACTIONS
+        ):
+            return True
+        if any(
+            normalized.endswith(action)
+            for action in NORMALIZED_DIRECT_TRANSACTION_ACTIONS
         ):
             return True
     return False

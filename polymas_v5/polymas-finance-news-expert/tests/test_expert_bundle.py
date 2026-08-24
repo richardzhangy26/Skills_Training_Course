@@ -1,6 +1,6 @@
 import hashlib
+import importlib.util
 import json
-import re
 import subprocess
 import sys
 import zipfile
@@ -12,13 +12,10 @@ CONFIG = ROOT / "EXPERT_CONFIG.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
 PACKAGER = ROOT / "scripts" / "package_skill.py"
 SKILL_NAME = "finance-news-course-commentary"
-CREDENTIAL_PATTERNS = (
-    re.compile(
-        r"(?i)[\"']?(?:authorization|cookie|token|api[_-]?key)[\"']?"
-        r"\s*[:=]\s*[\"']?(?:(?:bearer|basic)\s+)?[A-Za-z0-9._~+/=-]{8,}"
-    ),
-    re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
-)
+PACKAGER_SPEC = importlib.util.spec_from_file_location("finance_skill_packager", PACKAGER)
+PACKAGER_MODULE = importlib.util.module_from_spec(PACKAGER_SPEC)
+PACKAGER_SPEC.loader.exec_module(PACKAGER_MODULE)
+CREDENTIAL_PATTERNS = PACKAGER_MODULE.CREDENTIAL_PATTERNS
 
 
 def read(path):
@@ -263,6 +260,7 @@ def validate_initial_activation_and_course_migration(config):
         "旧订阅退订写入失败",
         "暂停新任务",
         "恢复旧订阅和旧任务为 `active`",
+        "清空旧订阅的 `superseded_by_job_key`",
         "新订阅置为 `status=paused`",
         "`migration_error`",
         "清理新候选",
@@ -352,6 +350,9 @@ def validate_activation_recovery_gate_and_final_migration_compensation(config):
     recovery_gate = (
         "`cron_job_id == null`",
         "`activation_error` 非空",
+        "`migration_error` 非空",
+        "`status == pending_activation`",
+        "旧课程订阅仍为 `active`",
         "`recovery_required == true`",
         "禁止直接写 `active`",
         "重新执行完整激活流程",
@@ -602,6 +603,9 @@ def test_activation_and_final_migration_validator_rejects_missing_safety_branch(
     config = read(CONFIG)
     for token in (
         "`cron_job_id == null`",
+        "`migration_error` 非空",
+        "`status == pending_activation`",
+        "旧课程订阅仍为 `active`",
         "禁止直接写 `active`",
         "新订阅 active 提交失败或回执不确定",
         "将旧订阅从 `unsubscribed` 恢复为 `active`",
@@ -728,7 +732,7 @@ def test_packager_help_returns_stdout_json_and_zero_without_usage_stderr():
     assert result.stderr == ""
     assert json.loads(result.stdout) == {
         "help": "生成可上传的财经新闻课程点评 Skill ZIP",
-        "options": ["--output"],
+        "options": ["--help", "--output"],
     }
 
 
@@ -738,6 +742,18 @@ def test_zip_credential_patterns_detect_json_token_and_authorization_examples():
         "Authorization: Bearer abcdefghijklmnopqrstuvwxyz",
         "Authorization: Basic dXNlcjpwYXNz",
         '"authorization": "Basic dXNlcjpwYXNz"',
+        '"password": "secretvalue123"',
+        '"client_secret": "secretvalue123"',
+        '"session_id": "secretvalue123"',
+        "-----BEGIN PRIVATE KEY-----",
+        "AWS_SECRET_ACCESS_KEY=secretvalue123",
+        '"private_key": "secretvalue123"',
+        '"secret_key": "secretvalue123"',
+        "DATABASE_URL=postgres://user:password@example.invalid/db",
+        "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCexample",
+        "postgres://user:password@example.invalid/db",
+        "AKIAIOSFODNN7EXAMPLE",
+        "ghp_abcdefghijklmnopqrstuvwxyz123456",
     )
 
     for example in examples:

@@ -56,7 +56,7 @@ name: ${agent_name}
 - **展开某条新闻**：只能从 `finance_news/{schoolId}/{userId}/briefing_history.jsonl` 中同一学生/课程/会话的最近已投递记录解析 `edition_id`、`item_id`、`course` 和 `target_session_id`。在读取 `item_id` 之前，必须先校验运行时 `schoolId/userId` 路径、当前 `job_key`、完整 `course_id/course_name` 和当前 `target_session_id`；缺少、跨范围或不一致时停止，要求选择该期简报中的条目；不从当前未投递的 `ready` 简报或其他会话恢复上下文。
 - **修改课程/计划**：课程变更重新走课程候选选择；频率、星期、时间、IANA时区、主题和自定义计划由学生自己填写，并在 `ask_user_question` 确认并真正等待确认后才写入新版本。
 - **暂停**：确认后把 `status` 设为 `paused`，停用对应 Cron；保留记录和历史。
-- **恢复**：重新校验课程权限、计划、同一学生和唯一个人会话。若 `cron_job_id == null`、`activation_error` 非空或 `recovery_required == true`，禁止直接写 `active`：必须重新执行完整激活流程，或进入人工恢复流程。**原子能力恢复门禁**：当 `auto_delivery_status=disabled_atomicity` 或 `delivery_error` 非空时，先重新验证原子能力；通过后清空 `delivery_error`、写 `auto_delivery_status=enabled`，再恢复 Cron 并确认后才进入 active，否则禁止写 `active`。
+- **恢复**：重新校验课程权限、计划、同一学生和唯一个人会话。若 `cron_job_id == null`、`activation_error` 非空、`migration_error` 非空、`status == pending_activation`、旧课程订阅仍为 `active` 或 `recovery_required == true`，禁止直接写 `active`：必须重新执行完整激活流程或完整迁移流程，或进入人工恢复流程。**原子能力恢复门禁**：当 `auto_delivery_status=disabled_atomicity` 或 `delivery_error` 非空时，先重新验证原子能力；通过后清空 `delivery_error`、写 `auto_delivery_status=enabled`，再恢复 Cron 并确认后才进入 active，否则禁止写 `active`。
 - **退订**：调用 `ask_user_question` 进行明确确认；停用 Cron，将 `status` 设为 `unsubscribed`，不再发送。
 
 ### 2. 订阅记录与版本
@@ -104,7 +104,7 @@ name: ${agent_name}
 - **全新订阅失败的唯一状态规则**：尚未创建候选即失败时，必须删除订阅草稿，另向 `finance_news/{schoolId}/{userId}/activation-audit.jsonl` 写独立 activation audit；不保留 paused 草稿。候选已存在时先暂停并删除；候选清理成功后同样删除订阅草稿并写独立 audit。仅候选清理失败时才保留订阅，写 `status=paused`、`activation_error`、`recovery_required=true` 和 `orphaned_cron_job_ids`，禁止 active 无任务并停止自动恢复。
 - **课程变更是独立迁移**：课程变更禁止进入同 `job_key` 计划切换。**改课迁移顺序**：①使用新 `courseId` 生成新 `job_key`，写新订阅 `status=pending_activation`；②创建新课程订阅候选；③校验新课程订阅候选；④在仍为 pending 时写入新 `cron_job_id` 并启用新课程订阅候选；⑤新订阅仍保持 pending，所以新 Cron 暂不能投递；⑥停用旧课程 Cron；⑦将旧订阅 `status=unsubscribed` 并写入 `superseded_by_job_key`；⑧最后才将新订阅 `status=active`。
 - **新课程候选失败**：在旧课程 Cron 成功停用之前，任一创建、校验、写入或启用失败都先删除或暂停新候选并清理，新订阅置为 `status=paused`、`migration_error`，旧订阅继续 `active`，旧任务也继续正常执行。
-- **旧 Cron 停用失败或旧订阅退订写入失败**：立即暂停新任务，恢复旧订阅和旧任务为 `active`，新订阅置为 `status=paused`、写 `migration_error`，然后清理新候选。恢复或清理失败时，立即将双方 `status=paused`，新旧任务均暂停，写 `recovery_required=true`、`orphaned_cron_job_ids` 和真实错误后停止。
+- **旧 Cron 停用失败或旧订阅退订写入失败**：立即暂停新任务，恢复旧订阅和旧任务为 `active`、清空旧订阅的 `superseded_by_job_key`，新订阅置为 `status=paused`、写 `migration_error`，然后清理新候选。恢复或清理失败时，立即将双方 `status=paused`，新旧任务均暂停，写 `recovery_required=true`、`orphaned_cron_job_ids` 和真实错误后停止。
 - **新订阅 active 提交失败或回执不确定**：立即暂停新 Cron，将旧订阅从 `unsubscribed` 恢复为 `active`、清空旧订阅的 `superseded_by_job_key` 并恢复旧 Cron；新订阅写 `status=paused` 和 `migration_error`，再清理新候选。恢复或清理任一失败时，立即将双方 `status=paused`，新旧 Cron 均暂停，写 `recovery_required=true`、`orphaned_cron_job_ids` 和真实错误。active 提交确认成功前不得视为迁移完成。
 
 ### 4. 定时生成与安全投递
@@ -169,7 +169,7 @@ name: ${agent_name}
 
 1. **证据优先**：课程证据不足时停止，不以常识替代。
 2. **单人单课单会话**：订阅、课程和个人会话严格对应。
-3. **发送后二次校验**：先检查状态和版本，再发送，成功回执后再记账。
+3. **发送前二次校验**：先检查状态和版本，再发送，成功回执后再记账。
 ```
 
 ## 开场白与推荐问题
