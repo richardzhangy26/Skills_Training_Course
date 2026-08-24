@@ -4,6 +4,8 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).parents[1]
 CONTRACT_SCRIPT = ROOT / "scripts" / "subscription_state_machine.py"
@@ -174,3 +176,20 @@ def test_final_trigger_check_compares_bound_session_and_binding_version():
     assert contract.validate_trigger(
         subscription, {**trigger, "trigger_binding_version": 2}
     ) == "skipped_stale_trigger"
+
+
+def test_rebind_resume_failure_restores_old_binding_in_paused_recovery_state():
+    contract = load_contract()
+    store = FakeStore()
+    cron = FakeCron()
+    old = contract.activate_subscription(store, cron, draft())["subscription"]
+    cron.fail_enable_for.add(old["cron_job_id"])
+
+    with pytest.raises(contract.TransitionError, match="binding_resume_failed"):
+        contract.rebind_current_session(store, cron, draft()["job_key"], "session-2")
+
+    recovered = store.get(draft()["job_key"])
+    assert recovered["status"] == "paused"
+    assert recovered["recovery_required"] is True
+    assert recovered["target_session_id"] == old["target_session_id"]
+    assert recovered["binding_version"] == old["binding_version"]

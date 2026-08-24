@@ -107,7 +107,7 @@ def rebind_current_session(store, cron, job_key, target_session_id):
     try:
         cron.enable(old["cron_job_id"])
     except Exception as error:
-        store.force_replace(job_key, _recovery_state(rebound, old["cron_job_id"]))
+        store.force_replace(job_key, _recovery_state(old, old["cron_job_id"]))
         raise TransitionError("binding_resume_failed") from error
     return rebound
 
