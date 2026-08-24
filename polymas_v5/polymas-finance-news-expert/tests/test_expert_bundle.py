@@ -100,12 +100,26 @@ def test_subscription_schema_has_agent_job_key_and_no_course_object():
     for token in (
         '"job_key": "finance-news:{schoolId}:{userId}:{agentId}"',
         '"target_session_id": "当前专家个人会话标识"',
+        '"binding_version": 1',
         '"plan_version": 1',
         '"auto_delivery_status": "enabled | disabled_atomicity"',
     ):
         assert token in schema
     assert '"course"' not in schema
     assert "courseId" not in schema
+
+
+def test_first_subscription_uses_atomic_job_key_claim_before_cron_creation():
+    config = read(CONFIG)
+
+    for token in (
+        "订阅持久层原子 `create-if-absent`",
+        "唯一约束",
+        "原子 claim 成功者",
+        "竞争失败者复用既有订阅",
+        "不创建 Cron",
+    ):
+        assert token in config
 
 
 def test_cron_activation_switch_and_recovery_are_fail_closed():
@@ -119,6 +133,8 @@ def test_cron_activation_switch_and_recovery_are_fail_closed():
         "最后写 `active`",
         "暂停已验证旧任务",
         "写新 ID/version",
+        "旧 `cron_job_id`、旧 `plan_version`、旧计划",
+        "恢复旧订阅与旧任务",
         "恢复或清理失败时新旧均暂停",
         "recovery_required=true",
         "禁止双发",
@@ -135,11 +151,29 @@ def test_delivery_revalidates_current_agent_session_and_stale_trigger():
         "trigger_job_key",
         "trigger_plan_version",
         "trigger_agent_id",
+        "trigger_binding_version",
+        "trigger_target_session_id",
         "target_session_id",
         "同一学生、当前专家且为个人会话",
         "skipped_stale_trigger",
         "不调用 `channel-message`",
         "不更新成功历史",
+        "逐一比对 Cron ID、任务键、计划版本、agent-id、绑定版本和目标会话",
+    ):
+        assert token in config
+
+
+def test_rebind_pauses_cron_and_cas_increments_binding_version():
+    config = read(CONFIG)
+
+    for token in (
+        "暂停当前 Cron",
+        "CAS",
+        "binding_version",
+        "递增",
+        "恢复旧绑定与 Cron",
+        "旧触发",
+        "skipped_stale_trigger",
     ):
         assert token in config
 
@@ -168,7 +202,12 @@ def test_history_is_scoped_to_student_agent_and_bound_session():
         "schoolId/userId/agentId/target_session_id",
         '"agent_id": "当前专家标识"',
         '"target_session_id": "已绑定的当前专家个人会话"',
+        '"retrieved_at": "带时区检索时间"',
         '"theory_analysis": "通用财经知识分析"',
+        '"source": "规范化来源"',
+        '"url": "https://www.pbc.gov.cn/example"',
+        '"published_at": "带时区发布时间"',
+        '"source_level": 1',
         "不使用其他会话或未投递草稿",
     ):
         assert token in config

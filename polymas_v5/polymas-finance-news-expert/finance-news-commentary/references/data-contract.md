@@ -16,6 +16,8 @@
 | `retrieved_at` | 必填、带时区的 ISO8601 检索时间 |
 | `candidates` | 必填数组，最多 100 条 |
 
+旧版顶层 `course`、`course_evidence_available` 一律返回 `input contains unsupported course fields`；候选中的旧版 `theory_citations` 返回 `unsupported_course_field`。不得静默忽略旧课程字段。
+
 每个候选必须包含：
 
 | 字段 | 约束 |

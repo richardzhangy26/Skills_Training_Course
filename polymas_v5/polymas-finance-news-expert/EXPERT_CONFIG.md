@@ -52,7 +52,7 @@ name: ${agent_name}
 - **定时生成/投递**：Cron 唤醒后先校验定时触发正文、订阅版本、当前专家和已绑定会话，再生成简报；只向该会话发送。
 - **展开新闻**：只从同一 `schoolId/userId/agentId/target_session_id` 的最近成功投递历史恢复 `edition_id`、`item_id`、来源 URL 和分析上下文；不使用其他会话或未投递草稿。
 - **修改计划**：学生填写新计划并通过 `ask_user_question` 确认，使用两阶段 Cron 切换。
-- **重新绑定当前会话**：仅在学生明确提出时，将当前运行时会话作为候选，展示变更并通过 `ask_user_question` 确认；不搜索其他会话。
+- **重新绑定当前会话**：仅在学生明确提出时，将当前运行时会话作为候选，展示变更并通过 `ask_user_question` 确认；不搜索其他会话。确认后先暂停当前 Cron，以旧 `binding_version`、旧 `target_session_id`、当前 `plan_version` 和 `cron_job_id` 执行 CAS，写入新会话并将 `binding_version` 递增，再恢复 Cron。CAS 失败时恢复旧 Cron且不改绑定；恢复失败时恢复旧绑定与 Cron的自动投递状态为 paused，写 `recovery_required=true`。旧触发因绑定版本或目标会话失配返回 `skipped_stale_trigger`。
 - **暂停/恢复/退订**：均需明确确认；恢复前重新校验当前订阅、Cron、当前专家和已绑定个人会话。
 
 ### 2. 订阅记录
@@ -70,6 +70,7 @@ name: ${agent_name}
   "plan_version": 1,
   "cron_job_id": "平台 Cron 任务标识",
   "target_session_id": "当前专家个人会话标识",
+  "binding_version": 1,
   "last_success_at": null,
   "next_run_at": "带时区 ISO8601 时间",
   "recovery_required": false,
@@ -80,23 +81,23 @@ name: ${agent_name}
 }
 ```
 
-创建前按 `job_key` 查询现有订阅。重复订阅不创建第二个 Cron；修改计划递增 `plan_version`。只有消息明确成功且投递账本与本期历史均持久化成功后，才更新 `last_success_at`。
+创建前可先按 `job_key` 查询用于展示，但创建权必须由订阅持久层原子 `create-if-absent`、`create-or-get` 或等价唯一约束取得。只有原子 claim 成功者可以创建 Cron；竞争失败者复用既有订阅并返回其真实状态，不创建 Cron。修改计划递增 `plan_version`；重新绑定只递增 `binding_version`。只有消息明确成功且投递账本与本期历史均持久化成功后，才更新 `last_success_at`。
 
 ### 3. Cron 创建与计划切换
 
 - 所有 Cron 查询、创建、启停和删除都显式传当前 `--agent-id`。
-- 全新订阅：写 `pending_activation` 草稿且 `cron_job_id=null` → 创建初始暂停的候选 Cron → 校验任务键、版本、计划和 agent-id → 写候选 ID → 启用并回读 → 最后写 `active`。
+- 全新订阅：原子 claim `job_key` 并写 `pending_activation` 草稿且 `cron_job_id=null` → 创建初始暂停的候选 Cron → 校验任务键、版本、计划和 agent-id → 写候选 ID → 启用并回读 → 最后写 `active`。没有持久唯一约束或原子 claim 能力时停止，不用普通“先查后建”创建 Cron。
 - 全新订阅在候选创建前失败，或候选清理成功时，删除草稿并写独立 activation audit；仅清理失败时保留 `paused+activation_error+recovery_required+orphaned_cron_job_ids`。
-- 修改计划：暂停已验证旧任务 → 创建初始暂停的新候选 → 校验 → 写新 ID/version → 启用候选 → 删除旧任务。任一步失败先清理候选并恢复旧任务；恢复或清理失败时新旧均暂停，订阅写 `recovery_required=true` 和真实错误，禁止双发。
+- 修改计划：先保存旧订阅快照（旧 `cron_job_id`、旧 `plan_version`、旧计划）→ 暂停已验证旧任务 → 创建初始暂停的新候选 → 校验 → CAS 写新 ID/version/计划 → 启用候选 → 删除旧任务。候选创建、校验、CAS 写入或启用任一步失败时，先暂停并清理候选，再恢复旧订阅与旧任务：订阅必须恢复旧 `cron_job_id`、旧 `plan_version`、旧计划，旧 Cron 必须恢复启用。恢复或清理失败时新旧均暂停，订阅写 `recovery_required=true`、新旧 orphan ID 和真实错误，禁止双发或静默停发。
 - `cron_job_id == null`、`activation_error` 非空或 `recovery_required == true` 时，恢复操作不得直接写 `active`，必须重新执行完整激活或人工恢复。
 
 ### 4. 定时生成与安全投递
 
-1. Cron 触发正文必须携带 `trigger_cron_job_id`、`trigger_job_key`、`trigger_plan_version` 和 `trigger_agent_id`；缺任一字段即停止。
+1. Cron 触发正文必须携带 `trigger_cron_job_id`、`trigger_job_key`、`trigger_plan_version`、`trigger_agent_id`、`trigger_binding_version` 和 `trigger_target_session_id`；缺任一字段即停止。
 2. 按 `trigger_job_key` 读取订阅，校验 `status == active`、计划版本、主题、时区和当前专家 agent-id。
-3. 校验存储的 `target_session_id` 仍属于同一学生、当前专家且为个人会话。为空、过期或归属不符时停止；不查询或改绑到其他会话，不降级到班级群。
+3. 校验存储的 `target_session_id` 仍属于同一学生、当前专家且为个人会话，并要求触发携带的 `trigger_binding_version`、`trigger_target_session_id` 与当前订阅完全一致。为空、过期、归属不符或版本失配时返回 `skipped_stale_trigger`；不查询或改绑到其他会话，不降级到班级群。
 4. 调用平台通用工具检索公开财经新闻，再调用 `finance-news-commentary`。无合格候选或状态非 `ready` 时不发送，只记录真实原因。
-5. 发送前重读 subscription，逐一比对 Cron ID、任务键、版本和 agent-id；任一不一致返回 `skipped_stale_trigger`，不调用 `channel-message`，不更新成功历史。
+5. 新闻检索和分析完成后、发送前再次重读 subscription，逐一比对 Cron ID、任务键、计划版本、agent-id、绑定版本和目标会话；任一不一致返回 `skipped_stale_trigger`，不调用 `channel-message`，不更新成功历史。正式发送只能使用这次重读确认的当前 `target_session_id`。
 6. 使用 `delivery_key={job_key}:{plan_version}:{edition_id}` 取得平台持久化 `create-if-absent`/唯一约束的原子所有权，或使用 `channel-message` 原生幂等键。已有 `sent` 返回 `skipped_duplicate`；已有 `pending/uncertain` 返回 `delivery_uncertain`。
 7. 无原子能力时先暂停 Cron，再持久化 `status=paused`、`auto_delivery_status=disabled_atomicity`、`delivery_error=delivery_atomicity_unavailable` 和 `next_run_at=null`；仍不得发送。
 8. 发送成功后才将账本、本期历史和回执耐久写为 `sent`。发送成功但记账失败保持 `uncertain`，不自动重发，也不更新 `last_success_at`。
@@ -110,6 +111,8 @@ name: ${agent_name}
   "job_key": "finance-news:{schoolId}:{userId}:{agentId}",
   "agent_id": "当前专家标识",
   "target_session_id": "已绑定的当前专家个人会话",
+  "binding_version": 1,
+  "retrieved_at": "带时区检索时间",
   "message_receipt": "channel-message 回执",
   "items": [
     {
@@ -118,7 +121,10 @@ name: ${agent_name}
       "fact_summary": "新闻事实",
       "theory_analysis": "通用财经知识分析",
       "discussion_question": "讨论问题",
-      "source_url": "https://www.pbc.gov.cn/example"
+      "source": "规范化来源",
+      "url": "https://www.pbc.gov.cn/example",
+      "published_at": "带时区发布时间",
+      "source_level": 1
     }
   ]
 }

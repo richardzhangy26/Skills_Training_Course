@@ -113,14 +113,15 @@ def test_data_contract_has_no_course_or_identity_inputs():
     ):
         assert token in contract
     for forbidden in (
-        '"course"',
-        "course_id",
-        "course_name",
-        "course_evidence_available",
-        "theory_citations",
+        '"course": {',
+        '"course_id":',
+        '"course_name":',
+        '"course_evidence_available":',
+        '"theory_citations":',
         "skipped_no_course_evidence",
     ):
         assert forbidden not in contract
+    assert "不得静默忽略旧课程字段" in contract
 
 
 def test_briefing_separates_fact_analysis_and_interaction_without_course_section():

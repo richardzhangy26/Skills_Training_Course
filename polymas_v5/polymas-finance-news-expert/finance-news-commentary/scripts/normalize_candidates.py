@@ -28,6 +28,8 @@ REQUIRED_CANDIDATE_FIELDS = (
     "theory_analysis",
     "discussion_question",
 )
+UNSUPPORTED_TOP_LEVEL_FIELDS = frozenset({"course", "course_evidence_available"})
+UNSUPPORTED_CANDIDATE_FIELDS = frozenset({"theory_citations"})
 OUTPUT_CANDIDATE_FIELDS = tuple(
     field for field in REQUIRED_CANDIDATE_FIELDS if field != "source_tier"
 ) + ("source_level",)
@@ -592,6 +594,8 @@ def validate_candidate(candidate, candidate_index, since, until):
     reject = lambda reason: (None, rejected_candidate(candidate_index, reason))
     if not isinstance(candidate, dict):
         return reject("invalid_candidate")
+    if UNSUPPORTED_CANDIDATE_FIELDS.intersection(candidate):
+        return reject("unsupported_course_field")
     for field in REQUIRED_CANDIDATE_FIELDS:
         if field not in candidate:
             return reject(f"missing_{field}")
@@ -667,6 +671,8 @@ def candidate_sort_key(candidate):
 def normalize(payload, since, until, edition_date, max_items):
     if not isinstance(payload, dict):
         raise InputError("input must be an object")
+    if UNSUPPORTED_TOP_LEVEL_FIELDS.intersection(payload):
+        raise InputError("input contains unsupported course fields")
     if "retrieved_at" not in payload:
         raise InputError("input.retrieved_at is required")
     retrieved_at = parse_timestamp(payload["retrieved_at"], "retrieved_at")

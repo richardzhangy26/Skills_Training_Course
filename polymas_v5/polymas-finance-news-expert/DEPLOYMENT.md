@@ -29,23 +29,27 @@ python scripts/package_skill.py --output finance-news-commentary.zip
 - 读取运行时学生、当前专家和当前会话，不询问内部 ID。
 - 当前会话验证为同一学生、当前专家的个人会话后直接绑定；不查询或改绑到其他会话。
 - `ask_user_question` 只收集频率、星期、时间、IANA 时区和财经主题，并取得最终确认。
-- 稳定键为 `finance-news:{schoolId}:{userId}:{agentId}`；重复订阅不创建第二个 Cron。
+- 稳定键为 `finance-news:{schoolId}:{userId}:{agentId}`；必须用订阅持久层原子 `create-if-absent`/`create-or-get` 或唯一约束取得创建权，只有成功 claim 者创建 Cron，竞争失败者复用既有订阅。
 - Cron 所有操作显式传当前 `--agent-id`。
 
 ## 投递门禁
 
-- Cron 触发必须携带 Cron ID、任务键、版本和 agent-id；发送前重读订阅并逐项比对。
+- Cron 触发必须携带 Cron ID、任务键、计划版本、agent-id、`binding_version` 和 `target_session_id`；检索后、发送前重读订阅并逐项比对，正式发送使用最新确认的目标会话。
 - 已绑定会话必须仍属于同一学生、当前专家且为个人会话；无效时停止，不搜索替代会话，不发送到班级群。
 - `delivery_key={job_key}:{plan_version}:{edition_id}` 必须使用原子 `create-if-absent`/唯一约束或消息原生幂等键。
 - 无原子能力时暂停 Cron并持久化 `disabled_atomicity`，不得降级发送。
 - 消息成功、账本与完整 edition 历史均耐久写入后，才更新 `last_success_at`。
 - 所有退出分支回读真实 `next_run_at`；回读失败记录 `schedule_state_error`。
 
+本目录的 `scripts/subscription_state_machine.py` 是上述原子 claim、计划切换回滚、会话重绑定和 stale-trigger 的可执行参考合同；PDS 适配必须保持相同状态语义，不得把本地 fake adapter 当成平台联调结果。
+
 ## 真实联调验收
 
 - 首次订阅不触发任何课程查询，只出现主题与计划问题。
 - 当前运行时会话自动绑定，消息只回到当前专家个人会话。
 - 同一学生/专家重复订阅、计划修改、暂停、恢复和退订符合幂等与回滚规则。
+- 并发两个首次订阅只有一个原子 claim 成功并创建 Cron；计划切换启用失败时恢复旧 `cron_job_id`、旧版本、旧计划和旧 Cron。
+- 重绑定暂停当前 Cron、CAS 写入并递增 `binding_version`；旧触发在发送前因绑定版本或目标会话失配而停止。
 - stale trigger 不发送；并发相同 `delivery_key` 只发送一次。
 - `ready`、`no_eligible_candidates`、消息失败、记账不确定和互动展开均返回真实状态。
 - 输出分开呈现新闻事实、财经知识分析和互动问题，且不包含投资建议。

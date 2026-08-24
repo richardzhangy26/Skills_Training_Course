@@ -1,6 +1,6 @@
 ---
 name: finance-news-commentary
-description: Use when a student asks for recent public finance news, a general finance explanation, or a discussion prompt without selecting a course.
+description: Use when a student asks for recent public finance news or a general finance explanation of a recent news event without selecting a course.
 ---
 
 # 财经新闻通用点评

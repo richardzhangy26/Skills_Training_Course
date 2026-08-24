@@ -24,23 +24,25 @@ python /Users/zhangyichi/.codex/skills/.system/skill-creator/scripts/quick_valid
 python -m py_compile \
   polymas_v5/polymas-finance-news-expert/finance-news-commentary/scripts/normalize_candidates.py \
   polymas_v5/polymas-finance-news-expert/scripts/package_skill.py \
+  polymas_v5/polymas-finance-news-expert/scripts/subscription_state_machine.py \
   polymas_v5/polymas-finance-news-expert/tests/test_normalize_candidates.py \
   polymas_v5/polymas-finance-news-expert/tests/test_skill_package.py \
-  polymas_v5/polymas-finance-news-expert/tests/test_expert_bundle.py
+  polymas_v5/polymas-finance-news-expert/tests/test_expert_bundle.py \
+  polymas_v5/polymas-finance-news-expert/tests/test_subscription_state_machine.py
 git diff --check
 ```
 
 当前本地结果：
 
-- 财经专家目录：`158 passed`。
+- 财经专家目录：`166 passed`。
 - Skill 校验：`Skill is valid!`。
-- 五个 Python 文件 `py_compile` 退出码为 0。
+- normalizer、打包器、订阅状态机和四个测试文件 `py_compile` 退出码为 0。
 - `git diff --check` 退出码为 0。
 
 ## ZIP 验证
 
 - 上传包：`finance-news-commentary.zip`。
-- SHA-256：`cdb9cce120ace3a045a501c5475f4db90ec6a335cd2853d0d32e95c458613a89`。
+- SHA-256：`9f4f1ca6ff94adbd1acb120cff9724be11022899fa8b851a6dd38d6d63c8d23e`。
 - 独立重建两次与交付包 SHA-256 相同。
 - ZIP 仅含 5 个白名单成员，根目录为 `finance-news-commentary/`。
 - 每个成员与当前源码逐字节一致，凭证扫描无命中。
@@ -54,6 +56,16 @@ git diff --check
 - 计划切换保留暂停旧任务、创建暂停候选、校验、启用、清理和二阶失败双暂停门禁。
 - stale trigger、原子 `delivery_key`、不确定回执、成功后记账与 `next_run_at` finalizer 仍有自动化合同测试。
 - normalizer 保留来源可信度、URL 安全、去重、资源上限和投资建议检测，不再接收或输出课程字段。
+
+## 独立审查修复
+
+首次独立审查没有 Critical，但指出并发首次订阅、会话重绑定竞态、计划切换补偿和历史字段四项 Important。修复后：
+
+- 新增 `scripts/subscription_state_machine.py` 可执行参考合同与 fake adapter 测试；两个并发首次订阅只有一个原子 claim 创建 Cron。
+- 会话重绑定暂停 Cron、CAS 更新并递增 `binding_version`；触发携带并在发送前比对绑定版本和目标会话。
+- 计划候选启用失败会恢复旧 `cron_job_id`、旧 `plan_version`、旧计划和旧 Cron；二阶失败进入双暂停 recovery。
+- edition 历史保存检索时间，以及每条新闻的规范化来源、URL、发布时间和来源等级。
+- normalizer 明确拒绝旧 `course`、`course_evidence_available` 和 `theory_citations` 字段，不再静默忽略。
 
 ## 线上联调边界
 

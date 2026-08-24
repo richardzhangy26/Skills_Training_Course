@@ -97,6 +97,53 @@ def test_cli_accepts_general_finance_candidate_without_course_fields(tmp_path):
     assert "theory_citations" not in output["items"][0]
 
 
+def test_cli_rejects_legacy_course_fields_instead_of_silently_ignoring_them(tmp_path):
+    payload = {
+        "course": {"course_id": "legacy", "course_name": "旧课程"},
+        "course_evidence_available": True,
+        "retrieved_at": "2026-08-22T00:00:00Z",
+        "candidates": [],
+    }
+    input_path = tmp_path / "legacy-course.json"
+    input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--input",
+            str(input_path),
+            "--since",
+            "2026-08-22T00:00:00+08:00",
+            "--until",
+            "2026-08-22T23:59:59+08:00",
+            "--edition-date",
+            "2026-08-22",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert output_of(result)["error"] == "input contains unsupported course fields"
+
+
+def test_cli_rejects_candidate_with_legacy_theory_citations_without_echo(tmp_path):
+    legacy_excerpt = "不应回显的旧课程摘录"
+    output = output_of(
+        run_cli(
+            tmp_path,
+            [candidate(theory_citations=[{"excerpt": legacy_excerpt}])],
+        )
+    )
+
+    assert output["items"] == []
+    assert output["rejected"] == [
+        {"candidate_index": 0, "reason": "unsupported_course_field"}
+    ]
+    assert legacy_excerpt not in json.dumps(output, ensure_ascii=False)
+
+
 def test_cli_normalizes_tracking_parameters_and_only_emits_json(tmp_path):
     result = run_cli(tmp_path, [candidate()])
 
