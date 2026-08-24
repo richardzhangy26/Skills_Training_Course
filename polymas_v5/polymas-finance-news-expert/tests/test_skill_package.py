@@ -103,6 +103,9 @@ def test_skill_package_declares_the_required_polymas_workflow_and_boundaries():
     assert "输出 `source` 由 hostname allowlist" in skill
     assert "NFKC" in skill
     assert "提示词与动作词组合" in skill
+    assert "sensitive_url_parameter" in skill
+    assert "单一 `SOURCE_REGISTRY`" in skill
+    assert "申购/赎回/认购" in skill
     assert "course_id" in skill
     assert "untrusted_source" in skill
     assert "不进入公开网检索或 normalizer" not in skill
@@ -160,6 +163,12 @@ def test_data_contract_enforces_course_evidence_stable_ids_and_session_independe
     assert "`source_tier` 只是调用方断言" in contract
     assert "忽略输入 `source`" in contract
     assert "canonical source label" in contract
+    assert "sensitive_url_parameter" in contract
+    assert "access_token" in contract
+    assert "x-api-key" in contract
+    assert "`source_tier == other`" in contract
+    assert "优先返回 `untrusted_source`" in contract
+    assert "单一 `SOURCE_REGISTRY`" in contract
     for tier in (
         "official",
         "primary",
@@ -192,6 +201,9 @@ def test_source_policy_prioritizes_official_sources_and_treats_other_pages_as_le
     assert "source_tier_mismatch" in policy
     assert "`source_tier` 只是调用方断言" in policy
     assert "canonical source label" in policy
+    assert "`source_tier == other`" in policy
+    assert "优先返回 `untrusted_source`" in policy
+    assert "单一 `SOURCE_REGISTRY`" in policy
     for organization in (
         "国务院",
         "人民银行",

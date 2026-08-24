@@ -12,6 +12,7 @@ SCRIPT = (
     / "scripts"
     / "normalize_candidates.py"
 )
+SCRIPT_TEXT = SCRIPT.read_text(encoding="utf-8")
 
 
 def candidate(**overrides):
@@ -706,12 +707,24 @@ def test_cli_derives_representative_official_and_media_levels(
         "建议持有该股票",
         "建议做多该品种",
         "维持增持评级",
+        "增持评级",
         "overweight this stock",
         "S.T.R.O.N.G  B-U-Y",
         "buy\tnow",
         "ｂｕｙ　ｎｏｗ",
         "target_price",
         "guaranteed\u200b return",
+        "建议申购这只基金",
+        "建议赎回",
+        "建议认购",
+        "建议调整仓位",
+        "建议入场",
+        "portfolio allocation recommendation",
+        "建议离场并调仓",
+        "建议换仓后满仓配置",
+        "subscribe recommendation",
+        "redeem recommendation",
+        "position recommendation",
     ],
 )
 def test_cli_rejects_obfuscated_chinese_and_english_investment_phrases_without_echo(
@@ -798,6 +811,97 @@ def test_cli_uses_hostname_derived_canonical_source_label(tmp_path):
 
     assert output["items"][0]["source"] == "新华网"
     assert output["items"][0]["source_level"] == 2
+
+
+@pytest.mark.parametrize(
+    "parameter_name",
+    [
+        "token",
+        "Access_Token",
+        "AUTHORIZATION",
+        "api_key",
+        "apikey",
+        "secret",
+        "password",
+        "passwd",
+        "cookie",
+        "session",
+        "sessionid",
+        "jwt",
+        "credential",
+        "signature",
+        "sig",
+        "X-API-Key",
+    ],
+)
+def test_cli_rejects_sensitive_url_parameters_without_echoing_or_losing_valid_peer(
+    tmp_path, parameter_name
+):
+    secret_value = "do-not-echo-sensitive-value"
+    output = output_of(
+        run_cli(
+            tmp_path,
+            [
+                candidate(
+                    title="带敏感查询参数",
+                    url=(
+                        "https://www.pbc.gov.cn/news/sensitive?"
+                        f"{parameter_name}={secret_value}&utm_source=daily"
+                    ),
+                ),
+                candidate(
+                    title="合法同批候选",
+                    url="https://www.pbc.gov.cn/news/safe-peer?year=2026",
+                ),
+            ],
+        )
+    )
+
+    rendered = json.dumps(output, ensure_ascii=False)
+    assert [item["title"] for item in output["items"]] == ["合法同批候选"]
+    assert output["rejected"] == [
+        {"candidate_index": 0, "reason": "sensitive_url_parameter"}
+    ]
+    assert secret_value not in rendered
+    assert "news/sensitive" not in rendered
+
+
+def test_cli_rejects_other_tier_as_untrusted_even_for_allowlisted_hostname(tmp_path):
+    output = output_of(
+        run_cli(
+            tmp_path,
+            [candidate(source_tier="other", url="https://www.pbc.gov.cn/news/lead")],
+        )
+    )
+
+    assert output["items"] == []
+    assert output["rejected"] == [
+        {"candidate_index": 0, "reason": "untrusted_source"}
+    ]
+
+
+def test_source_registry_is_single_source_of_truth_and_prefers_specific_subdomain(
+    tmp_path,
+):
+    assert "SOURCE_REGISTRY" in SCRIPT_TEXT
+    assert "OFFICIAL_HOSTS" not in SCRIPT_TEXT
+    assert "MEDIA_HOSTS" not in SCRIPT_TEXT
+    assert "CANONICAL_SOURCE_LABELS" not in SCRIPT_TEXT
+
+    output = output_of(
+        run_cli(
+            tmp_path,
+            [
+                candidate(
+                    url="https://updates.pbc.gov.cn/news/registry",
+                    source="伪造来源",
+                    source_tier="official",
+                )
+            ],
+        )
+    )
+    assert output["items"][0]["source_level"] == 1
+    assert output["items"][0]["source"] == "中国人民银行"
 
 
 def test_cli_rejects_more_than_one_hundred_candidates(tmp_path):

@@ -36,13 +36,16 @@ python scripts/package_skill.py --output finance-news-course-commentary.zip
 - 修改计划严格采用：暂停已验证旧任务 → 创建初始暂停的候选任务 → 校验候选 → 写订阅新 ID/version → 启用候选 → 删除旧任务。只有新订阅写入+候选启用成功后才删除旧任务。
 - 候选创建失败：恢复旧任务，订阅保持旧 ID/version。候选创建成功但校验失败：先删除候选；删除成功后恢复旧订阅/旧任务；删除失败则新旧均保持暂停、记录 `orphaned_candidate`、订阅status=paused、停止投递。候选校验成功但写订阅新ID/version失败：执行同一删除候选与恢复/暂停补偿矩阵。
 - 旧任务暂停失败时不创建候选，状态保持不变。恢复旧任务或旧订阅失败时，新旧任务均暂停，写入 `status=paused`、`recovery_required=true` 和新旧 orphan ID，停止自动投递。
-- 全新订阅先写 `pending_activation`草稿，只有候选 Cron 创建、校验、启用并回读成功后才改 `active`。失败时删除候选并写 `status=paused`、`cron_job_id=null`、`activation_error`；删除失败加写 `recovery_required=true` 和 orphan ID，禁止 active 无任务。
+- 全新订阅先写 `pending_activation`草稿，只有候选 Cron 创建、校验、启用并回读成功后才改 `active`；任一失败按下一条唯一失败规则处理。
+- 全新订阅在尚未创建候选时失败，或候选清理成功时，必须删除订阅草稿并另写 `activation-audit.jsonl`；不保留 paused 草稿。只有清理失败才保留 paused+`activation_error`+recovery+orphan。
 - 课程变更不使用同 `job_key` 切换：新订阅在整个迁移期间保持 `pending_activation`，新候选启用后才停旧 Cron/退订旧订阅，最后写 `superseded_by_job_key` 并激活新订阅。旧 Cron 停用或旧订阅写入失败时，暂停新任务、恢复旧 active，新订阅写 `status=paused`、`migration_error` 并清理；恢复/清理失败则双方 paused+recovery+orphans。
 - 每个 Cron 定时触发正文必须带 `trigger_cron_job_id`、`trigger_job_key`、`trigger_plan_version`、`trigger_agent_id`。发送前重读 subscription，逐一比对当前 Cron ID、任务键、版本和专家 agent-id；任一失配返回 `skipped_stale_trigger`，不调用 `channel-message`、不更新成功历史。
 - 个人会话无法唯一定位时停止；绝不降级到班级群。只有 `channel-message` 返回发送成功后才更新成功时间与历史。
 - 发送前以 `delivery_key={job_key}:{plan_version}:{edition_id}` 执行平台持久化层原子 `create-if-absent`/唯一约束，或使用 `channel-message` 原生幂等键。只有原子所有者能发送；`sent` 返回 `skipped_duplicate`，`pending/uncertain` 返回 `delivery_uncertain`。无上述能力时返回 `delivery_atomicity_unavailable` 并停止，不降级为普通读后追加。
+- 无原子能力时必须先暂停当前 Cron，再持久化 `status=paused`、`auto_delivery_status=disabled_atomicity`、`delivery_error=delivery_atomicity_unavailable`、`next_run_at=null`。暂停或写入失败记 `recovery_required=true` 和真实错误，仍不发送。恢复前先重新验证原子能力，通过后才可清 `delivery_error`、设 `auto_delivery_status=enabled` 并恢复 Cron。
 - 成功记账后，每期在 `finance_news/{schoolId}/{userId}/briefing_history.jsonl` 只写一条 edition，包含 `job_key`、完整课程对象、会话、回执和完整 `items` 数组。
 - 每次 Cron 触发不论发送、跳过或失败，都从 Cron 状态回读并更新 `next_run_at`；`last_success_at` 仅在 sent 并完成耐久记账后更新。
+- 改课在最后新订阅 active 提交失败或回执不确定时，立即暂停新 Cron，恢复旧订阅/旧 Cron，新订阅置 paused+`migration_error` 并清理；恢复/清理失败则双方 paused+recovery+orphans。active 提交确认前不得视为迁移完成。
 
 ## 真实联调验收
 

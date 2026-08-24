@@ -22,7 +22,9 @@
 
 最终 `source` 由命中的 hostname 映射为 canonical source label，输入的来源名称不得回显或覆盖该标签。
 
-normalizer 强制拒绝三级来源：它先强制校验 `source_tier`，无论 `other` 页面是否被误传入，都会进入 `rejected` 并标记 `untrusted_source`，不得成为最终 `source`、`url` 或 `items`。三级页面可保留在检索笔记中，但事实结论仍需由一级或二级允许来源支撑。
+hostname 等级和标签使用单一 `SOURCE_REGISTRY`，同时匹配根域与更具体子域时取最长注册项。`source_tier == other` 是三级线索的明确断言，无论 hostname 是否在 registry 中都优先返回 `untrusted_source`。
+
+normalizer 强制拒绝三级来源：`source_tier` 只是调用方断言；它为 `other` 时直接进入 `rejected` 并标记 `untrusted_source`，不再进行允许域的等级一致判定。三级页面不得成为最终 `source`、`url` 或 `items`。
 
 ## 允许与禁止
 

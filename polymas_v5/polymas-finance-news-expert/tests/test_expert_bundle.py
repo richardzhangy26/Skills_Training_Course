@@ -15,7 +15,7 @@ SKILL_NAME = "finance-news-course-commentary"
 CREDENTIAL_PATTERNS = (
     re.compile(
         r"(?i)[\"']?(?:authorization|cookie|token|api[_-]?key)[\"']?"
-        r"\s*[:=]\s*[\"']?(?:bearer\s+)?[A-Za-z0-9._~+/=-]{8,}"
+        r"\s*[:=]\s*[\"']?(?:(?:bearer|basic)\s+)?[A-Za-z0-9._~+/=-]{8,}"
     ),
     re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
 )
@@ -237,12 +237,13 @@ def validate_initial_activation_and_course_migration(config):
         "`status=active`",
     )
     initial_failures = (
-        "全新订阅任一步失败",
-        "候选删除成功",
+        "尚未创建候选即失败",
+        "删除订阅草稿",
+        "独立 activation audit",
+        "候选清理成功",
+        "仅候选清理失败",
         "`status=paused`",
-        "`cron_job_id=null`",
         "`activation_error`",
-        "候选删除失败",
         "`recovery_required=true`",
         "`orphaned_cron_job_ids`",
         "禁止 active 无任务",
@@ -303,6 +304,74 @@ def validate_atomic_delivery_and_next_run(config):
         all(token in delivery for token in atomic_tokens + next_run_tokens)
         and delivery.index("只有拿到原子锁的执行者")
         < delivery.index("正式调用 `channel-message`")
+    )
+
+
+def validate_persistent_atomicity_disable_and_recovery(config):
+    subscription = section(config, "### 2. 订阅记录与版本", "### 3. Cron 两阶段切换")
+    delivery = section(config, "### 4. 定时生成与安全投递", "### 5. 结果交付")
+    route = section(config, "### 1. 任务接收与路由", "### 2. 订阅记录与版本")
+    fields = (
+        '"auto_delivery_status": "enabled | disabled_atomicity"',
+        '"delivery_error": null',
+    )
+    disable_steps = (
+        "原子能力不可用持久停发顺序",
+        "暂停当前 Cron（显式传当前 `--agent-id`）",
+        "`status=paused`",
+        "`auto_delivery_status=disabled_atomicity`",
+        "`delivery_error=delivery_atomicity_unavailable`",
+        "`next_run_at=null`",
+    )
+    disable_failures = (
+        "Cron 暂停或订阅写入任一失败",
+        "`recovery_required=true`",
+        "记录真实错误",
+        "仍不得发送",
+    )
+    recovery = (
+        "原子能力恢复门禁",
+        "重新验证原子能力",
+        "清空 `delivery_error`",
+        "`auto_delivery_status=enabled`",
+        "恢复 Cron",
+        "否则禁止写 `active`",
+    )
+    return (
+        all(token in subscription for token in fields)
+        and all(token in delivery for token in disable_steps + disable_failures)
+        and [delivery.index(token) for token in disable_steps]
+        == sorted(delivery.index(token) for token in disable_steps)
+        and all(token in route for token in recovery)
+    )
+
+
+def validate_activation_recovery_gate_and_final_migration_compensation(config):
+    route = section(config, "### 1. 任务接收与路由", "### 2. 订阅记录与版本")
+    cron = section(config, "### 3. Cron 两阶段切换", "### 4. 定时生成与安全投递")
+    recovery_gate = (
+        "`cron_job_id == null`",
+        "`activation_error` 非空",
+        "`recovery_required == true`",
+        "禁止直接写 `active`",
+        "重新执行完整激活流程",
+        "人工恢复流程",
+    )
+    final_migration = (
+        "新订阅 active 提交失败或回执不确定",
+        "立即暂停新 Cron",
+        "将旧订阅从 `unsubscribed` 恢复为 `active`",
+        "恢复旧 Cron",
+        "新订阅写 `status=paused` 和 `migration_error`",
+        "清理新候选",
+        "恢复或清理任一失败",
+        "双方 `status=paused`",
+        "`recovery_required=true`",
+        "`orphaned_cron_job_ids`",
+        "active 提交确认成功前不得视为迁移完成",
+    )
+    return all(token in route for token in recovery_gate) and all(
+        token in cron for token in final_migration
     )
 
 
@@ -503,6 +572,45 @@ def test_atomic_delivery_validator_rejects_read_then_append_or_missing_fallback(
     )
 
 
+def test_expert_config_persistently_disables_delivery_without_atomicity():
+    assert validate_persistent_atomicity_disable_and_recovery(read(CONFIG))
+
+
+def test_persistent_atomicity_validator_rejects_nonpersistent_or_unsafe_recovery():
+    config = read(CONFIG)
+    for token in (
+        "`auto_delivery_status=disabled_atomicity`",
+        "`next_run_at=null`",
+        "Cron 暂停或订阅写入任一失败",
+        "重新验证原子能力",
+        "否则禁止写 `active`",
+    ):
+        assert not validate_persistent_atomicity_disable_and_recovery(
+            config.replace(token, "")
+        )
+
+
+def test_expert_config_deletes_failed_initial_draft_and_compensates_final_migration():
+    config = read(CONFIG)
+    assert validate_initial_activation_and_course_migration(config)
+    assert validate_activation_recovery_gate_and_final_migration_compensation(config)
+    assert "删除订阅草稿，或保留" not in config
+
+
+def test_activation_and_final_migration_validator_rejects_missing_safety_branch():
+    config = read(CONFIG)
+    for token in (
+        "`cron_job_id == null`",
+        "禁止直接写 `active`",
+        "新订阅 active 提交失败或回执不确定",
+        "将旧订阅从 `unsubscribed` 恢复为 `active`",
+        "active 提交确认成功前不得视为迁移完成",
+    ):
+        assert not validate_activation_recovery_gate_and_final_migration_compensation(
+            config.replace(token, "")
+        )
+
+
 def test_expert_config_records_delivered_briefing_history_and_limits_expansion_scope():
     config = read(CONFIG)
     delivery = section(config, "### 4. 定时生成与安全投递", "### 5. 结果交付")
@@ -546,6 +654,11 @@ def test_deployment_document_has_safe_real_platform_checklist_and_upload_instruc
         "delivery_atomicity_unavailable",
         "next_run_at",
         "last_success_at",
+        "auto_delivery_status",
+        "disabled_atomicity",
+        "delivery_error",
+        "activation-audit.jsonl",
+        "active 提交失败",
     ):
         assert token in deployment
 
@@ -618,10 +731,12 @@ def test_packager_help_returns_stdout_json_and_zero_without_usage_stderr():
     }
 
 
-def test_zip_credential_patterns_detect_json_token_and_bearer_header_examples():
+def test_zip_credential_patterns_detect_json_token_and_authorization_examples():
     examples = (
         '"token": "secretvalue123"',
         "Authorization: Bearer abcdefghijklmnopqrstuvwxyz",
+        "Authorization: Basic dXNlcjpwYXNz",
+        '"authorization": "Basic dXNlcjpwYXNz"',
     )
 
     for example in examples:

@@ -49,23 +49,27 @@ normalizer 的输入为一个 JSON 对象：
 - `title`/`source` 最长 300 字符；`fact_summary`/`theory_analysis`/`discussion_question` 各最长 4000 字符；`excerpt` 最长 2000 字符。
 - 超限、过深 JSON、解码、`RecursionError` 或 `MemoryError` 均返回单一 stdout JSON 错误且非零退出；字符串扫描使用有界迭代遍历。
 
-### `source_tier` 枚举与映射
+### `source_tier` 枚举与断言
 
 `source_tier` 只是调用方断言。normalizer 不依据它授信，而是用 hostname allowlist 推导实际等级并要求两者一致：
 
-| `source_tier` 允许值 | 输出 `source_level` | 含义 |
+| `source_tier` 允许值 | hostname 必须推导为 | 含义 |
 |---|---:|---|
 | `official`、`primary`、`regulator`、`government`、`exchange`、`company_announcement` | 1 | 官方/一级来源 |
 | `authoritative_media`、`media` | 2 | 权威财经媒体/二级来源 |
-| `other` | 3 | 三级公开线索；normalizer 强制拒绝并记录 `untrusted_source` |
+| `other` | 不适用 | 三级公开线索；不查 hostname 一致性，直接 `untrusted_source` |
 
 `source_level` 是输出，不是调用方输入。调用方不得以 `source_level` 替代 `source_tier`，也不得根据来源名称自行写入输出等级。
 
 输出 `source` 同样不信任输入文字；它由命中的 allowlist 根域映射为 canonical source label。例如 `news.cn` 始终输出“新华网”，即使输入 `source` 声称“中国人民银行”也不回显该伪造名称。
 
+hostname 的 `source_level` 和 canonical source label 只维护在单一 `SOURCE_REGISTRY` 中，子域名同时匹配多个根域时使用最长/最具体的注册项。`source_tier == other` 时无论 hostname 是否命中 registry，都优先返回 `untrusted_source`，不返回 `source_tier_mismatch`。
+
 URL path 会将 percent-encoded unreserved 字符（如 `%7E`）还原为字面值，reserved 字符（如 `%2F`）保持编码并规范化十六进制大写。
 
-投资建议检测对所有将输出的字符串和键值执行 Unicode `NFKC` + casefold，删除零宽、空白和标点后，匹配直接禁语及“建议/推荐/应该/可考虑/维持/评级/看多看空”等提示词与“持有/增持/减持/做多/做空/buy/sell/hold/overweight/underweight”等动作词组合。
+URL 查询参数名 casefold 后若为 `token`、`access_token`、`authorization`、`api_key`、`apikey`、`secret`、`password`、`passwd`、`cookie`、`session`、`sessionid`、`jwt`、`credential`、`signature`、`sig` 或 `x-api-key`，整个候选返回 `sensitive_url_parameter`。不得通过删除参数后放行，`rejected` 不回显 URL 或参数值。
+
+投资建议检测对所有将输出的字符串和键值执行 Unicode `NFKC` + casefold，删除零宽、空白和标点后，匹配直接禁语及“建议/推荐/应该/可考虑/维持/评级/看多看空”等提示词与“持有/增持/减持/做多/做空/申购/赎回/认购/持仓/入离场/仓位/配置/调换仓/满空仓/buy/sell/hold/long/short/subscribe/redeem/position/portfolio allocation”等动作词组合。“增持评级”、`overweight` 等直接禁语不需额外提示词即拒绝。
 
 `retrieved_at` 属于 normalizer 的输入或输出字段：它作为顶层必填输入，经 ISO8601 解析并规范化后回传到输出。调用方在公开网检索开始时写入该值；展示模板只读取 normalizer 输出中的 `retrieved_at`。
 
@@ -98,7 +102,7 @@ stdout 只输出一个 JSON 对象；成功对象包含 `status`、`status_origi
 
 `edition_id` 为 `FYYYYMMDD`。每个入选条目的 `item_id` 由排名后的位置确定，格式为 `FYYYYMMDD-01`、`FYYYYMMDD-02`、`FYYYYMMDD-03`；同一输入、时间窗、日期和上限必须得到相同 ID。不得自行改写 normalizer 的排序、去重或拒绝原因。
 
-normalizer 强制拒绝三级来源：它先强制校验 `source_tier`，映射后的 `source_level` 为 3 的候选进入 `rejected`，原因为 `untrusted_source`，不得出现在 `items`。一级来源优先于二级来源，再由发布时间、标题和 URL 作确定性排序；三级来源不会成为可展示候选。
+normalizer 强制拒绝三级来源：`source_tier == other` 的候选在 hostname registry 判定前即进入 `rejected`，原因固定为 `untrusted_source`，不生成 `source_level`也不得出现在 `items`。其余通过候选中，一级来源优先于二级来源，再由发布时间、标题和 URL 作确定性排序。
 
 ## 与订阅工作流的边界
 

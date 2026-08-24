@@ -42,7 +42,7 @@ finance-news-course-commentary/
 1. `[DETERMINE] 学生教学计划/学习资源`：读取已确认的单一课程、其教学计划和学习资源，提取可用于关联的课程名、知识点和原文摘录，并设置顶层布尔值 `course_evidence_available`。无论该值为真或假，都记录带时区的 `retrieved_at` 并构造 normalizer 输入；不得由调用方直接构造 `skipped_no_course_evidence`。
 2. `[CALL] 平台通用工具公开网检索`：在 `course_evidence_available: true` 时，按课程主题和用户指定时间窗召回公开新闻，记录标题、URL、来源、发布时间、事实摘要和 `retrieved_at`；不使用付费墙内容或登录态。`source_tier` 只是调用方断言；normalizer 必须用内部 hostname allowlist 独立推导等级，调用方不能提升来源等级。输出 `source` 由 hostname allowlist 映射为固定机构名，不采信输入 `source`；不得传入 `source_level`。若为 false，不生成点评候选，但仍将空候选数组交给 normalizer。
 3. `[CALL] 知识检索助手课程证据`：为每条候选检索同一门课程的 `course_id`、`course_name`、`knowledge_point`、`resource_title` 和 `excerpt`，并组装为 `theory_citations`。每条 citation 的 `course_id/course_name` 都必须同时等于所选课程；混合课程数组整条拒绝。只有取得完整且同课程的 citations 后，才能生成 `theory_analysis` 和 `discussion_question`。
-4. `[BUILD] normalize_candidates.py`：按数据契约对候选进行强制校验与排序。它使用内部 hostname allowlist 推导 `source_level` 和 canonical source label，要求声明的 `source_tier` 与推导结果一致，强制拒绝三级、未列入、私网或 userinfo 来源。投资建议扫描先做 Unicode `NFKC`、casefold 并删除零宽/空白/标点，再检查直接禁语及提示词与动作词组合。`rejected` 只包含 `candidate_index` 和 `reason`。
+4. `[BUILD] normalize_candidates.py`：按数据契约对候选进行强制校验与排序。hostname 等级和 canonical source label 共用单一 `SOURCE_REGISTRY`，按最长/最具体根域匹配；`source_tier` 只是调用方断言，`other` 一律优先拒绝。URL 含 token/access_token/authorization/api_key/cookie/session/jwt/signature 等敏感查询参数时整个候选返回 `sensitive_url_parameter`，不允许删参后放行。投资建议扫描先做 Unicode `NFKC`、casefold 并删除零宽/空白/标点，再检查直接禁语及提示词与动作词组合；动作包括申购/赎回/认购、持仓/仓位/调仓/换仓、入离场及 subscribe/redeem/position/portfolio allocation。`rejected` 只包含 `candidate_index` 和 `reason`，不回显原文或 URL。
 5. `[BUILD] briefing`：将通过的条目按展示模板输出，保留来源 URL、发布时间、课程依据、理论分析和讨论问题；每期至多三条。
 
 ## 暂停确认规则

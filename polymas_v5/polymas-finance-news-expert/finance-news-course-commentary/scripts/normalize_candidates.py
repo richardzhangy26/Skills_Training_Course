@@ -52,48 +52,24 @@ SOURCE_TIER_LEVELS = {
     "media": 2,
     "other": 3,
 }
-OFFICIAL_HOSTS = frozenset(
-    {
-        "gov.cn",
-        "pbc.gov.cn",
-        "mof.gov.cn",
-        "stats.gov.cn",
-        "nfra.gov.cn",
-        "csrc.gov.cn",
-        "sse.com.cn",
-        "szse.cn",
-        "bse.cn",
-        "cninfo.com.cn",
-    }
-)
-MEDIA_HOSTS = frozenset(
-    {
-        "news.cn",
-        "xinhuanet.com",
-        "cctv.com",
-        "cs.com.cn",
-        "cnstock.com",
-        "stcn.com",
-    }
-)
-CANONICAL_SOURCE_LABELS = (
-    ("pbc.gov.cn", "中国人民银行"),
-    ("stats.gov.cn", "国家统计局"),
-    ("nfra.gov.cn", "国家金融监督管理总局"),
-    ("csrc.gov.cn", "中国证监会"),
-    ("mof.gov.cn", "财政部"),
-    ("sse.com.cn", "上海证券交易所"),
-    ("szse.cn", "深圳证券交易所"),
-    ("bse.cn", "北京证券交易所"),
-    ("cninfo.com.cn", "巨潮资讯"),
-    ("gov.cn", "中国政府网"),
-    ("news.cn", "新华网"),
-    ("xinhuanet.com", "新华网"),
-    ("cctv.com", "央视网"),
-    ("cs.com.cn", "中国证券报"),
-    ("cnstock.com", "上海证券报"),
-    ("stcn.com", "证券时报"),
-)
+SOURCE_REGISTRY = {
+    "gov.cn": {"level": 1, "label": "中国政府网"},
+    "pbc.gov.cn": {"level": 1, "label": "中国人民银行"},
+    "mof.gov.cn": {"level": 1, "label": "财政部"},
+    "stats.gov.cn": {"level": 1, "label": "国家统计局"},
+    "nfra.gov.cn": {"level": 1, "label": "国家金融监督管理总局"},
+    "csrc.gov.cn": {"level": 1, "label": "中国证监会"},
+    "sse.com.cn": {"level": 1, "label": "上海证券交易所"},
+    "szse.cn": {"level": 1, "label": "深圳证券交易所"},
+    "bse.cn": {"level": 1, "label": "北京证券交易所"},
+    "cninfo.com.cn": {"level": 1, "label": "巨潮资讯"},
+    "news.cn": {"level": 2, "label": "新华网"},
+    "xinhuanet.com": {"level": 2, "label": "新华网"},
+    "cctv.com": {"level": 2, "label": "央视网"},
+    "cs.com.cn": {"level": 2, "label": "中国证券报"},
+    "cnstock.com": {"level": 2, "label": "上海证券报"},
+    "stcn.com": {"level": 2, "label": "证券时报"},
+}
 TRACKING_PARAMETERS = {
     "dclid",
     "fbclid",
@@ -107,6 +83,26 @@ TRACKING_PARAMETERS = {
     "_ga",
     "_gl",
 }
+SENSITIVE_URL_PARAMETERS = frozenset(
+    {
+        "token",
+        "access_token",
+        "authorization",
+        "api_key",
+        "apikey",
+        "secret",
+        "password",
+        "passwd",
+        "cookie",
+        "session",
+        "sessionid",
+        "jwt",
+        "credential",
+        "signature",
+        "sig",
+        "x-api-key",
+    }
+)
 INVESTMENT_ADVICE_PHRASES = (
     "建议投资",
     "建议买入",
@@ -150,6 +146,9 @@ INVESTMENT_ADVICE_PHRASES = (
     "guaranteed profit",
     "overweight",
     "underweight",
+    "增持评级",
+    "减持评级",
+    "持有评级",
 )
 INVESTMENT_ADVICE_HINTS = (
     "建议",
@@ -182,6 +181,18 @@ INVESTMENT_ADVICE_ACTIONS = (
     "加仓",
     "减仓",
     "目标价",
+    "申购",
+    "赎回",
+    "认购",
+    "持仓",
+    "入场",
+    "离场",
+    "仓位",
+    "配置",
+    "调仓",
+    "换仓",
+    "满仓",
+    "空仓",
     "buy",
     "sell",
     "hold",
@@ -191,6 +202,10 @@ INVESTMENT_ADVICE_ACTIONS = (
     "underweight",
     "target price",
     "guaranteed return",
+    "subscribe",
+    "redeem",
+    "position",
+    "portfolio allocation",
 )
 UNRESERVED_URL_CHARACTERS = frozenset(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
@@ -307,9 +322,14 @@ def canonical_url(value):
     path = normalize_url_path(parsed.path or "/")
     if path != "/":
         path = path.rstrip("/")
+    parsed_query = parse_qsl(parsed.query, keep_blank_values=True)
+    if any(
+        name.casefold() in SENSITIVE_URL_PARAMETERS for name, _ in parsed_query
+    ):
+        raise InputError("sensitive_url_parameter")
     query = [
         (name, content)
-        for name, content in parse_qsl(parsed.query, keep_blank_values=True)
+        for name, content in parsed_query
         if name.lower() not in TRACKING_PARAMETERS
         and not name.lower().startswith("utm_")
     ]
@@ -323,21 +343,29 @@ def hostname_matches(hostname, allowed_hosts):
     )
 
 
-def derived_source_level(url):
+def source_registry_entry(url):
     hostname = normalize_hostname(urlsplit(url).hostname or "")
-    if hostname_matches(hostname, OFFICIAL_HOSTS):
-        return 1
-    if hostname_matches(hostname, MEDIA_HOSTS):
-        return 2
-    return None
+    matching_domains = [
+        registered_domain
+        for registered_domain in SOURCE_REGISTRY
+        if hostname_matches(hostname, {registered_domain})
+    ]
+    if not matching_domains:
+        return None
+    most_specific_domain = max(matching_domains, key=len)
+    return SOURCE_REGISTRY[most_specific_domain]
+
+
+def derived_source_level(url):
+    entry = source_registry_entry(url)
+    return entry["level"] if entry else None
 
 
 def canonical_source_label(url):
-    hostname = normalize_hostname(urlsplit(url).hostname or "")
-    for allowed_hostname, label in CANONICAL_SOURCE_LABELS:
-        if hostname_matches(hostname, {allowed_hostname}):
-            return label
-    raise InputError("untrusted_source")
+    entry = source_registry_entry(url)
+    if not entry:
+        raise InputError("untrusted_source")
+    return entry["label"]
 
 
 def normalized_title(value):
@@ -549,7 +577,11 @@ def validate_candidate(candidate, candidate_index, since, until, selected_course
     try:
         url = canonical_url(candidate["url"])
     except (InputError, ValueError, UnicodeError) as error:
-        reason = str(error) if str(error) == "untrusted_source" else "invalid_url"
+        reason = (
+            str(error)
+            if str(error) in {"untrusted_source", "sensitive_url_parameter"}
+            else "invalid_url"
+        )
         return reject(reason)
     try:
         published_at = parse_timestamp(candidate["published_at"], "published_at")
@@ -560,6 +592,8 @@ def validate_candidate(candidate, candidate_index, since, until, selected_course
     source_tier = candidate["source_tier"].strip().lower()
     if source_tier not in SOURCE_TIER_LEVELS:
         return reject("invalid_source_tier")
+    if source_tier == "other":
+        return reject("untrusted_source")
     derived_level = derived_source_level(url)
     if derived_level is None:
         return reject("untrusted_source")

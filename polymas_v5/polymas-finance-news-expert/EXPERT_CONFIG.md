@@ -56,7 +56,7 @@ name: ${agent_name}
 - **展开某条新闻**：只能从 `finance_news/{schoolId}/{userId}/briefing_history.jsonl` 中同一学生/课程/会话的最近已投递记录解析 `edition_id`、`item_id`、`course` 和 `target_session_id`。在读取 `item_id` 之前，必须先校验运行时 `schoolId/userId` 路径、当前 `job_key`、完整 `course_id/course_name` 和当前 `target_session_id`；缺少、跨范围或不一致时停止，要求选择该期简报中的条目；不从当前未投递的 `ready` 简报或其他会话恢复上下文。
 - **修改课程/计划**：课程变更重新走课程候选选择；频率、星期、时间、IANA时区、主题和自定义计划由学生自己填写，并在 `ask_user_question` 确认并真正等待确认后才写入新版本。
 - **暂停**：确认后把 `status` 设为 `paused`，停用对应 Cron；保留记录和历史。
-- **恢复**：重新校验课程权限、计划、同一学生和唯一个人会话；确认后设为 `active` 并恢复对应 Cron。
+- **恢复**：重新校验课程权限、计划、同一学生和唯一个人会话。若 `cron_job_id == null`、`activation_error` 非空或 `recovery_required == true`，禁止直接写 `active`：必须重新执行完整激活流程，或进入人工恢复流程。**原子能力恢复门禁**：当 `auto_delivery_status=disabled_atomicity` 或 `delivery_error` 非空时，先重新验证原子能力；通过后清空 `delivery_error`、写 `auto_delivery_status=enabled`，再恢复 Cron 并确认后才进入 active，否则禁止写 `active`。
 - **退订**：调用 `ask_user_question` 进行明确确认；停用 Cron，将 `status` 设为 `unsubscribed`，不再发送。
 
 ### 2. 订阅记录与版本
@@ -81,7 +81,9 @@ name: ${agent_name}
   "recovery_required": false,
   "orphaned_cron_job_ids": [],
   "activation_error": null,
-  "migration_error": null
+  "migration_error": null,
+  "auto_delivery_status": "enabled | disabled_atomicity",
+  "delivery_error": null
 }
 ```
 
@@ -99,10 +101,11 @@ name: ${agent_name}
 - **二阶恢复失败**：以上任一分支如出现恢复旧任务失败或恢复旧订阅失败，立即尝试将新旧任务均保持暂停，订阅统一写为 `status=paused`、`recovery_required=true`，并把新旧 ID 都写入 `orphaned_cron_job_ids`后停止。任一暂停或状态写入再失败也只记录真实部分失败，不恢复自动投递。
 - 候选删除失败或旧任务删除失败时，新旧任务均暂停，标记康复必需并禁止双发。只有新订阅写入+候选启用成功后才删除旧任务。
 - **全新订阅激活顺序**（不存在可恢复的旧订阅/旧任务）：①先写订阅草稿 `status=pending_activation`、`cron_job_id=null`；②创建初始暂停的候选任务；③校验全新订阅候选的 `job_key`、`plan_version`、`--agent-id`、计划和暂停状态；④在仍为 pending 时写入候选 `cron_job_id`；⑤启用全新订阅候选；⑥回读并确认任务已启用；⑦最后才写 `status=active`。禁止 active 无任务。
-- **全新订阅任一步失败**：若尚未创建候选，删除草稿，或保留 `status=paused`、`cron_job_id=null`和 `activation_error`。若候选已存在，先暂停并删除；候选删除成功后写 `status=paused`、`cron_job_id=null`、`activation_error`；候选删除失败时写 `status=paused`、`recovery_required=true`、`orphaned_cron_job_ids`和 `activation_error`，停止自动恢复。
+- **全新订阅失败的唯一状态规则**：尚未创建候选即失败时，必须删除订阅草稿，另向 `finance_news/{schoolId}/{userId}/activation-audit.jsonl` 写独立 activation audit；不保留 paused 草稿。候选已存在时先暂停并删除；候选清理成功后同样删除订阅草稿并写独立 audit。仅候选清理失败时才保留订阅，写 `status=paused`、`activation_error`、`recovery_required=true` 和 `orphaned_cron_job_ids`，禁止 active 无任务并停止自动恢复。
 - **课程变更是独立迁移**：课程变更禁止进入同 `job_key` 计划切换。**改课迁移顺序**：①使用新 `courseId` 生成新 `job_key`，写新订阅 `status=pending_activation`；②创建新课程订阅候选；③校验新课程订阅候选；④在仍为 pending 时写入新 `cron_job_id` 并启用新课程订阅候选；⑤新订阅仍保持 pending，所以新 Cron 暂不能投递；⑥停用旧课程 Cron；⑦将旧订阅 `status=unsubscribed` 并写入 `superseded_by_job_key`；⑧最后才将新订阅 `status=active`。
 - **新课程候选失败**：在旧课程 Cron 成功停用之前，任一创建、校验、写入或启用失败都先删除或暂停新候选并清理，新订阅置为 `status=paused`、`migration_error`，旧订阅继续 `active`，旧任务也继续正常执行。
 - **旧 Cron 停用失败或旧订阅退订写入失败**：立即暂停新任务，恢复旧订阅和旧任务为 `active`，新订阅置为 `status=paused`、写 `migration_error`，然后清理新候选。恢复或清理失败时，立即将双方 `status=paused`，新旧任务均暂停，写 `recovery_required=true`、`orphaned_cron_job_ids` 和真实错误后停止。
+- **新订阅 active 提交失败或回执不确定**：立即暂停新 Cron，将旧订阅从 `unsubscribed` 恢复为 `active` 并恢复旧 Cron；新订阅写 `status=paused` 和 `migration_error`，再清理新候选。恢复或清理任一失败时，立即将双方 `status=paused`，新旧 Cron 均暂停，写 `recovery_required=true`、`orphaned_cron_job_ids` 和真实错误。active 提交确认成功前不得视为迁移完成。
 
 ### 4. 定时生成与安全投递
 
@@ -113,7 +116,7 @@ name: ${agent_name}
 5. **发送前重读 subscription**，并要求 `trigger_cron_job_id` 等于当前 `cron_job_id`、`trigger_job_key` 等于当前 `job_key`、`trigger_plan_version` 等于当前 `plan_version`、`trigger_agent_id` 等于当前专家 `agent-id`。任一不一致返回 `skipped_stale_trigger`，不调用 `channel-message`，不更新成功历史或 `last_success_at`。
 6. 计算 `delivery_key={job_key}:{plan_version}:{edition_id}`。必须使用平台持久化层的原子 `create-if-absent`/唯一约束创建 `pending`，或使用 `channel-message` 原生幂等键取得等价的原子所有权。原子操作内部读取 delivery ledger：已有 `sent` 返回 `skipped_duplicate`；已有 `pending` 或 `uncertain` 返回 `delivery_uncertain`，两者都不自动重发。
 7. 只有拿到原子锁的执行者才可写入 `pending` 并正式调用 `channel-message`，使用 `channel-message 0.0.1` 向唯一个人会话发送，并在接口支持时传 `metadata.delivery_key`。不得用普通“读后追加”冒充原子锁。
-8. 如平台既无原子 `create-if-absent`/唯一约束，也无消息原生幂等键，立即返回 `delivery_atomicity_unavailable` 并禁用自动发送，不得降级为非原子账本。
+8. **原子能力不可用持久停发顺序**：如平台既无原子 `create-if-absent`/唯一约束，也无消息原生幂等键，先暂停当前 Cron（显式传当前 `--agent-id`）；暂停成功后写 `status=paused`、`auto_delivery_status=disabled_atomicity`、`delivery_error=delivery_atomicity_unavailable`和 `next_run_at=null`，以持久状态禁用自动发送，再返回 `delivery_atomicity_unavailable`。Cron 暂停或订阅写入任一失败时，写 `recovery_required=true`并记录真实错误；无论补偿是否完整持久化，仍不得发送，不得降级为非原子账本。
 9. 发送失败或回执不确定时，将账本保留为 `pending` 或更新为 `uncertain`，返回 `delivery_uncertain` 并不自动重发。
 10. 成功投递后，将回执、账本与本期历史作为一次耐久记账，原子更新为 `sent`。发送成功但账本写入失败时必须保持 `uncertain` 语义，不自动重发，也不更新 `last_success_at`。
 11. 每期只向 `finance_news/{schoolId}/{userId}/briefing_history.jsonl` 追加一条完整 edition 记录，不拆成每条新闻一行：
