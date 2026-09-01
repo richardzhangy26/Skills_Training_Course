@@ -20,8 +20,16 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+import build_knowledge_pack as canonical_knowledge_module  # noqa: E402
+import render_html as canonical_render_module  # noqa: E402
 from build_knowledge_pack import build_knowledge_pack  # noqa: E402
-from library_core import validate_case, validate_release_root, write_json  # noqa: E402
+from library_core import (  # noqa: E402
+    validate_actor_reference,
+    validate_case,
+    validate_confirmation_nonce,
+    validate_release_root,
+    write_json,
+)
 from prepare_update import (  # noqa: E402
     compute_change_set_id,
     load_state,
@@ -132,6 +140,18 @@ def publish_update(
             "change_set_id": change_set.get("change_set_id"),
         }
     stored_change_set_id = change_set.get("change_set_id")
+    if not validate_actor_reference(change_set.get("actor_reference")) or not change_set.get(
+        "actor_reference"
+    ):
+        return {
+            "status": "invalid_actor_reference",
+            "change_set_id": stored_change_set_id,
+        }
+    if not validate_confirmation_nonce(change_set.get("confirmation_nonce")):
+        return {
+            "status": "confirmation_nonce_required",
+            "change_set_id": stored_change_set_id,
+        }
     if (
         not confirmation_change_set_id
         or confirmation_change_set_id != stored_change_set_id
@@ -349,6 +369,18 @@ def publish_update(
         html_report = render_library(staging, html_path)
         knowledge_report = build_knowledge_pack(staging, knowledge_path)
         candidate_errors = validate_release_root(staging, require_exports=True)
+        with tempfile.TemporaryDirectory() as verification_tmp:
+            verification_root = Path(verification_tmp)
+            expected_html = verification_root / "数据法学案例库.html"
+            expected_knowledge = verification_root / "案例专家知识包.jsonl"
+            canonical_render_module.render_library(staging, expected_html)
+            canonical_knowledge_module.build_knowledge_pack(
+                staging, expected_knowledge
+            )
+            if expected_html.read_bytes() != html_path.read_bytes():
+                candidate_errors.append("html_not_reproducible")
+            if expected_knowledge.read_bytes() != knowledge_path.read_bytes():
+                candidate_errors.append("knowledge_not_reproducible")
         if candidate_errors:
             raise ValueError(
                 "candidate_release_invalid:" + ",".join(candidate_errors)

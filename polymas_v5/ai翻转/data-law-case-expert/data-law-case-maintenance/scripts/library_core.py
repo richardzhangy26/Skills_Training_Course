@@ -22,7 +22,9 @@ SENSITIVE_PATTERNS = {
         r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"
     ),
     "private_key": re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----"),
-    "email_address": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
+    "email_address": re.compile(
+        r"(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?![A-Za-z0-9.-])"
+    ),
     "student_identifier": re.compile(
         r"(?i)(?:学号|学生\s*ID|student[_ -]?id)\s*(?:为|是)?\s*[:=：]?\s*[A-Za-z0-9_-]{6,32}"
     ),

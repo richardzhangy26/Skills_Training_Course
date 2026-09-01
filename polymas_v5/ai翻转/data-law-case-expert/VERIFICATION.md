@@ -53,7 +53,7 @@ html_has_actor_reference=false
 | 文件 | SHA-256 | 结构 |
 |---|---|---|
 | `data-law-case-query-1.0.0.zip` | `43d1ff2ac5317599969a9891df11d1f6b002f980c6277d4ade6d595ca5c8afff` | 单根目录；4 个文件 |
-| `data-law-case-maintenance-1.0.0.zip` | `5e8a22364333773e3623dab4de8567dd502aefad0cae8cc229853839e649aeef` | 单根目录；13 个文件 |
+| `data-law-case-maintenance-1.0.0.zip` | `bf82a62bf7771209c65d1576989e68f958fe6aa74627662d167857dce04585c5` | 单根目录；13 个文件 |
 
 打包器拒绝符号链接、未知文件后缀、本机绝对路径、私钥、JWT、常见 API Key/token 和带值的 Authorization/Cookie 模式；ZIP 不包含测试、缓存、隐藏文件或本地源文档。
 

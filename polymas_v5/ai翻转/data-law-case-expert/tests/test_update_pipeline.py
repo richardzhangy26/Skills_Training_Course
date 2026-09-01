@@ -296,7 +296,7 @@ class UpdatePipelineTests(unittest.TestCase):
             library = copy_library(tmp)
             candidate = new_candidate()
             candidate["basic_facts"] = (
-                "学生ID：2023123456；邮箱：student@example.edu；未成年人姓名：张小明。"
+                "学生ID：2023123456；学生联系邮箱为student@example.edu确认；未成年人姓名：张小明。"
             )
             preview = prepare_change(prepare, [candidate], 1, library)
             markers = preview["changes"][0]["sensitive_markers"]
@@ -541,6 +541,22 @@ class UpdatePipelineTests(unittest.TestCase):
             )
             self.assertEqual(invalid["status"], "invalid_change_set")
 
+            missing_nonce = deepcopy(change_set)
+            missing_nonce["confirmation_nonce"] = None
+            missing_nonce["change_set_id"] = prepare.compute_change_set_id(
+                missing_nonce["base_version"],
+                missing_nonce["changes"],
+                missing_nonce["actor_reference"],
+                None,
+            )
+            nonce_result = publish.publish_update(
+                missing_nonce,
+                True,
+                library,
+                confirmation_change_set_id=missing_nonce["change_set_id"],
+            )
+            self.assertEqual(nonce_result["status"], "confirmation_nonce_required")
+
     def test_publish_confirmation_is_single_use_even_after_rollback(self):
         prepare = load_module("prepare_update", PREPARE_PATH)
         publish = load_module("publish_update", PUBLISH_PATH)
@@ -591,7 +607,9 @@ class UpdatePipelineTests(unittest.TestCase):
                 path = Path(output_path)
                 path.write_text(
                     path.read_text(encoding="utf-8").replace(
-                        new_candidate()["basic_facts"], "篡改后的 HTML 正文"
+                        f'<span class="case-title">{new_candidate()["title"]}</span>',
+                        '<span class="case-title">篡改后的可见标题</span>',
+                        1,
                     ),
                     encoding="utf-8",
                 )
