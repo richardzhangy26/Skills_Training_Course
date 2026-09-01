@@ -110,6 +110,7 @@ def test_data_contract_has_no_course_or_identity_inputs():
         "ready",
         "no_eligible_candidates",
         "finance-news:{schoolId}:{userId}:{agentId}",
+        "只用于平台私有 Cron 元数据",
     ):
         assert token in contract
     for forbidden in (

@@ -113,16 +113,65 @@ def test_builtin_cron_reuses_stable_task_and_validates_creation():
 
     for token in (
         "finance-news:{schoolId}:{userId}:{agentId}",
+        "仅用于平台私有 Cron 元数据",
         "只复用任务键和当前 `agent-id` 都完全匹配的任务",
         "不得按模糊名称选取",
         "已有等价活动任务时直接回读状态，不创建第二个任务",
         "cron create --agent-id <当前专家>",
-        "plan_version=1",
+        '"trigger_plan_version": 1',
         "cron get",
         "cron state",
         "只有工具真实返回可查询、已启用的任务，才报告订阅成功",
     ):
         assert token in config
+
+    assert "不得进入外部检索参数、用户回复或执行日志" in config
+
+
+def test_created_cron_body_uses_exact_trigger_schema_without_raw_student_ids():
+    config = read(CONFIG)
+    create_section = config.split("创建流程：", 1)[1].split("计划切换：", 1)[0]
+
+    for token in (
+        '"trigger_job_key": "finance-news:{schoolId}:{userId}:{agentId}"',
+        '"trigger_plan_version": 1',
+        '"trigger_agent_id": "当前 agent-id"',
+        '"topics": ["学生确认的主题"]',
+        '"window_rule": "上次成功执行时间至本次执行时间"',
+        '"workflow": "finance-news-current-expert"',
+    ):
+        assert token in create_section
+    assert "用户可见输出" not in create_section
+
+
+def test_cron_reconciliation_handles_zero_one_or_multiple_exact_matches():
+    config = read(CONFIG)
+
+    for token in (
+        "0 个精确匹配",
+        "1 个精确匹配",
+        "多个精确匹配",
+        "duplicate_cron_conflict",
+        "创建后立即再次执行 `cron list` 对账",
+        "若内置 Cron 支持原生幂等键",
+        "将 `job_key` 同时作为幂等键",
+    ):
+        assert token in config
+
+
+def test_old_task_delete_failure_cannot_leave_two_active_tasks():
+    config = read(CONFIG)
+    switch_section = config.split("计划切换：", 1)[1].split("### 4.", 1)[0]
+
+    for token in (
+        "旧任务删除失败",
+        "立即暂停候选任务",
+        "恢复旧任务",
+        "候选删除失败",
+        "新旧任务均保持暂停",
+        "不得留下两个启用任务",
+    ):
+        assert token in switch_section
 
 
 def test_builtin_cron_plan_switch_is_rollback_safe():
@@ -136,7 +185,7 @@ def test_builtin_cron_plan_switch_is_rollback_safe():
         "候选任务应初始暂停",
         "恢复候选，再删除保持暂停的旧任务",
         "候选创建、校验或恢复失败时删除候选并恢复旧任务",
-        "候选无法删除时保持新旧均暂停",
+        "候选无法删除时新旧任务均保持暂停",
     ):
         assert token in config
 
@@ -147,10 +196,30 @@ def test_builtin_cron_returns_final_answer_in_current_expert_conversation():
     for token in (
         "定时任务的最终回复直接显示在创建任务的当前专家对话中",
         "不调用任何消息发送 Skill",
-        "将生成的简报作为本次 Cron 唤醒的最终回复直接返回",
+        "将简报作为本次 Cron 唤醒的最终回复直接返回",
         "不查询、选择或保存其他会话 ID",
     ):
         assert token in combined
+
+
+def test_stale_trigger_is_checked_before_generation_and_before_final_reply():
+    config = read(CONFIG)
+    scheduled = config.split("### 4. [CALL] 定时财经简报", 1)[1].split(
+        "### 5.", 1
+    )[0]
+
+    for token in (
+        "开始生成前",
+        "最终回复前",
+        "cron list --agent-id <当前专家>",
+        "唯一启用任务",
+        "运行时提供的 `trigger_cron_job_id`",
+        "trigger_job_key",
+        "trigger_plan_version",
+        "trigger_agent_id",
+        "skipped_stale_trigger",
+    ):
+        assert token in scheduled
 
 
 def test_builtin_cron_contract_has_no_session_binding_or_message_delivery_state():

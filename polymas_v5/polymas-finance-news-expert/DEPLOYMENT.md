@@ -36,16 +36,22 @@ python scripts/package_skill.py --output finance-news-commentary.zip
 - `cron delete <cron_job_id> --agent-id <当前专家>`
 - `cron run <cron_job_id> --agent-id <当前专家>`
 
-稳定任务键为 `finance-news:{schoolId}:{userId}:{agentId}`。创建前执行 `cron list`，只按完整任务键和当前 agent-id 精确匹配；已有等价任务时复用，不创建第二个任务。
+稳定任务键为 `finance-news:{schoolId}:{userId}:{agentId}`，只保存在平台私有 Cron 元数据中，不进入外部检索、用户回复或执行日志。创建前执行 `cron list`，只按完整任务键和当前 agent-id 精确匹配；0 个时创建，1 个时复用或切换计划，多个时暂停全部精确匹配并返回 `duplicate_cron_conflict`。
 
-任务正文至少保存：
+任务正文严格保存：
 
-- `trigger_job_key`
-- `trigger_plan_version`
-- `trigger_agent_id`
-- 财经主题
-- 新闻时间窗规则
-- “执行财经新闻工作流并直接返回最终简报”
+```json
+{
+  "trigger_job_key": "finance-news:{schoolId}:{userId}:{agentId}",
+  "trigger_plan_version": 1,
+  "trigger_agent_id": "当前 agent-id",
+  "topics": ["学生确认的主题"],
+  "window_rule": "上次成功执行时间至本次执行时间",
+  "workflow": "finance-news-current-expert"
+}
+```
+
+内置 Cron 支持原生幂等键时同时传 `job_key`；不支持时在创建后立即再次 `cron list` 对账，只允许一个精确匹配任务继续启用。
 
 ## 当前专家对话回推
 
@@ -55,10 +61,11 @@ python scripts/package_skill.py --output finance-news-commentary.zip
 
 ## 计划切换与维护
 
-- 修改计划：验证旧任务 → 暂停旧任务 → 创建并暂停候选 → `cron get/state` 校验 → 恢复候选 → 删除旧任务。
+- 修改计划：验证旧任务 → 暂停旧任务 → 创建并暂停候选 → `cron get/state` 校验 → 恢复候选 → 删除旧任务。旧任务删除失败时立即暂停候选并恢复旧任务；候选清理或旧任务恢复失败时保持双方暂停。
 - 候选失败：删除候选并恢复旧任务；候选无法删除时保持新旧暂停并报告人工清理。
 - 暂停、恢复、退订和立即试运行分别使用内置 `cron pause/resume/delete/run`，每次操作后都用 `cron get/state/list` 回读验证。
 - 工具没有返回成功、任务 ID、状态或下一次执行时间时，不报告操作完成。
+- 每次定时触发在生成前和最终回复前各执行一次 `cron list/get/state`，要求任务键只匹配一个启用任务，且运行时触发 ID、任务版本和 agent-id 均一致；失配返回 `skipped_stale_trigger`。
 
 ## 真实平台联调
 
