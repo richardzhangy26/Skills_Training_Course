@@ -1,6 +1,6 @@
 # 财经新闻推送专家部署说明
 
-本文件说明本地交付物的部署步骤。当前仓库未保存 PDS 凭证，也未执行真实专家保存、Cron 创建或消息发送。
+本版本采用“领域 Skill＋AI 助教内置工具”架构。当前仓库未执行真实专家保存、Cron 创建或定时回复。
 
 ## 上传包
 
@@ -8,52 +8,65 @@
 python scripts/package_skill.py --output finance-news-commentary.zip
 ```
 
-上传包根目录必须为 `finance-news-commentary/`，只含 `SKILL.md`、`references/`、`output_format/` 和 `scripts/normalize_candidates.py`。
+上传包根目录为 `finance-news-commentary/`，只包含 `SKILL.md`、`references/`、`output_format/` 和 `scripts/normalize_candidates.py`。
 
 ## PDS 配置
 
 1. 定位“财经新闻推送专家”，昵称填写“财讯小信使”。
-2. 上传 `finance-news-commentary.zip`，核验 Skill 名为 `finance-news-commentary`。
-3. 按顺序挂载四项能力：
+2. 上传 `finance-news-commentary.zip`。
+3. 只挂载两项专业 Skill：
 
    1. `finance-news-commentary`
    2. `平台通用工具 0.0.4`
-   3. `cron 0.0.1`
-   4. `channel-message 0.0.1`
 
-4. 粘贴 [EXPERT_CONFIG.md](EXPERT_CONFIG.md) 中的完整 Agent.md，保留 `${agent_name}`。
-5. 保存前确认专家无需选择课程，未挂载学生班课、教学计划、学习资源或知识检索能力。
+4. `ask_user_question` 是 AI 助教内置工具，`cron` 是 AI 助教内置工具，二者不作为 Skill 挂载。
+5. 移除技能区中已挂载的定时任务或消息发送 Skill。
+6. 粘贴 [EXPERT_CONFIG.md](EXPERT_CONFIG.md) 中的完整 Agent.md，保留 `${agent_name}`。
 
-## 首次订阅
+## 内置 Cron 操作
 
-- 读取运行时学生、当前专家和当前会话，不询问内部 ID。
-- 当前会话验证为同一学生、当前专家的个人会话后直接绑定；不查询或改绑到其他会话。
-- `ask_user_question` 只收集频率、星期、时间、IANA 时区和财经主题，并取得最终确认。
-- 稳定键为 `finance-news:{schoolId}:{userId}:{agentId}`；必须用订阅持久层原子 `create-if-absent`/`create-or-get` 或唯一约束取得创建权，只有成功 claim 者创建 Cron，竞争失败者复用既有订阅。
-- Cron 所有操作显式传当前 `--agent-id`。
+所有操作显式传当前专家 `agent-id`：
 
-## 投递门禁
+- `cron list --agent-id <当前专家>`
+- `cron create --agent-id <当前专家>`
+- `cron get <cron_job_id> --agent-id <当前专家>`
+- `cron state <cron_job_id> --agent-id <当前专家>`
+- `cron pause <cron_job_id> --agent-id <当前专家>`
+- `cron resume <cron_job_id> --agent-id <当前专家>`
+- `cron delete <cron_job_id> --agent-id <当前专家>`
+- `cron run <cron_job_id> --agent-id <当前专家>`
 
-- Cron 触发必须携带 Cron ID、任务键、计划版本、agent-id、`binding_version` 和 `target_session_id`；检索后、发送前重读订阅并逐项比对，正式发送使用最新确认的目标会话。
-- 已绑定会话必须仍属于同一学生、当前专家且为个人会话；无效时停止，不搜索替代会话，不发送到班级群。
-- `delivery_key={job_key}:{plan_version}:{edition_id}` 必须使用原子 `create-if-absent`/唯一约束或消息原生幂等键。
-- 无原子能力时暂停 Cron并持久化 `disabled_atomicity`，不得降级发送。
-- 消息成功、账本与完整 edition 历史均耐久写入后，才更新 `last_success_at`。
-- 所有退出分支回读真实 `next_run_at`；回读失败记录 `schedule_state_error`。
+稳定任务键为 `finance-news:{schoolId}:{userId}:{agentId}`。创建前执行 `cron list`，只按完整任务键和当前 agent-id 精确匹配；已有等价任务时复用，不创建第二个任务。
 
-本目录的 `scripts/subscription_state_machine.py` 是上述原子 claim、计划切换回滚、会话重绑定和 stale-trigger 的可执行参考合同；PDS 适配必须保持相同状态语义，不得把本地 fake adapter 当成平台联调结果。
+任务正文至少保存：
 
-## 真实联调验收
+- `trigger_job_key`
+- `trigger_plan_version`
+- `trigger_agent_id`
+- 财经主题
+- 新闻时间窗规则
+- “执行财经新闻工作流并直接返回最终简报”
 
-- 首次订阅不触发任何课程查询，只出现主题与计划问题。
-- 当前运行时会话自动绑定，消息只回到当前专家个人会话。
-- 同一学生/专家重复订阅、计划修改、暂停、恢复和退订符合幂等与回滚规则。
-- 并发两个首次订阅只有一个原子 claim 成功并创建 Cron；计划切换启用失败时恢复旧 `cron_job_id`、旧版本、旧计划和旧 Cron。
-- 重绑定暂停当前 Cron、CAS 写入并递增 `binding_version`；旧触发在发送前因绑定版本或目标会话失配而停止。
-- stale trigger 不发送；并发相同 `delivery_key` 只发送一次。
-- `ready`、`no_eligible_candidates`、消息失败、记账不确定和互动展开均返回真实状态。
-- 输出分开呈现新闻事实、财经知识分析和互动问题，且不包含投资建议。
+## 当前专家对话回推
 
-以上均属于真实平台联调项目；本地测试通过不能替代 PDS 中的真实 Cron 和消息送达验证。
+内置 Cron 到期后唤醒创建任务的当前专家。专家完成检索和点评后，将简报作为本轮 Cron 的最终回复直接返回；定时任务的最终回复直接显示在创建任务的当前专家对话中。
 
-请勿在文档、平台备注、测试消息或日志中粘贴 Token、Cookie、Authorization、真实学生 ID 或会话 ID。
+不调用任何消息发送 Skill，不执行会话查找或频道发送命令，也不维护额外的会话绑定、消息回执或投递账本。
+
+## 计划切换与维护
+
+- 修改计划：验证旧任务 → 暂停旧任务 → 创建并暂停候选 → `cron get/state` 校验 → 恢复候选 → 删除旧任务。
+- 候选失败：删除候选并恢复旧任务；候选无法删除时保持新旧暂停并报告人工清理。
+- 暂停、恢复、退订和立即试运行分别使用内置 `cron pause/resume/delete/run`，每次操作后都用 `cron get/state/list` 回读验证。
+- 工具没有返回成功、任务 ID、状态或下一次执行时间时，不报告操作完成。
+
+## 真实平台联调
+
+- 技能区只存在两项专业 Skill，没有 Cron 或消息 Skill。
+- `ask_user_question` 与 `cron` 显示为内置工具调用卡片。
+- `cron create` 后可通过 `cron get/state` 查询到正确 agent-id、任务键、计划和下一次执行时间。
+- `cron run` 和真实到期触发都会把最终简报显示在当前专家对话中。
+- 重复订阅、修改计划、暂停、恢复和退订不会留下双任务。
+- 定时触发能调用平台通用工具和 `finance-news-commentary`，并正确处理无候选和工具失败。
+
+以上属于真实平台联调；本地 Markdown、脚本和测试通过不能替代 PDS 中的真实 Cron 启动与回复验证。

@@ -7,13 +7,13 @@ description: Use when a student asks for recent public finance news or a general
 
 ## 技能说明
 
-将公开财经新闻转成通用学习简报。新闻事实、财经知识分析和讨论问题分栏呈现；所有候选都先经过 normalizer。Skill 只负责新闻清洗与点评，不管理订阅、Cron 或消息投递。
+将公开财经新闻转成通用学习简报。新闻事实、财经知识分析和讨论问题分栏呈现；所有候选都先经过 normalizer。Skill 只负责新闻清洗与点评，不管理订阅或定时任务。
 
 ## 触发/不触发
 
 触发：学生需要近期公开财经新闻、通用财经知识解释或互动讨论，且不绑定课程。
 
-不触发：选课、课程查询、订阅维护、Cron、发送消息、实时行情、估值、交易建议或投资组合操作。
+不触发：选课、课程查询、订阅维护、Cron 工具调用、实时行情、估值、交易建议或投资组合操作。
 
 ## 项目结构
 
@@ -43,7 +43,7 @@ finance-news-commentary/
 ## 暂停确认规则
 
 - 页面要求登录、验证码、付费或反爬验证时，停止使用该页面并改找公开来源。
-- 需要改变订阅、推送时间、目标会话或发送范围时，停止并交回专家编排。
+- 需要改变订阅或推送时间时，停止并交回专家编排。
 - 事实来源冲突且无法确认时，不生成确定性结论。
 
 ## 执行流程强制约束
@@ -52,6 +52,6 @@ finance-news-commentary/
 - 严格执行“公开网检索 → 事实核对与去重 → 通用财经分析 → normalizer → briefing”。
 - `source_tier` 是调用方断言；`source_level` 与 canonical source label 只能由 normalizer 的 `SOURCE_REGISTRY` 推导。
 - URL 含凭证类查询参数时整个候选返回 `sensitive_url_parameter`，不通过删参后放行。
-- 不创建 Cron、不调用 `channel-message`、不保存订阅，也不更新发送历史或 `last_success_at`。
+- 不创建或维护 Cron，不保存订阅。Skill 将 briefing 返回给专家，由专家作为即时回复或内置 Cron 的最终回复输出。
 - 不输出投资建议、交易指令、目标价、收益承诺或投资组合建议。内容仅用于财经学习，不构成投资建议。
 - 脚本 stdout 始终为单个 JSON；错误只能转述其 JSON `error`，不得伪造成功状态。

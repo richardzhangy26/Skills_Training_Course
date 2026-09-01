@@ -69,7 +69,7 @@ python3 scripts/normalize_candidates.py \
 
 ## 与订阅工作流的边界
 
-订阅由专家维护。稳定任务键为 `finance-news:{schoolId}:{userId}:{agentId}`，不含课程或会话 ID。`target_session_id` 保存首次订阅时的当前专家个人会话；Skill 不创建、读取或修改这些字段。
+订阅由专家通过 AI 助教内置 `cron` 工具维护。稳定任务键为 `finance-news:{schoolId}:{userId}:{agentId}`。任务正文携带 `trigger_job_key`、`trigger_plan_version` 和 `trigger_agent_id`；Skill 不创建、读取或修改 Cron。Cron 唤醒后的 briefing 由专家直接作为最终回复返回到创建任务的当前专家对话中。
 
 ## 展示映射
 
