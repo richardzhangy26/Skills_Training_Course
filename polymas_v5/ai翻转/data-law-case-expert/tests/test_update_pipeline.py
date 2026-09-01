@@ -205,6 +205,50 @@ class UpdatePipelineTests(unittest.TestCase):
                 preview["changes"][0]["evidence_errors"],
             )
 
+    def test_prepare_rejects_speculative_or_unbacked_source_outcome(self):
+        prepare = load_module("prepare_update", PREPARE_PATH)
+        with tempfile.TemporaryDirectory() as tmp:
+            library = copy_library(tmp)
+            speculative = new_candidate()
+            speculative["outcome"] = "若进入司法程序，平台可能被判承担责任。"
+            speculative["outcome_evidence_status"] = "source_material"
+            speculative["sources"] = [{"title": "教师材料", "source_tier": "source_material"}]
+            speculative_preview = prepare.prepare_update([speculative], 1, library)
+
+            unbacked = new_candidate()
+            unbacked["outcome"] = "监管机构作出处罚。"
+            unbacked["outcome_evidence_status"] = "source_material"
+            unbacked["sources"] = []
+            unbacked_preview = prepare.prepare_update([unbacked], 1, library)
+
+            self.assertIn(
+                "speculative_outcome_requires_review",
+                speculative_preview["changes"][0]["evidence_errors"],
+            )
+            self.assertIn(
+                "source_outcome_requires_source",
+                unbacked_preview["changes"][0]["evidence_errors"],
+            )
+
+    def test_prepare_blocks_email_student_id_and_minor_name(self):
+        prepare = load_module("prepare_update", PREPARE_PATH)
+        with tempfile.TemporaryDirectory() as tmp:
+            library = copy_library(tmp)
+            candidate = new_candidate()
+            candidate["basic_facts"] = (
+                "学生ID：2023123456；邮箱：student@example.edu；未成年人姓名：张小明。"
+            )
+            preview = prepare.prepare_update([candidate], 1, library)
+            markers = preview["changes"][0]["sensitive_markers"]
+
+            self.assertIn("student_identifier", markers)
+            self.assertIn("email_address", markers)
+            self.assertIn("minor_name", markers)
+            serialized = json.dumps(preview, ensure_ascii=False)
+            self.assertNotIn("2023123456", serialized)
+            self.assertNotIn("student@example.edu", serialized)
+            self.assertNotIn("张小明", serialized)
+
     def test_publish_rejects_unconfirmed_and_stale_changes(self):
         prepare = load_module("prepare_update", PREPARE_PATH)
         publish = load_module("publish_update", PUBLISH_PATH)
@@ -431,6 +475,65 @@ class UpdatePipelineTests(unittest.TestCase):
                 confirmation_change_set_id=change_set["change_set_id"],
             )
             self.assertEqual(invalid["status"], "invalid_change_set")
+
+    def test_publish_confirmation_is_single_use_even_after_rollback(self):
+        prepare = load_module("prepare_update", PREPARE_PATH)
+        publish = load_module("publish_update", PUBLISH_PATH)
+        rollback = load_module("rollback_release", ROLLBACK_PATH)
+        with tempfile.TemporaryDirectory() as tmp:
+            library = copy_library(tmp)
+            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            first = publish.publish_update(
+                change_set,
+                True,
+                library,
+                confirmation_change_set_id=change_set["change_set_id"],
+            )
+            self.assertEqual(first["status"], "artifact_ready_knowledge_pending")
+            rollback_plan = rollback.prepare_rollback(
+                library,
+                1,
+                actor_reference="audit:test-teacher",
+                confirmation_nonce="rollback-once",
+            )
+            rollback.rollback_release(
+                library,
+                1,
+                True,
+                rollback_plan["rollback_confirmation_id"],
+                "audit:test-teacher",
+                "rollback-once",
+            )
+            replay = publish.publish_update(
+                change_set,
+                True,
+                library,
+                confirmation_change_set_id=change_set["change_set_id"],
+            )
+            self.assertEqual(replay["status"], "confirmation_already_used")
+
+    def test_candidate_release_is_validated_before_pointer_switch(self):
+        prepare = load_module("prepare_update", PREPARE_PATH)
+        publish = load_module("publish_update", PUBLISH_PATH)
+        with tempfile.TemporaryDirectory() as tmp:
+            library = copy_library(tmp)
+            change_set = prepare.prepare_update([new_candidate()], 1, library)
+
+            def corrupt_pack(library_root, output_path):
+                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+                Path(output_path).write_text("", encoding="utf-8")
+                return {"status": "artifact_ready_knowledge_pending", "block_count": 0}
+
+            with patch.object(publish, "build_knowledge_pack", side_effect=corrupt_pack):
+                with self.assertRaisesRegex(ValueError, "candidate_release_invalid"):
+                    publish.publish_update(
+                        change_set,
+                        True,
+                        library,
+                        confirmation_change_set_id=change_set["change_set_id"],
+                    )
+            self.assertFalse((library / "current.json").exists())
+            self.assertFalse((library / "releases" / "v0002").exists())
 
     def test_unresolved_state_is_derived_from_changes_not_trusted_counter(self):
         prepare = load_module("prepare_update", PREPARE_PATH)
@@ -681,6 +784,41 @@ class UpdatePipelineTests(unittest.TestCase):
             )
             self.assertEqual(result["status"], "target_release_invalid")
             self.assertIn("missing_field:title", result["errors"])
+
+    def test_prepare_rollback_rejects_tampered_html_and_knowledge_content(self):
+        prepare = load_module("prepare_update", PREPARE_PATH)
+        publish = load_module("publish_update", PUBLISH_PATH)
+        rollback = load_module("rollback_release", ROLLBACK_PATH)
+        with tempfile.TemporaryDirectory() as tmp:
+            library = copy_library(tmp)
+            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            publish.publish_update(
+                change_set,
+                True,
+                library,
+                confirmation_change_set_id=change_set["change_set_id"],
+            )
+            target = library / "releases" / "v0001"
+            html_path = target / "exports" / "数据法学案例库.html"
+            html_path.write_text(
+                html_path.read_text(encoding="utf-8").replace("数据法学案例库", "被篡改的案例库", 1),
+                encoding="utf-8",
+            )
+            knowledge_path = target / "exports" / "案例专家知识包.jsonl"
+            knowledge_path.write_text(
+                knowledge_path.read_text(encoding="utf-8").replace("虚假招聘", "篡改招聘", 1),
+                encoding="utf-8",
+            )
+
+            result = rollback.prepare_rollback(
+                library,
+                1,
+                actor_reference="audit:test-teacher",
+                confirmation_nonce="tamper-check",
+            )
+            self.assertEqual(result["status"], "target_release_invalid")
+            self.assertIn("html_not_reproducible", result["errors"])
+            self.assertIn("knowledge_not_reproducible", result["errors"])
 
     def test_rollback_and_publish_share_one_write_lock(self):
         prepare = load_module("prepare_update", PREPARE_PATH)

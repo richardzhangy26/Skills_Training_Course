@@ -33,7 +33,7 @@
 
 ```markdown
 - 学生查询 → `data-law-case-query` → 唯一定位或候选选择 → 证据分栏回答 → 一道思考题。
-- 教师上传 → 身份权限校验 → 文件读取 → `data-law-case-maintenance` → 脱敏/拆分/查重/场景判断 → 差异预览 → `ask_user_question` 确认并绑定 `change_set_id` → 版本化 HTML/知识包 → 平台写入 → 回读验证。
+- 教师上传 → 身份权限校验 → 文件读取 → `data-law-case-maintenance` → 脱敏/拆分/查重/场景判断 → 差异预览 → `ask_user_question` 确认并绑定 `change_set_id`＋当前交互 nonce → 候选版本完整性校验 → 版本化 HTML/知识包 → 平台写入 → 回读验证。
 - HTML 已生成但知识未回读 → `artifact_ready_knowledge_pending`；上传状态不确定 → `knowledge_state_unknown`；回读成功 → `knowledge_verified`。
 ```
 

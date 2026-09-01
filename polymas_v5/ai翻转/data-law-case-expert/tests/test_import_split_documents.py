@@ -62,6 +62,12 @@ class SplitDocumentImportTests(unittest.TestCase):
             self.assertTrue(
                 first["sources"][0]["title"].startswith("场景01_案例01_")
             )
+            surveillance = json.loads(
+                (output / "data" / "cases" / "DLCL-0004.json").read_text(encoding="utf-8")
+            )
+            self.assertIn("法院判令公司销毁相关视频资料", surveillance["outcome"])
+            self.assertNotIn("法院判令公司销毁相关视频资料", surveillance["basic_facts"])
+            self.assertEqual(surveillance["case_status"], "已发布")
 
     def test_speculative_result_stays_in_review_queue(self):
         importer = load_importer()
@@ -94,6 +100,14 @@ class SplitDocumentImportTests(unittest.TestCase):
             next(source.glob("场景10_案例02_*.docx")).unlink()
             with self.assertRaisesRegex(ValueError, "expected_77_case_documents"):
                 importer.import_split_documents(source, Path(tmp) / "library")
+
+    def test_importer_refuses_to_overwrite_existing_library(self):
+        importer = load_importer()
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "library"
+            importer.import_split_documents(SPLIT_ROOT, output)
+            with self.assertRaisesRegex(ValueError, "bootstrap_target_not_empty"):
+                importer.import_split_documents(SPLIT_ROOT, output)
 
 
 if __name__ == "__main__":

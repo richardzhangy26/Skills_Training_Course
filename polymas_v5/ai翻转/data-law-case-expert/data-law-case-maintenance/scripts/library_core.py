@@ -21,7 +21,15 @@ SENSITIVE_PATTERNS = {
         r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"
     ),
     "private_key": re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----"),
+    "email_address": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
+    "student_identifier": re.compile(
+        r"(?i)(?:学号|学生\s*ID|student[_ -]?id)\s*[:=：]?\s*[A-Za-z0-9_-]{6,32}"
+    ),
+    "minor_name": re.compile(
+        r"(?:未成年人姓名|儿童姓名|学生姓名)\s*[:=：]?\s*[\u3400-\u9fff·]{2,12}"
+    ),
 }
+ACTOR_REFERENCE_PATTERN = re.compile(r"^audit:[A-Za-z0-9_-]{8,64}$")
 REQUIRED_CASE_FIELDS = (
     "case_id",
     "title",
@@ -89,6 +97,20 @@ def evidence_validation_errors(record: dict[str, Any]) -> list[str]:
         errors.append("official_evidence_requires_source")
     if record.get("outcome_evidence_status") == "verified" and not official_sources:
         errors.append("verified_outcome_requires_source")
+    outcome_status = record.get("outcome_evidence_status")
+    if (
+        "outcome_evidence_status" in record
+        and outcome_status not in {"missing", "source_material", "verified"}
+    ):
+        errors.append("invalid_outcome_evidence_status")
+    outcome = str(record.get("outcome") or "")
+    if outcome and re.search(
+        r"若.{0,120}(?:可能|将)|可能面临|还可能涉及|可能从|可能被要求",
+        outcome,
+    ):
+        errors.append("speculative_outcome_requires_review")
+    if outcome and outcome_status == "source_material" and not sources:
+        errors.append("source_outcome_requires_source")
     for item in record.get("legal_provisions") or []:
         if not isinstance(item, dict):
             continue
@@ -98,6 +120,12 @@ def evidence_validation_errors(record: dict[str, Any]) -> list[str]:
             errors.append("verified_law_requires_source")
             break
     return errors
+
+
+def validate_actor_reference(actor_reference: str | None) -> bool:
+    return actor_reference is None or bool(
+        ACTOR_REFERENCE_PATTERN.fullmatch(actor_reference)
+    )
 
 
 def find_sensitive_markers(value: Any) -> list[str]:
@@ -179,7 +207,7 @@ def validate_release_root(
         errors.append("duplicate_case_id")
 
     scene_ids = {scene.get("scene_id") for scene in scenes}
-    visible_statuses = {"待补证", "已发布"}
+    visible_statuses = {"已发布"}
     visible_cases = [case for case in cases if case.get("case_status") in visible_statuses]
     visible_ids = {case.get("case_id") for case in visible_cases}
     if manifest.get("visible_case_count", len(visible_cases)) != len(visible_cases):

@@ -29,7 +29,7 @@ RECORD_TYPE_LABELS = {
     "research_material": "研究材料",
     "unclassified": "待分类",
 }
-STUDENT_VISIBLE_STATUSES = {"待补证", "已发布"}
+STUDENT_VISIBLE_STATUSES = {"已发布"}
 
 
 def safe_json_for_script(value: Any) -> str:

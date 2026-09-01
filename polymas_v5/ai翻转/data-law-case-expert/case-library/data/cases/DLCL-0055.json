@@ -4,7 +4,7 @@
   "scene_id": "scene-09",
   "record_type": "security_incident",
   "jurisdiction": "中国",
-  "case_status": "待补证",
+  "case_status": "已发布",
   "basic_facts": "2017 年 11 月，Check Point 研究人员发现 LG 智能家居设备存在漏洞。攻击者可完全控制用户账户，远程劫持 LG SmartThinQ 家用电器，包括冰箱、干衣机、洗碗机、微波炉和吸尘机器人，并可将其转化为实时监控设备。\n\n智能家居账号体系一旦被攻破，攻击者可集中控制多个家庭设备。尤其是吸尘机器人等设备可能具备摄像、定位或环境感知能力，存在被转化为家庭监控工具的风险。治理重点在于账号安全、多因素认证、设备权限隔离和家庭空间隐私保护。",
   "dispute_focus": null,
   "legal_provisions": [

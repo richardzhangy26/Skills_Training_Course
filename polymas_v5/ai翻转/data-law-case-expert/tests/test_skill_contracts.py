@@ -65,6 +65,12 @@ class MaintenanceSkillContractTests(unittest.TestCase):
         self.assertIn("actor_reference", text)
         self.assertIn("敏感内容只返回风险标记", text)
         self.assertIn("ai_draft", text)
+        self.assertIn("仅用于空库初始化", text)
+        self.assertIn("confirmation_already_used", text)
+        self.assertIn("candidate_release_invalid", text)
+        self.assertIn("学号", text)
+        self.assertIn("证据状态", text)
+        self.assertIn("发布状态", text)
 
 
 if __name__ == "__main__":

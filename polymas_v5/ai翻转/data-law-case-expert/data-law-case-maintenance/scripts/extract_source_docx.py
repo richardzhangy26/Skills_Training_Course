@@ -173,7 +173,7 @@ def build_case(
         "scene_id": scene_id,
         "record_type": classify_record(clean_title, facts, analysis),
         "jurisdiction": infer_jurisdiction(clean_title, facts, provisions),
-        "case_status": "待补证",
+        "case_status": "已发布",
         "basic_facts": facts or None,
         "dispute_focus": None,
         "legal_provisions": [

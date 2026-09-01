@@ -21,7 +21,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from build_knowledge_pack import build_knowledge_pack  # noqa: E402
-from library_core import validate_case, write_json  # noqa: E402
+from library_core import validate_case, validate_release_root, write_json  # noqa: E402
 from prepare_update import (  # noqa: E402
     compute_change_set_id,
     load_state,
@@ -47,7 +47,7 @@ UPDATABLE_FIELDS = {
     "evidence_status",
     "classification_review_required",
 }
-VISIBLE_STATUSES = {"待补证", "已发布"}
+VISIBLE_STATUSES = {"已发布"}
 
 
 def materialize_case(candidate: dict[str, Any], case_id: str) -> dict[str, Any]:
@@ -58,13 +58,7 @@ def materialize_case(candidate: dict[str, Any], case_id: str) -> dict[str, Any]:
         "scene_id": candidate["scene_id"],
         "record_type": candidate.get("record_type", "unclassified"),
         "jurisdiction": candidate.get("jurisdiction", "待确认"),
-        "case_status": "草稿"
-        if analysis_origin == "ai_draft"
-        else (
-            "待补证"
-            if candidate.get("evidence_status", "待补证") == "待补证"
-            else "已发布"
-        ),
+        "case_status": "草稿" if analysis_origin == "ai_draft" else "已发布",
         "basic_facts": candidate.get("basic_facts"),
         "dispute_focus": candidate.get("dispute_focus"),
         "legal_provisions": candidate.get("legal_provisions", []),
@@ -144,6 +138,7 @@ def publish_update(
         int(change_set.get("base_version", -1)),
         change_set.get("changes", []),
         change_set.get("actor_reference"),
+        change_set.get("confirmation_nonce"),
     )
     if recomputed_change_set_id != stored_change_set_id:
         return {
@@ -207,6 +202,24 @@ def publish_update(
     if final_release.exists():
         return {"status": "release_exists", "library_version": new_version}
 
+    transactions_root = library_root / "publish-transactions"
+    transaction_path = transactions_root / f"{stored_change_set_id}.json"
+    if transaction_path.exists():
+        return {
+            "status": "confirmation_already_used",
+            "change_set_id": stored_change_set_id,
+        }
+    transactions_root.mkdir(parents=True, exist_ok=True)
+    write_json(
+        transaction_path,
+        {
+            "status": "pending",
+            "change_set_id": stored_change_set_id,
+            "base_version": current_version,
+            "actor_reference": change_set.get("actor_reference"),
+        },
+    )
+
     staging = Path(
         tempfile.mkdtemp(prefix=f".v{new_version:04d}-", dir=releases_root)
     )
@@ -250,11 +263,7 @@ def publish_update(
                 if updated.get("analysis_origin") == "ai_draft":
                     updated["case_status"] = "草稿"
                 elif existing.get("case_status") == "草稿":
-                    updated["case_status"] = (
-                        "待补证"
-                        if updated.get("evidence_status") == "待补证"
-                        else "已发布"
-                    )
+                    updated["case_status"] = "已发布"
                 updated["case_id"] = case_id
                 updated["version"] = int(existing["version"]) + 1
                 errors = validate_case(updated)
@@ -333,6 +342,11 @@ def publish_update(
         knowledge_path = staging / "exports" / "案例专家知识包.jsonl"
         html_report = render_library(staging, html_path)
         knowledge_report = build_knowledge_pack(staging, knowledge_path)
+        candidate_errors = validate_release_root(staging, require_exports=True)
+        if candidate_errors:
+            raise ValueError(
+                "candidate_release_invalid:" + ",".join(candidate_errors)
+            )
 
         ensure_snapshot(library_root, current_release, current_version)
         staging.rename(final_release)
@@ -354,7 +368,31 @@ def publish_update(
             shutil.rmtree(staging)
         if release_created and final_release.exists():
             shutil.rmtree(final_release)
+        if transaction_path.exists():
+            transaction_path.unlink()
         raise
+
+    try:
+        write_json(
+            transaction_path,
+            {
+                "status": "applied",
+                "change_set_id": stored_change_set_id,
+                "base_version": current_version,
+                "library_version": new_version,
+                "release": final_release.name,
+                "actor_reference": change_set.get("actor_reference"),
+                "applied_at": published_at,
+            },
+        )
+    except Exception as exc:
+        return {
+            "status": "published_confirmation_ledger_incomplete",
+            "library_version": new_version,
+            "release": final_release.name,
+            "knowledge_sync_status": "not_verified",
+            "ledger_error": str(exc),
+        }
 
     return {
         "status": "artifact_ready_knowledge_pending",

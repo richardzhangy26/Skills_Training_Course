@@ -12,7 +12,7 @@ from typing import Any, Iterable
 
 
 STOP_CHARS = set("的了和与及或是吗呢请问可以给我具体讲讲涉及哪些什么一个这个那个中案案例")
-STUDENT_VISIBLE_STATUSES = {"待补证", "已发布"}
+STUDENT_VISIBLE_STATUSES = {"已发布"}
 
 
 def normalize(value: str) -> str:

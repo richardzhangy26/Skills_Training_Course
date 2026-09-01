@@ -11,7 +11,7 @@
 | `scene_id` | string | 一个主场景，格式 `scene-01` |
 | `record_type` | string | `judicial_case`、`administrative_enforcement`、`regulatory_event`、`compliance_event`、`security_incident`、`pending_dispute`、`research_material` 或 `unclassified` |
 | `jurisdiction` | string | 案件或事件的主要法域；未知时为 `待确认` |
-| `case_status` | string | `草稿`、`待确认`、`待补证`、`已发布`、`已撤下` |
+| `case_status` | string | 发布状态：`草稿`、`待确认`、`已发布`、`已撤下` |
 | `basic_facts` | string/null | 来源材料明确记载的基本案情 |
 | `dispute_focus` | string/null | 材料未提供时为 `null` |
 | `legal_provisions` | array | 每项含 `citation_text`、`source_url`、`evidence_status` |
@@ -30,6 +30,8 @@
 - `outcome_evidence_status=missing` 时，`outcome` 必须为 `null`。
 - 境外案件中的中国法条属于比较法教学映射，不表示中国法实际支配该境外案件。
 - `ai_draft` 只能进入教师审查队列；教师确认前不进入学生已发布视图。
+- 发布状态与证据状态彼此独立；学生只读取 `case_status=已发布`，同时显示 `evidence_status`。课程材料可在“已发布＋待补证”状态下用于教学，但必须显著提示证据边界。
+- `source_material` 处理结果至少绑定一条材料来源；`verified`/“官方来源已核验”必须绑定官方 URL。
 - 法条需分别记录案件当时依据和当前有效性核验状态；未联网核验时显示“待核验”。
 - 一个案例只保存一份主记录；跨场景关系使用标签或关联案例表达，不复制案例。
 

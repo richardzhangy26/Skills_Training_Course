@@ -24,18 +24,18 @@ data-law-case-expert/
 ```bash
 python ai翻转/data-law-case-expert/data-law-case-maintenance/scripts/import_split_documents.py \
   ai翻转/案例拆分文档 \
-  --output-root ai翻转/data-law-case-expert/case-library
+  --output-root ai翻转/data-law-case-expert/case-library-bootstrap
 
 python ai翻转/data-law-case-expert/data-law-case-maintenance/scripts/render_html.py \
-  ai翻转/data-law-case-expert/case-library \
-  ai翻转/data-law-case-expert/case-library/exports/数据法学案例库.html
+  ai翻转/data-law-case-expert/case-library-bootstrap \
+  ai翻转/data-law-case-expert/case-library-bootstrap/exports/数据法学案例库.html
 
 python ai翻转/data-law-case-expert/data-law-case-maintenance/scripts/build_knowledge_pack.py \
-  ai翻转/data-law-case-expert/case-library \
-  ai翻转/data-law-case-expert/case-library/exports/案例专家知识包.jsonl
+  ai翻转/data-law-case-expert/case-library-bootstrap \
+  ai翻转/data-law-case-expert/case-library-bootstrap/exports/案例专家知识包.jsonl
 ```
 
-脚本成功时 stdout 只输出一个 JSON。它要求 `00_案例索引.docx` 与 77 份单案例 Word 完整对应；详细案情写入标准字段，推测性处理结果进入 `review-queue.json`。拆分材料仍缺少完整官方来源和部分案号，所以 77 条记录默认标记为“待补证”。
+脚本成功时 stdout 只输出一个 JSON。它仅初始化空目录，拒绝覆盖已有 `case-library`；已有库的材料更新必须走变更预览、确认和版本发布。它要求 `00_案例索引.docx` 与 77 份单案例 Word 完整对应；详细案情写入标准字段，推测性处理结果进入 `review-queue.json`。77 条初始记录为“已发布＋证据待补证”。
 
 原 `案例提炼汇总.docx` 与 `AI时代一体化数字营销与法律回望.docx` 的兼容提取器仍保留，用于复核迁移差异，不再作为首选主数据入口。
 

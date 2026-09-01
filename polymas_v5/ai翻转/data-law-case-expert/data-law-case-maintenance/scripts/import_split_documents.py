@@ -147,7 +147,29 @@ def parse_case_document(
     detail_sections = parse_detail_sections(detail)
 
     labeled_facts = detail_sections["case_facts"] + detail_sections["case_details"]
-    basic_facts = join_paragraphs(labeled_facts or detail_sections["unstructured"] or summary)
+    unstructured = list(detail_sections["unstructured"])
+    if unstructured and re.match(r"^\d+\s*[.．、]", unstructured[0]):
+        unstructured = unstructured[1:]
+    unstructured_outcome = [
+        paragraph
+        for paragraph in unstructured
+        if re.search(
+            r"法院(?:认为|判决|判令)|裁判(?:认为|判决)|监管机构.{0,40}(?:处罚|罚款|和解)|被.{0,20}(?:处罚|罚款)",
+            paragraph,
+        )
+    ]
+    unstructured_analysis = [
+        paragraph
+        for paragraph in unstructured
+        if re.match(r"^(?:该案|该案例|本案)(?:说明|表明)|^法律要点|^治理启示", paragraph)
+    ]
+    unstructured_facts = [
+        paragraph
+        for paragraph in unstructured
+        if paragraph not in unstructured_outcome
+        and paragraph not in unstructured_analysis
+    ]
+    basic_facts = join_paragraphs(labeled_facts or unstructured_facts or summary)
     dispute_focus = join_paragraphs(detail_sections["dispute_focus"])
     analysis = join_paragraphs(detail_sections["legal_analysis"] or summary_analysis)
     detailed_laws = join_paragraphs(detail_sections["legal_provisions"])
@@ -157,7 +179,9 @@ def parse_case_document(
     ]
     provision_texts = list(dict.fromkeys(provision_texts))
 
-    outcome_text = join_paragraphs(detail_sections["outcome"])
+    outcome_text = join_paragraphs(
+        detail_sections["outcome"] or unstructured_outcome
+    )
     review_item: dict[str, Any] | None = None
     if outcome_text and re.search(
         r"若.{0,120}(?:可能|将)|可能面临|还可能涉及|可能从|可能被要求",
@@ -181,7 +205,7 @@ def parse_case_document(
         "scene_id": scene_id,
         "record_type": classify_record(title, basic_facts or "", combined_analysis),
         "jurisdiction": infer_jurisdiction(title, basic_facts or "", combined_laws),
-        "case_status": "待补证",
+        "case_status": "已发布",
         "basic_facts": basic_facts,
         "dispute_focus": dispute_focus,
         "legal_provisions": [
@@ -195,6 +219,8 @@ def parse_case_document(
         "outcome_type": (
             "settlement"
             if outcome_text and "调解" in outcome_text
+            else "administrative_action"
+            if outcome_text and re.search(r"处罚|罚款", outcome_text)
             else "judgment"
             if outcome_text
             else "unknown"
@@ -226,6 +252,12 @@ def parse_case_document(
 def import_split_documents(source_root: Path, output_root: Path) -> dict[str, Any]:
     source_root = Path(source_root)
     output_root = Path(output_root)
+    if (
+        (output_root / "data" / "manifest.json").exists()
+        or (output_root / "current.json").exists()
+        or any((output_root / "data" / "cases").glob("DLCL-*.json"))
+    ):
+        raise ValueError("bootstrap_target_not_empty")
     index_path = source_root / "00_案例索引.docx"
     if not index_path.is_file():
         raise ValueError("split_index_missing")

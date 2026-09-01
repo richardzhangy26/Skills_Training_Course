@@ -17,7 +17,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from library_core import resolve_active_root  # noqa: E402
 
 
-STUDENT_VISIBLE_STATUSES = {"待补证", "已发布"}
+STUDENT_VISIBLE_STATUSES = {"已发布"}
 
 
 def load_library(library_root: Path) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:

@@ -4,7 +4,7 @@
   "scene_id": "scene-09",
   "record_type": "research_material",
   "jurisdiction": "待确认",
-  "case_status": "待补证",
+  "case_status": "已发布",
   "basic_facts": "公安部重点实验室研发 e-CarS 系统，部署后数月侦破涉车案件 100 余宗，能够在 10 亿级图片库中秒级检索，复杂查询由 10 分钟缩短至 10 秒。\n\n该案例体现车辆特征识别和海量图库检索在涉车犯罪侦查中的作用。车辆数据可能包括车牌、颜色、品牌、型号、轨迹等信息，治理上应注意车辆数据与车主个人信息之间的关联保护，防止被超目的使用。",
   "dispute_focus": null,
   "legal_provisions": [

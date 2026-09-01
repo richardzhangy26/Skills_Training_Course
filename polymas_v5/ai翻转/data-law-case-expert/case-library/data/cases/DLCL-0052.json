@@ -4,7 +4,7 @@
   "scene_id": "scene-09",
   "record_type": "security_incident",
   "jurisdiction": "欧盟或欧洲国家",
-  "case_status": "待补证",
+  "case_status": "已发布",
   "basic_facts": "2014 年，西班牙三大主要供电服务商超过 30% 的智能电表被检测发现存在严重安全漏洞。入侵者可利用漏洞进行电费欺诈，甚至直接关闭电路系统，对社会造成较大影响。\n\n智能电表属于能源基础设施的一部分，其安全风险会影响计费公平和能源供应安全。治理启示在于，公共服务类物联网设备不应只关注数据采集和远程管理便利，还应强化防篡改、防欺诈和应急恢复能力。",
   "dispute_focus": null,
   "legal_provisions": [

@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import tempfile
 from typing import Any
 
 
@@ -19,18 +20,20 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from library_core import read_json, validate_release_root, write_json  # noqa: E402
+from build_knowledge_pack import build_knowledge_pack  # noqa: E402
 from prepare_update import resolve_release  # noqa: E402
+from render_html import render_library  # noqa: E402
 
 
 def release_digest(release: Path) -> str:
     digest = hashlib.sha256()
     paths = sorted(
         [
-            release / "data" / "manifest.json",
-            release / "data" / "scenes.json",
-            *sorted((release / "data" / "cases").glob("DLCL-*.json")),
-            release / "exports" / "数据法学案例库.html",
-            release / "exports" / "案例专家知识包.jsonl",
+            path
+            for folder in (release / "data", release / "exports")
+            if folder.is_dir()
+            for path in folder.rglob("*")
+            if path.is_file()
         ],
         key=lambda path: path.relative_to(release).as_posix(),
     )
@@ -47,6 +50,7 @@ def prepare_rollback(
     library_root: Path,
     target_version: int,
     actor_reference: str | None = None,
+    confirmation_nonce: str | None = None,
 ) -> dict[str, Any]:
     library_root = Path(library_root)
     if not actor_reference:
@@ -71,6 +75,21 @@ def prepare_rollback(
     if int(manifest.get("library_version", -1)) != target_version:
         return {"status": "target_version_invalid", "target_version": target_version}
     release_errors = validate_release_root(target, require_exports=True)
+    if not release_errors:
+        with tempfile.TemporaryDirectory() as tmp:
+            temporary = Path(tmp)
+            expected_html = temporary / "数据法学案例库.html"
+            expected_knowledge = temporary / "案例专家知识包.jsonl"
+            render_library(target, expected_html)
+            build_knowledge_pack(target, expected_knowledge)
+            if expected_html.read_bytes() != (
+                target / "exports" / "数据法学案例库.html"
+            ).read_bytes():
+                release_errors.append("html_not_reproducible")
+            if expected_knowledge.read_bytes() != (
+                target / "exports" / "案例专家知识包.jsonl"
+            ).read_bytes():
+                release_errors.append("knowledge_not_reproducible")
     if release_errors:
         return {
             "status": "target_release_invalid",
@@ -86,6 +105,7 @@ def prepare_rollback(
         "to_version": target_version,
         "target_digest": release_digest(target),
         "actor_reference": actor_reference,
+        "confirmation_nonce": confirmation_nonce,
     }
     rollback_confirmation_id = hashlib.sha256(
         json.dumps(
@@ -108,6 +128,7 @@ def rollback_release(
     confirmed: bool,
     confirmation_rollback_id: str | None = None,
     actor_reference: str | None = None,
+    confirmation_nonce: str | None = None,
     _lock_held: bool = False,
 ) -> dict[str, Any]:
     library_root = Path(library_root)
@@ -121,9 +142,12 @@ def rollback_release(
                 confirmed,
                 confirmation_rollback_id,
                 actor_reference,
+                confirmation_nonce,
                 _lock_held=True,
             )
-    plan = prepare_rollback(library_root, target_version, actor_reference)
+    plan = prepare_rollback(
+        library_root, target_version, actor_reference, confirmation_nonce
+    )
     if plan["status"] != "preview_ready":
         return plan
     if not confirmed:
@@ -146,6 +170,11 @@ def rollback_release(
     transaction_dir = library_root / "rollback-transactions"
     pending_path = transaction_dir / f"{confirmation_rollback_id}.pending.json"
     complete_path = transaction_dir / f"{confirmation_rollback_id}.complete.json"
+    if pending_path.exists() or complete_path.exists():
+        return {
+            "status": "confirmation_already_used",
+            "target_version": target_version,
+        }
     transaction = {
         "status": "pending",
         "from_version": current_manifest["library_version"],
@@ -226,6 +255,7 @@ def main() -> int:
     parser.add_argument("--confirmed", action="store_true")
     parser.add_argument("--confirmation-rollback-id")
     parser.add_argument("--actor-reference")
+    parser.add_argument("--confirmation-nonce")
     args = parser.parse_args()
     try:
         print(
@@ -236,6 +266,7 @@ def main() -> int:
                     args.confirmed,
                     args.confirmation_rollback_id,
                     args.actor_reference,
+                    args.confirmation_nonce,
                 ),
                 ensure_ascii=False,
             )

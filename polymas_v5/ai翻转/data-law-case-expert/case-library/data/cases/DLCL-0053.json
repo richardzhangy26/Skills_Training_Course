@@ -4,7 +4,7 @@
   "scene_id": "scene-09",
   "record_type": "security_incident",
   "jurisdiction": "美国",
-  "case_status": "待补证",
+  "case_status": "已发布",
   "basic_facts": "2016 年 10 月，一场超大规模 DDoS 攻击整垮了大半个美国互联网。发动攻击的黑客利用了由 150 万台设备组成的僵尸网络，其中大部分设备为网络摄像头。\n\n低安全水平的物联网终端可能被批量感染并转化为攻击基础设施。单个摄像头对用户而言可能只是家用设备，但当大规模设备被恶意控制后，就可能造成互联网基础服务瘫痪。治理上应加强默认密码治理、设备出厂安全标准、漏洞补丁和僵尸网络监测。",
   "dispute_focus": null,
   "legal_provisions": [

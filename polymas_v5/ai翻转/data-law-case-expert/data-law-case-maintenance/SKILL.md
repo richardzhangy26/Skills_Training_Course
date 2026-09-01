@@ -75,14 +75,17 @@ data-law-case-maintenance/
    - 调用 `polymas-file-upload` 获取上传文件，再调用平台实际存在的文件读取能力。
    - DOCX、PDF、XLSX、Markdown 和纯文本按可识别标题与案情边界拆分；扫描件或图片经 OCR 后记录低置信度字段。
    - 无法解析、空文件、加密文件或 OCR 质量不足时返回真实错误，不生成虚假候选。
-   - 已由教师拆成“一案例一 DOCX”且提供 `00_案例索引.docx` 的目录，调用 `import_split_documents.py <source_root> --output-root <library_root>`；必须精确校验 10 个场景、77 份案例文件、索引标题与文件内容，不允许静默跳过缺失文件。
+   - `import_split_documents.py` 仅用于空库初始化：输出必须指向不存在活动 manifest/current 的空暂存目录，并精确校验索引、场景和全部案例文件。它拒绝覆盖已有库，不能用于教师日常补库。
+   - 已有活动库的教师材料先解析为候选 JSON，再严格走 `prepare_update.py → ask_user_question → publish_update.py`；不得把导入脚本直接指向活动 `library_root`。
 
 3. **[FILTER] 数据最小化与证据检查**
-   - 检测身份证号、联系方式、账号凭据、未脱敏未成年人信息和无授权全文；公开 HTML 只保留教学必要摘要。
+   - 检测身份证号、手机号、邮箱、带标签的学号/学生 ID、未成年人姓名、账号凭据和无授权全文；公开 HTML 只保留教学必要摘要。
    - 敏感内容只返回风险标记和候选序号，不把原始手机号、身份证或凭证写入变更集、stdout 和日志；上游完成脱敏后重新生成候选。
    - 每个候选记录必须符合 `references/case-contract.md`。
    - 材料未提供的争议焦点、裁判结果、案号、来源和时效状态写 `null` / `待补证`。
    - AI 只能生成 `ai_draft` 建议稿；其案例状态固定为草稿，不进入学生 HTML、知识包和查询。教师确认后将分析来源改为 `teacher_confirmed` 才能进入发布候选。
+   - 发布状态与证据状态分离：`case_status=已发布` 决定学生可见，`evidence_status=待补证/材料已核对/官方来源已核验` 决定证据提示。待补证不等于草稿。
+   - outcome 中含“若……可能……”“可能面临”等条件性责任分析时进入证据审查，不作为真实判决或处理结果。`source_material` 结果必须绑定材料来源；“官方来源已核验”必须绑定官方 URL。
 
 4. **[DETERMINE] 拆分、归类与查重**
    - 每个具有独立事实主体、争议问题和处理结果的事件建一条候选；保留原文件名和原文位置。
@@ -92,7 +95,7 @@ data-law-case-maintenance/
    - 同名或事实高度相似时显示既有案例和字段差异，不能静默覆盖。
 
 5. **[CALL] 生成变更集**
-   - 调用 `prepare_update.py <library_root> <candidate_json> --base-version <version> --actor-reference <actor_reference>`；`actor_reference` 只能来自可信平台审计上下文，使用不含真实身份的稳定审计引用。
+   - 调用 `prepare_update.py <library_root> <candidate_json> --base-version <version> --actor-reference <actor_reference> --confirmation-nonce <nonce>`；`actor_reference` 只能来自可信平台审计上下文，格式为不含真实身份的 opaque 引用；`nonce` 来自当前交互上下文，不跨会话复用。
    - 正常新增进入批量接受区；疑似重复、字段冲突、场景不明确、低置信 OCR、推测性结果和敏感信息项进入逐项处理区。
    - stdout 只采信单个 JSON；出现 `error` 即停止并转述错误。
 
@@ -105,12 +108,12 @@ data-law-case-maintenance/
 
 7. **[CALL] 生成版本化产物**
    - 仅将当前对话中已确认的变更集传给 `publish_update.py <library_root> <change_set_json> --confirmed --confirmation-change-set-id <change_set_id>`；确认信息不可跨会话复用。
-   - 脚本会重新计算变更集哈希。确认 ID 缺失、不一致或确认后内容发生变化时返回 `confirmation_mismatch` / `invalid_change_set`，必须重新预览和确认。
+   - 脚本会重新计算变更集哈希并消费一次性确认。确认 ID 缺失、不一致、确认后内容变化或已消费时返回 `confirmation_mismatch` / `invalid_change_set` / `confirmation_already_used`，必须重新预览和确认。
    - 发布前校验 `base_version`。返回 `version_conflict` 时停止，基于当前新版本重新生成差异和确认。
-   - 脚本先在候选版本中完成字段校验、HTML 和知识包生成，再原子切换版本指针；旧版本完整保留。
+   - 脚本先在候选版本中完成字段、场景计数、HTML 数据和知识包一致性校验；出现 `candidate_release_invalid` 时删除候选并保持旧指针。全部通过后才原子切换版本指针，旧版本完整保留。
    - 脚本返回 `artifact_ready_knowledge_pending` 时，只能说明新版 HTML 和知识包已生成。
    - 修改保留原案例 ID并递增案例级版本；撤下内容不进入学生 HTML、知识包与查询；永久删除必须携带可信 `actor_reference`，写入操作时间与审计引用，并依靠旧版本恢复。
-   - 整库回滚先调用 `rollback_release.py <library_root> <target_version> --actor-reference <actor_reference>` 获取 `rollback_confirmation_id` 并展示 from→to 预览；用户确认后追加 `--confirmed --confirmation-rollback-id <rollback_confirmation_id>`。目标数据、HTML、知识包或绑定 ID任一不一致时停止。
+   - 整库回滚先调用 `rollback_release.py <library_root> <target_version> --actor-reference <actor_reference> --confirmation-nonce <nonce>` 获取 `rollback_confirmation_id` 并展示 from→to 预览；用户确认后追加 `--confirmed --confirmation-rollback-id <rollback_confirmation_id>`。回滚与发布共用写锁，且重新生成 HTML/知识包做一致性比较；目标数据、审计、产物或绑定 ID 任一不一致时停止。
 
 8. **[CALL] 上传资源与知识**
    - 调用 `polymas-teacher-resource-skills` 保存该版本 HTML 和知识包，记录各自回执。
@@ -146,6 +149,7 @@ data-law-case-maintenance/
 - 每次发布都携带基础版本；发现并发冲突时停止，不采用后提交覆盖前提交。
 - 回滚调用 `rollback_release.py`，目标版本不存在或未校验时停止；指针切换后仍需重新上传知识包并回读。
 - 新增案例 ID扫描全部历史版本分配，删除或回滚后也不复用旧 ID。
+- 发布和回滚确认均写入私有一次性消费账本；`confirmation_already_used` 时必须重新预览，不得重放旧确认。
 - HTML、资源上传、知识写入和知识回读是四个独立状态，任何一步失败均返回真实状态。
 - 只有 `knowledge_verified` 可以对教师说“专家知识已经更新”。
 - 脚本成功时 stdout 输出单个 JSON；失败时 stdout 输出 `{"error":"可转述错误"}`，调试详情写 stderr。

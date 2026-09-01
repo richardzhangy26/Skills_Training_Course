@@ -78,6 +78,15 @@ class SkillPackageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unsupported_file_type"):
                 packager.build_archives(project, Path(tmp) / "dist-b")
 
+            (project / "data-law-case-query" / "scripts" / "credentials.pem").unlink()
+            credential_json = project / "data-law-case-query" / "scripts" / "credentials.json"
+            credential_json.write_text(
+                '{"api_key":"sk-proj-abcdefghijklmnopqrstuvwxyz123456"}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "credential_pattern"):
+                packager.build_archives(project, Path(tmp) / "dist-c")
+
 
 if __name__ == "__main__":
     unittest.main()

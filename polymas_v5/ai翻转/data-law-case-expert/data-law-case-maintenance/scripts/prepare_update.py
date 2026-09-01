@@ -20,6 +20,7 @@ from library_core import (  # noqa: E402
     evidence_validation_errors,
     find_sensitive_markers,
     resolve_active_root,
+    validate_actor_reference,
 )
 
 
@@ -72,12 +73,14 @@ def compute_change_set_id(
     base_version: int,
     changes: list[dict[str, Any]],
     actor_reference: str | None = None,
+    confirmation_nonce: str | None = None,
 ) -> str:
     canonical = json.dumps(
         {
             "base_version": base_version,
             "changes": changes,
             "actor_reference": actor_reference,
+            "confirmation_nonce": confirmation_nonce,
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -91,7 +94,10 @@ def prepare_update(
     base_version: int,
     library_root: Path,
     actor_reference: str | None = None,
+    confirmation_nonce: str | None = None,
 ) -> dict[str, Any]:
+    if not validate_actor_reference(actor_reference):
+        raise ValueError("invalid_actor_reference")
     manifest, scenes, cases = load_state(Path(library_root))
     scene_ids = {scene["scene_id"] for scene in scenes}
     cases_by_title = {normalize_title(case["title"]): case for case in cases}
@@ -315,7 +321,7 @@ def prepare_update(
     return {
         "status": "needs_resolution" if unresolved_count else "preview_ready",
         "change_set_id": compute_change_set_id(
-            base_version, changes, actor_reference
+            base_version, changes, actor_reference, confirmation_nonce
         ),
         "base_version": base_version,
         "observed_version": manifest["library_version"],
@@ -323,6 +329,7 @@ def prepare_update(
         "unresolved_count": unresolved_count,
         "requires_confirmation": True,
         "actor_reference": actor_reference,
+        "confirmation_nonce": confirmation_nonce,
         "changes": changes,
     }
 
@@ -333,6 +340,7 @@ def main() -> int:
     parser.add_argument("candidate_json", type=Path)
     parser.add_argument("--base-version", type=int, required=True)
     parser.add_argument("--actor-reference")
+    parser.add_argument("--confirmation-nonce")
     args = parser.parse_args()
     try:
         candidates = json.loads(args.candidate_json.read_text(encoding="utf-8"))
@@ -345,6 +353,7 @@ def main() -> int:
                     args.base_version,
                     args.library_root,
                     args.actor_reference,
+                    args.confirmation_nonce,
                 ),
                 ensure_ascii=False,
             )

@@ -4,8 +4,8 @@
   "scene_id": "scene-09",
   "record_type": "security_incident",
   "jurisdiction": "中国",
-  "case_status": "待补证",
-  "basic_facts": "2018 年 9 月，比利时 KU Leuven 大学研究人员发现，利用约 600 美元的无线电和树莓派等设备即可开走一辆特斯拉。类似攻击方法也可用于迈凯伦、Karma 汽车及凯旋摩托车，因为它们使用了存在安全缺陷的 Pektron 遥控钥匙系统。\n\n该案例说明，车联网安全不仅包括联网 App 和车载系统，也包括遥控钥匙、无线认证和车辆启动机制。无线认证机制被破解后，车辆财产安全会直接受到威胁。治理上应强化车辆身份认证、密钥管理、防重放攻击和无线信号安全。",
+  "case_status": "已发布",
+  "basic_facts": "2018 年 9 月，比利时 KU Leuven 大学研究人员发现，利用约 600 美元的无线电和树莓派等设备即可开走一辆特斯拉。类似攻击方法也可用于迈凯伦、Karma 汽车及凯旋摩托车，因为它们使用了存在安全缺陷的 Pektron 遥控钥匙系统。",
   "dispute_focus": null,
   "legal_provisions": [
     {

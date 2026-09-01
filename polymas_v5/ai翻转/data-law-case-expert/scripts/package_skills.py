@@ -26,6 +26,13 @@ SECRET_PATTERNS = (
     re.compile(
         rb"(?i)\b(?:authorization|cookie)\s*[:=]\s*(?:bearer\s+)?[^\s,;]{8,}"
     ),
+    re.compile(rb"\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b"),
+    re.compile(rb"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(rb"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
+    re.compile(rb"\bxox[baprs]-[A-Za-z0-9-]{16,}\b"),
+    re.compile(
+        rb"(?i)[\"']?(?:api[_-]?key|access[_-]?token|client[_-]?secret|secret_key)[\"']?\s*[:=]\s*[\"'][^\"']{8,}[\"']"
+    ),
 )
 
 

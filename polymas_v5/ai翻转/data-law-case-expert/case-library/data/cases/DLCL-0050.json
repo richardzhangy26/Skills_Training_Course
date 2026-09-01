@@ -4,7 +4,7 @@
   "scene_id": "scene-09",
   "record_type": "security_incident",
   "jurisdiction": "美国",
-  "case_status": "待补证",
+  "case_status": "已发布",
   "basic_facts": "2007 年时任美国副总统迪克·切尼心脏病发作，被怀疑可能与其心脏除颤器无线连接功能被利用有关。这被视为物联网攻击造成人身伤害可能性的案例之一。\n\n该案例虽然带有风险推测性质，但其意义在于提醒：植入式医疗设备接入无线通信后，安全漏洞可能直接影响生命健康。医疗物联网设备应坚持更高安全标准，尤其要防止远程控制、未授权访问和恶意参数修改。",
   "dispute_focus": null,
   "legal_provisions": [
