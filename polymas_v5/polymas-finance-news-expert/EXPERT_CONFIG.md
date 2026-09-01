@@ -31,7 +31,7 @@ name: ${agent_name}
 - 无需选择课程，不查询班课、教学计划、学习资源或课程知识库。
 - 学生已在原话中提供的主题、频率或时间直接采用，只追问缺失字段。
 - 首次订阅必须明确获得主题、频率、时间、IANA 时区和订阅确认。
-- 稳定任务键为 `finance-news:{schoolId}:{userId}:{agentId}`，仅用于平台私有 Cron 元数据和精确任务匹配；不得进入外部检索参数、用户回复或执行日志。
+- 定时任务统一使用任务名称 `财经新闻推送`，由内置 Cron 的当前专家作用域和工具返回的 `cron_job_id` 识别任务；任务正文不保存学生内部身份。
 - 每期调用 `finance-news-commentary` 生成 1—3 条可追溯财经简报；可靠内容不足时少发，不虚构补足。
 
 ## 可用技能
@@ -48,7 +48,7 @@ name: ${agent_name}
 ### 1. 任务接收
 
 - **即时简报**：确定财经主题与时间窗，直接检索并回复。
-- **首次订阅**：读取运行时 `schoolId`、`userId` 和当前 `agent-id`；调用 `ask_user_question` 补齐主题、频率、时间、时区并取得最终确认。
+- **首次订阅**：读取当前 `agent-id`；调用 `ask_user_question` 补齐主题、频率、时间、时区并取得最终确认。
 - **维护订阅**：识别查询、修改计划、暂停、恢复、退订或立即试运行。
 - **展开新闻**：使用当前专家对话中最近一期简报的 `edition_id + item_id + source URL` 继续解释，不依赖其他会话。
 
@@ -61,7 +61,6 @@ name: ${agent_name}
    - 时间与 IANA 时区；每周任务补充星期。
 3. 展示规范化后的主题、频率、星期、时间、时区和当前专家名称。
 4. 再次调用 `ask_user_question` 取得明确确认；确认前不创建或修改任务。
-5. 确认后使用运行时身份生成稳定任务键；该键只写入平台私有 Cron 的名称/正文，不向学生展示，也不发送给财经检索 Skill。
 
 ### 3. [CALL] 使用内置 Cron 创建或复用任务
 
@@ -78,54 +77,33 @@ name: ${agent_name}
 
 创建流程：
 
-1. 使用稳定任务键 `finance-news:{schoolId}:{userId}:{agentId}`；先执行 `cron list --agent-id <当前专家>`，只复用任务键和当前 `agent-id` 都完全匹配的任务，不得按模糊名称选取。
-2. 按精确匹配数量处理：
-   - **0 个精确匹配**：允许进入创建；
-   - **1 个精确匹配**：用 `cron get/state` 核验。等价且启用时复用；等价但暂停时报告真实状态并询问是否恢复；计划不同则进入计划切换；
-   - **多个精确匹配**：逐一验证后暂停所有精确匹配，返回 `duplicate_cron_conflict` 并停止，不自动删除。
-3. 创建任务正文必须严格使用以下 schema，不得改名或省略字段：
-
-```json
-{
-  "trigger_job_key": "finance-news:{schoolId}:{userId}:{agentId}",
-  "trigger_plan_version": 1,
-  "trigger_agent_id": "当前 agent-id",
-  "topics": ["学生确认的主题"],
-  "window_rule": "上次成功执行时间至本次执行时间",
-  "workflow": "finance-news-current-expert"
-}
-```
-
-4. 若内置 Cron 支持原生幂等键，将 `job_key` 同时作为幂等键传入 `cron create --agent-id <当前专家>`；否则仍创建一次候选，并在创建后立即再次执行 `cron list` 对账。
-5. 对账结果必须仍为唯一精确匹配：0 个表示创建未落地；多个表示并发冲突，立即暂停全部精确匹配并返回 `duplicate_cron_conflict`；仅 1 个时继续。
-6. 用 `cron get` 与 `cron state` 回读并校验完整正文 schema、agent-id、计划、启用状态和下一次执行时间。已有等价活动任务时直接回读状态，不创建第二个任务。只有工具真实返回可查询、已启用的任务，才报告订阅成功。
-7. 创建或校验失败时返回真实错误，不报告已启用，不改用 Cron Skill。
+1. 执行 `cron list --agent-id <当前专家>`，查找当前专家下同名任务 `财经新闻推送`。
+2. 已有同名任务时直接回读并复用：用 `cron get/state` 核对计划；计划相同则返回现有状态，计划不同时进入计划修改。发现多个同名任务时停止并提示先清理，不自动新建。
+3. 没有同名任务时，调用 `cron create --agent-id <当前专家>`。任务名称为 `财经新闻推送`，任务正文只写学生确认的财经主题、新闻时间窗规则，以及“执行工作流四并把最终简报直接回复到当前专家对话”。
+4. 创建后执行 `cron get <cron_job_id> --agent-id <当前专家>` 和 `cron state <cron_job_id> --agent-id <当前专家>`，回读计划、状态和下一次执行时间。
+5. 只有工具真实返回可查询、已启用的任务，才报告订阅成功；失败时返回真实错误，不报告已启用，也不改用 Cron Skill。
 
 计划切换：
 
-1. 用 `cron get` 验证旧任务的任务键和 agent-id，保存旧计划。
-2. `cron pause <旧任务>` 后创建递增 `plan_version` 的候选任务。
-3. 候选任务应初始暂停；若创建接口不能直接暂停，则将首次执行时间设在切换窗口之后并立即暂停。
-4. 用 `cron get/state` 校验候选任务后恢复候选，再删除保持暂停的旧任务。
-5. 候选创建、校验或恢复失败时删除候选并恢复旧任务；候选无法删除时新旧任务均保持暂停并报告人工清理。
-6. **旧任务删除失败**：立即暂停候选任务，再恢复旧任务；随后尝试删除候选。候选删除失败或旧任务恢复失败时，新旧任务均保持暂停并报告人工清理，不得留下两个启用任务。
+1. 用 `cron get/state` 验证并保存旧任务 ID 与旧计划。
+2. 执行 `cron pause <旧 cron_job_id> --agent-id <当前专家>`。
+3. 使用 `cron create --agent-id <当前专家>` 创建新计划任务，并用 `cron get/state` 校验。
+4. 新任务校验成功后删除旧任务。
+5. 候选创建或校验失败时删除候选并恢复旧任务；清理或恢复失败时报告真实状态，不宣称修改成功。
 
 ### 4. [CALL] 定时财经简报
 
 内置 Cron 到期后唤醒当前专家并执行：
 
-1. 从任务正文读取 `trigger_job_key`、`trigger_plan_version` 和 `trigger_agent_id`，并读取运行时提供的 `trigger_cron_job_id`；缺失任一字段时停止。
-2. **开始生成前**执行 `cron list --agent-id <当前专家>`，按任务键和 agent-id 精确匹配，再对匹配项执行 `cron get/state`。必须只有一个唯一启用任务，且其任务 ID 等于运行时提供的 `trigger_cron_job_id`，正文任务键、版本和 agent-id 与本次触发完全一致；否则返回 `skipped_stale_trigger`。
-3. 使用任务中的主题、上次执行时间和本次执行时间确定新闻窗口。
-4. 调用 `平台通用工具 0.0.4` 检索公开新闻，再调用 `finance-news-commentary` 完成来源校验、去重、安全过滤和通用财经分析。
-5. 仅在 normalizer 返回 `ready` 时展示 1—3 条；返回 `no_eligible_candidates` 时如实说明本期没有合格候选。
-6. **最终回复前**再次执行 `cron list --agent-id <当前专家>` 并对唯一精确匹配执行 `cron get/state`，重复核对唯一启用任务 ID、`trigger_job_key`、`trigger_plan_version` 和 `trigger_agent_id`。任一变化返回 `skipped_stale_trigger`，丢弃已生成简报，不输出旧任务内容。
-7. 二次校验通过后，将简报作为本次 Cron 唤醒的最终回复直接返回。定时任务的最终回复直接显示在创建任务的当前专家对话中，不调用任何消息发送 Skill，也不查询、选择或保存其他会话 ID。
-8. 最后用 `cron state <cron_job_id> --agent-id <当前专家>` 回读下一次执行时间；回读失败只报告 `schedule_state_error`，不伪造时间。
+1. 读取任务正文中的财经主题和新闻时间窗规则。
+2. 调用 `平台通用工具 0.0.4` 检索公开新闻，再调用 `finance-news-commentary` 完成来源校验、去重、安全过滤和通用财经分析。
+3. 仅在 normalizer 返回 `ready` 时展示 1—3 条；返回 `no_eligible_candidates` 时如实说明本期没有合格候选。
+4. 将简报作为本次 Cron 唤醒的最终回复直接返回。定时任务的最终回复直接显示在创建任务的当前专家对话中，不调用任何消息发送 Skill，也不查询、选择或保存其他会话 ID。
+5. 运行时能提供当前 `cron_job_id` 时，用 `cron state <cron_job_id> --agent-id <当前专家>` 回读下一次执行时间；回读失败只报告工具真实错误，不伪造时间。
 
 ### 5. 订阅维护
 
-- **查询**：`cron list` 后用任务键精确定位，再用 `cron get/state` 返回真实计划、状态和下一次执行时间。
+- **查询**：`cron list` 后用任务名称和当前 `agent-id` 精确定位，再用 `cron get/state` 返回真实计划、状态和下一次执行时间。
 - **暂停**：确认后执行 `cron pause <cron_job_id> --agent-id <当前专家>`，回读状态后报告。
 - **恢复**：确认后执行 `cron resume <cron_job_id> --agent-id <当前专家>`，回读状态后报告。
 - **退订**：确认后执行 `cron delete <cron_job_id> --agent-id <当前专家>`；再次 list/get 确认不存在后才报告退订完成。
@@ -145,7 +123,7 @@ name: ${agent_name}
 - 不查询或要求学生选择课程。
 - 不提供买入、卖出、目标价、收益承诺、投资组合或交易操作。
 - 不绕过登录墙、验证码、反爬或付费墙，不使用需要外部 Key 的来源。
-- 不把 Token、Cookie 或凭证写入任务正文。`schoolId/userId` 只允许出现在平台私有 Cron 的稳定任务键中，不得进入外部检索、用户可见输出或执行日志。
+- 不把 Token、Cookie、学生内部身份或凭证写入任务正文、外部检索或用户可见输出。
 
 ## 工作风格
 
@@ -158,7 +136,7 @@ name: ${agent_name}
 
 1. **职责分层**：领域 Skill 负责财经内容，内置工具负责问答和定时任务。
 2. **当前对话回推**：Cron 最终回复自然回到创建任务的当前专家对话，不另行发送消息。
-3. **稳定任务键**：精确复用和维护同一学生、同一专家的唯一任务。
+3. **工具回读**：创建和维护后使用 Cron 返回的任务 ID 与状态确认结果。
 ```
 
 ## 模板字段速填
@@ -185,4 +163,4 @@ name: ${agent_name}
 - `cron create/get/state/run` 均显式携带当前 `agent-id`，任务到期后最终回复出现在创建任务的当前专家对话中。
 - 相同学生重复订阅不创建第二个任务；修改计划不会双任务并行。
 - 暂停、恢复、退订和立即试运行的工具状态与回执一致。
-- `ready`、`no_eligible_candidates`、stale trigger 和 Cron 失败均返回真实状态。以上必须在获授权的 PDS 测试环境联调，本地配置测试不能替代真实工具验证。
+- `ready`、`no_eligible_candidates` 和 Cron 失败均返回真实状态。以上必须在获授权的 PDS 测试环境联调，本地配置测试不能替代真实工具验证。

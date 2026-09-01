@@ -69,7 +69,7 @@ python3 scripts/normalize_candidates.py \
 
 ## 与订阅工作流的边界
 
-订阅由专家通过 AI 助教内置 `cron` 工具维护。稳定键 `finance-news:{schoolId}:{userId}:{agentId}` 只用于平台私有 Cron 元数据，不进入本 Skill 输入或输出。任务正文携带 `trigger_job_key`、`trigger_plan_version` 和 `trigger_agent_id`；Skill 不创建、读取或修改 Cron。Cron 唤醒后的 briefing 由专家直接作为最终回复返回到创建任务的当前专家对话中。
+定时任务由专家通过 AI 助教内置 `cron` 工具维护，统一使用任务名称 `财经新闻推送`。任务正文只保存已确认的财经主题、新闻时间窗规则和工作流要求，不保存学生内部身份。Skill 不创建、读取或修改 Cron；Cron 唤醒后的 briefing 由专家直接作为最终回复返回到创建任务的当前专家对话中。
 
 ## 展示映射
 
