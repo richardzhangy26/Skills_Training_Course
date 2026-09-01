@@ -39,7 +39,7 @@ git diff --check
 
 当前本地结果：
 
-- 财经专家目录：`161 passed in 19.54s`。
+- 财经专家目录：`161 passed in 11.36s`。
 - Skill 校验：`Skill is valid!`。
 - 五个 Python 文件编译退出码为 0，`git diff --check` 退出码为 0。
 - 上传包 SHA-256：`12878d64963d051539e5e1e07908827ac87f4569f0dc8d5a3823766e4c280c38`。
@@ -59,6 +59,10 @@ git diff --check
 独立只读代理模拟首次订阅、重复同名订阅、改期候选校验失败三种场景。核心流程符合简化要求：仅使用当前专家作用域、任务名称和 Cron 返回的任务 ID；不调用消息 Skill或会话检索；改期失败删除候选并恢复旧任务。
 
 代理指出两处残留：首次订阅仍读取 `schoolId/userId`，联调清单仍提到任务键和 stale trigger。两处均已删除，避免无谓依赖和验收口径冲突。
+
+## 最终独立审查
+
+独立只读审查对范围 `c8d995c..84f56a3` 给出 `READY`，未发现 Critical 或 Important。审查复跑结果为 `161 passed`、`Skill is valid!`、`git diff --check` 通过；ZIP 为 5 个白名单成员，均与源码逐字节一致。
 
 ## 线上联调边界
 
