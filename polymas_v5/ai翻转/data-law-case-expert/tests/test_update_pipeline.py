@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 from copy import deepcopy
 import fcntl
+import itertools
 import subprocess
 import sys
 import time
@@ -88,6 +89,27 @@ def new_candidate():
     }
 
 
+NONCE_COUNTER = itertools.count(1)
+
+
+def prepare_change(
+    module,
+    candidates,
+    base_version,
+    library_root,
+    actor_reference="audit:test-teacher",
+    confirmation_nonce=None,
+):
+    nonce = confirmation_nonce or f"test-nonce-{next(NONCE_COUNTER):08d}"
+    return module.prepare_update(
+        candidates,
+        base_version,
+        library_root,
+        actor_reference=actor_reference,
+        confirmation_nonce=nonce,
+    )
+
+
 class UpdatePipelineTests(unittest.TestCase):
     def test_prepare_marks_duplicate_with_differences_unresolved(self):
         prepare = load_module("prepare_update", PREPARE_PATH)
@@ -96,7 +118,7 @@ class UpdatePipelineTests(unittest.TestCase):
             candidate = new_candidate()
             candidate["title"] = "虚假招聘侵害个人信息案"
             candidate["basic_facts"] = "与原记录不同的新材料。"
-            preview = prepare.prepare_update([candidate], 1, library)
+            preview = prepare_change(prepare, [candidate], 1, library)
 
             self.assertEqual(preview["status"], "needs_resolution")
             self.assertEqual(preview["unresolved_count"], 1)
@@ -110,10 +132,21 @@ class UpdatePipelineTests(unittest.TestCase):
             candidate = new_candidate()
             candidate.pop("scene_id")
             candidate["scene_candidates"] = ["scene-01", "scene-06"]
-            preview = prepare.prepare_update([candidate], 1, library)
+            preview = prepare_change(prepare, [candidate], 1, library)
 
             self.assertEqual(preview["status"], "needs_resolution")
             self.assertEqual(preview["changes"][0]["action"], "scene_confirmation_required")
+
+    def test_prepare_requires_explicit_analysis_origin_for_new_case(self):
+        prepare = load_module("prepare_update", PREPARE_PATH)
+        with tempfile.TemporaryDirectory() as tmp:
+            library = copy_library(tmp)
+            candidate = new_candidate()
+            candidate.pop("analysis_origin")
+            preview = prepare_change(prepare, [candidate], 1, library)
+
+            self.assertEqual(preview["status"], "needs_resolution")
+            self.assertEqual(preview["changes"][0]["reason"], "analysis_origin_required")
 
     def test_prepare_detects_renamed_fact_duplicate_and_update_title_collision(self):
         prepare = load_module("prepare_update", PREPARE_PATH)
@@ -128,9 +161,9 @@ class UpdatePipelineTests(unittest.TestCase):
             renamed = new_candidate()
             renamed["title"] = "换了名称但事实相同的招聘案例"
             renamed["basic_facts"] = first["basic_facts"]
-            duplicate = prepare.prepare_update([renamed], 1, library)
+            duplicate = prepare_change(prepare, [renamed], 1, library)
 
-            collision = prepare.prepare_update(
+            collision = prepare_change(prepare,
                 [
                     {
                         "operation": "update",
@@ -141,7 +174,7 @@ class UpdatePipelineTests(unittest.TestCase):
                 1,
                 library,
             )
-            fact_collision = prepare.prepare_update(
+            fact_collision = prepare_change(prepare,
                 [
                     {
                         "operation": "update",
@@ -154,7 +187,7 @@ class UpdatePipelineTests(unittest.TestCase):
             )
             batch_first = new_candidate()
             batch_second = deepcopy(batch_first)
-            batch = prepare.prepare_update([batch_first, batch_second], 1, library)
+            batch = prepare_change(prepare, [batch_first, batch_second], 1, library)
 
             self.assertEqual(duplicate["status"], "needs_resolution")
             self.assertEqual(duplicate["changes"][0]["action"], "possible_duplicate")
@@ -176,7 +209,7 @@ class UpdatePipelineTests(unittest.TestCase):
             candidate["sources"] = [
                 {"title": "内部材料", "note": "Authorization: Bearer secret-token-value"}
             ]
-            preview = prepare.prepare_update([candidate], 1, library)
+            preview = prepare_change(prepare, [candidate], 1, library)
 
             self.assertEqual(preview["status"], "needs_resolution")
             self.assertEqual(
@@ -196,13 +229,28 @@ class UpdatePipelineTests(unittest.TestCase):
             candidate = new_candidate()
             candidate["evidence_status"] = "官方来源已核验"
             candidate["sources"] = []
-            preview = prepare.prepare_update([candidate], 1, library)
+            preview = prepare_change(prepare, [candidate], 1, library)
+
+            fake_official = new_candidate()
+            fake_official["evidence_status"] = "官方来源已核验"
+            fake_official["sources"] = [
+                {
+                    "title": "伪造官方来源",
+                    "url": "https://example.com/not-official",
+                    "source_tier": "official",
+                }
+            ]
+            fake_preview = prepare_change(prepare, [fake_official], 1, library)
 
             self.assertEqual(preview["status"], "needs_resolution")
             self.assertEqual(preview["changes"][0]["action"], "evidence_review_required")
             self.assertIn(
                 "official_evidence_requires_source",
                 preview["changes"][0]["evidence_errors"],
+            )
+            self.assertIn(
+                "official_evidence_requires_source",
+                fake_preview["changes"][0]["evidence_errors"],
             )
 
     def test_prepare_rejects_speculative_or_unbacked_source_outcome(self):
@@ -213,13 +261,13 @@ class UpdatePipelineTests(unittest.TestCase):
             speculative["outcome"] = "若进入司法程序，平台可能被判承担责任。"
             speculative["outcome_evidence_status"] = "source_material"
             speculative["sources"] = [{"title": "教师材料", "source_tier": "source_material"}]
-            speculative_preview = prepare.prepare_update([speculative], 1, library)
+            speculative_preview = prepare_change(prepare, [speculative], 1, library)
 
             unbacked = new_candidate()
             unbacked["outcome"] = "监管机构作出处罚。"
             unbacked["outcome_evidence_status"] = "source_material"
             unbacked["sources"] = []
-            unbacked_preview = prepare.prepare_update([unbacked], 1, library)
+            unbacked_preview = prepare_change(prepare, [unbacked], 1, library)
 
             self.assertIn(
                 "speculative_outcome_requires_review",
@@ -230,6 +278,18 @@ class UpdatePipelineTests(unittest.TestCase):
                 unbacked_preview["changes"][0]["evidence_errors"],
             )
 
+            forecast = new_candidate()
+            forecast["outcome"] = "法院预计将判令平台承担赔偿责任。"
+            forecast["outcome_evidence_status"] = "source_material"
+            forecast["sources"] = [
+                {"title": "教师材料", "source_tier": "source_material"}
+            ]
+            forecast_preview = prepare_change(prepare, [forecast], 1, library)
+            self.assertIn(
+                "speculative_outcome_requires_review",
+                forecast_preview["changes"][0]["evidence_errors"],
+            )
+
     def test_prepare_blocks_email_student_id_and_minor_name(self):
         prepare = load_module("prepare_update", PREPARE_PATH)
         with tempfile.TemporaryDirectory() as tmp:
@@ -238,7 +298,7 @@ class UpdatePipelineTests(unittest.TestCase):
             candidate["basic_facts"] = (
                 "学生ID：2023123456；邮箱：student@example.edu；未成年人姓名：张小明。"
             )
-            preview = prepare.prepare_update([candidate], 1, library)
+            preview = prepare_change(prepare, [candidate], 1, library)
             markers = preview["changes"][0]["sensitive_markers"]
 
             self.assertIn("student_identifier", markers)
@@ -254,7 +314,7 @@ class UpdatePipelineTests(unittest.TestCase):
         publish = load_module("publish_update", PUBLISH_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
 
             self.assertEqual(
                 publish.publish_update(change_set, False, library)["status"],
@@ -279,7 +339,7 @@ class UpdatePipelineTests(unittest.TestCase):
         publish = load_module("publish_update", PUBLISH_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
             result = publish.publish_update(
                 change_set,
                 True,
@@ -310,7 +370,7 @@ class UpdatePipelineTests(unittest.TestCase):
         search = load_module("search_cases", SEARCH_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
             publish.publish_update(
                 change_set,
                 True,
@@ -332,7 +392,7 @@ class UpdatePipelineTests(unittest.TestCase):
         publish = load_module("publish_update", PUBLISH_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
             with patch.object(publish.os, "replace", side_effect=OSError("pointer failed")):
                 with self.assertRaises(OSError):
                     publish.publish_update(
@@ -357,7 +417,7 @@ class UpdatePipelineTests(unittest.TestCase):
                 "basic_facts": "教师依据补充材料确认后的修订案情。",
                 "evidence_status": "材料已核对",
             }
-            change_set = prepare.prepare_update([candidate], 1, library)
+            change_set = prepare_change(prepare, [candidate], 1, library)
             self.assertEqual(change_set["changes"][0]["action"], "update")
             result = publish.publish_update(
                 change_set,
@@ -380,7 +440,7 @@ class UpdatePipelineTests(unittest.TestCase):
         search = load_module("search_cases", SEARCH_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update(
+            change_set = prepare_change(prepare,
                 [{"operation": "withdraw", "target_case_id": "DLCL-0001"}],
                 1,
                 library,
@@ -406,7 +466,7 @@ class UpdatePipelineTests(unittest.TestCase):
         search = load_module("search_cases", SEARCH_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update(
+            change_set = prepare_change(prepare,
                 [{"operation": "delete", "target_case_id": "DLCL-0001"}],
                 1,
                 library,
@@ -432,7 +492,10 @@ class UpdatePipelineTests(unittest.TestCase):
             self.assertIn("deleted_at", audit)
             self.assertEqual(audit["actor_reference"], "audit:test-teacher")
             rollback_plan = rollback.prepare_rollback(
-                library, 1, actor_reference="audit:test-teacher"
+                library,
+                1,
+                actor_reference="audit:test-teacher",
+                confirmation_nonce="rollback-nonce-0001",
             )
             self.assertEqual(
                 rollback.rollback_release(
@@ -440,6 +503,7 @@ class UpdatePipelineTests(unittest.TestCase):
                     1,
                     False,
                     actor_reference="audit:test-teacher",
+                    confirmation_nonce="rollback-nonce-0001",
                 )["status"],
                 "awaiting_confirmation",
             )
@@ -449,6 +513,7 @@ class UpdatePipelineTests(unittest.TestCase):
                 True,
                 rollback_plan["rollback_confirmation_id"],
                 "audit:test-teacher",
+                "rollback-nonce-0001",
             )
             self.assertEqual(rollback_result["status"], "artifact_ready_knowledge_pending")
             self.assertEqual(rollback_result["library_version"], 1)
@@ -459,7 +524,7 @@ class UpdatePipelineTests(unittest.TestCase):
         publish = load_module("publish_update", PUBLISH_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
 
             missing_binding = publish.publish_update(
                 change_set, True, library, confirmation_change_set_id=None
@@ -482,7 +547,7 @@ class UpdatePipelineTests(unittest.TestCase):
         rollback = load_module("rollback_release", ROLLBACK_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
             first = publish.publish_update(
                 change_set,
                 True,
@@ -517,14 +582,35 @@ class UpdatePipelineTests(unittest.TestCase):
         publish = load_module("publish_update", PUBLISH_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
+            real_render = publish.render_library
+            real_pack = publish.build_knowledge_pack
+
+            def corrupt_render(library_root, output_path):
+                report = real_render(library_root, output_path)
+                path = Path(output_path)
+                path.write_text(
+                    path.read_text(encoding="utf-8").replace(
+                        new_candidate()["basic_facts"], "篡改后的 HTML 正文"
+                    ),
+                    encoding="utf-8",
+                )
+                return report
 
             def corrupt_pack(library_root, output_path):
-                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-                Path(output_path).write_text("", encoding="utf-8")
-                return {"status": "artifact_ready_knowledge_pending", "block_count": 0}
+                report = real_pack(library_root, output_path)
+                path = Path(output_path)
+                path.write_text(
+                    path.read_text(encoding="utf-8").replace(
+                        new_candidate()["basic_facts"], "篡改后的知识包正文"
+                    ),
+                    encoding="utf-8",
+                )
+                return report
 
-            with patch.object(publish, "build_knowledge_pack", side_effect=corrupt_pack):
+            with patch.object(publish, "render_library", side_effect=corrupt_render), patch.object(
+                publish, "build_knowledge_pack", side_effect=corrupt_pack
+            ):
                 with self.assertRaisesRegex(ValueError, "candidate_release_invalid"):
                     publish.publish_update(
                         change_set,
@@ -543,7 +629,7 @@ class UpdatePipelineTests(unittest.TestCase):
             sensitive = new_candidate()
             sensitive["title"] = "包含敏感内容的候选"
             sensitive["basic_facts"] = "联系人手机号为13812345678。"
-            change_set = prepare.prepare_update([new_candidate(), sensitive], 1, library)
+            change_set = prepare_change(prepare, [new_candidate(), sensitive], 1, library)
             tampered = deepcopy(change_set)
             tampered["unresolved_count"] = 0
             result = publish.publish_update(
@@ -562,7 +648,7 @@ class UpdatePipelineTests(unittest.TestCase):
         rollback = load_module("rollback_release", ROLLBACK_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            first = prepare.prepare_update([new_candidate()], 1, library)
+            first = prepare_change(prepare, [new_candidate()], 1, library)
             publish.publish_update(
                 first,
                 True,
@@ -570,7 +656,10 @@ class UpdatePipelineTests(unittest.TestCase):
                 confirmation_change_set_id=first["change_set_id"],
             )
             rollback_plan = rollback.prepare_rollback(
-                library, 1, actor_reference="audit:test-teacher"
+                library,
+                1,
+                actor_reference="audit:test-teacher",
+                confirmation_nonce="rollback-nonce-0002",
             )
             rollback.rollback_release(
                 library,
@@ -578,10 +667,11 @@ class UpdatePipelineTests(unittest.TestCase):
                 True,
                 rollback_plan["rollback_confirmation_id"],
                 "audit:test-teacher",
+                "rollback-nonce-0002",
             )
             second_candidate = new_candidate()
             second_candidate["title"] = "回滚后新增的另一个教学案例"
-            second = prepare.prepare_update([second_candidate], 1, library)
+            second = prepare_change(prepare, [second_candidate], 1, library)
             result = publish.publish_update(
                 second,
                 True,
@@ -599,7 +689,7 @@ class UpdatePipelineTests(unittest.TestCase):
         publish = load_module("publish_update", PUBLISH_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            deletion = prepare.prepare_update(
+            deletion = prepare_change(prepare,
                 [{"operation": "delete", "target_case_id": "DLCL-0077"}],
                 1,
                 library,
@@ -611,7 +701,7 @@ class UpdatePipelineTests(unittest.TestCase):
                 library,
                 confirmation_change_set_id=deletion["change_set_id"],
             )
-            addition = prepare.prepare_update([new_candidate()], 2, library)
+            addition = prepare_change(prepare, [new_candidate()], 2, library)
             result = publish.publish_update(
                 addition,
                 True,
@@ -636,7 +726,7 @@ class UpdatePipelineTests(unittest.TestCase):
             candidate = new_candidate()
             candidate["title"] = "尚未经教师确认的 AI 草稿案例"
             candidate["analysis_origin"] = "ai_draft"
-            change_set = prepare.prepare_update([candidate], 1, library)
+            change_set = prepare_change(prepare, [candidate], 1, library)
             result = publish.publish_update(
                 change_set,
                 True,
@@ -670,7 +760,7 @@ class UpdatePipelineTests(unittest.TestCase):
                 "legal_analysis": new_analysis,
                 "analysis_origin": "teacher_confirmed",
             }
-            change_set = prepare.prepare_update([candidate], 1, library)
+            change_set = prepare_change(prepare, [candidate], 1, library)
             result = publish.publish_update(
                 change_set,
                 True,
@@ -697,7 +787,7 @@ class UpdatePipelineTests(unittest.TestCase):
         rollback = load_module("rollback_release", ROLLBACK_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
             publish.publish_update(
                 change_set,
                 True,
@@ -705,7 +795,10 @@ class UpdatePipelineTests(unittest.TestCase):
                 confirmation_change_set_id=change_set["change_set_id"],
             )
             plan = rollback.prepare_rollback(
-                library, 1, actor_reference="audit:test-teacher"
+                library,
+                1,
+                actor_reference="audit:test-teacher",
+                confirmation_nonce="rollback-nonce-0003",
             )
             self.assertEqual(plan["status"], "preview_ready")
             self.assertEqual(
@@ -715,13 +808,17 @@ class UpdatePipelineTests(unittest.TestCase):
                     True,
                     None,
                     "audit:test-teacher",
+                    "rollback-nonce-0003",
                 )["status"],
                 "confirmation_mismatch",
             )
 
             (library / "releases" / "v0001" / "exports" / "案例专家知识包.jsonl").unlink()
             invalid = rollback.prepare_rollback(
-                library, 1, actor_reference="audit:test-teacher"
+                library,
+                1,
+                actor_reference="audit:test-teacher",
+                confirmation_nonce="rollback-nonce-0003",
             )
             self.assertEqual(invalid["status"], "target_artifact_missing")
 
@@ -731,7 +828,7 @@ class UpdatePipelineTests(unittest.TestCase):
         rollback = load_module("rollback_release", ROLLBACK_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
             publish.publish_update(
                 change_set,
                 True,
@@ -739,7 +836,10 @@ class UpdatePipelineTests(unittest.TestCase):
                 confirmation_change_set_id=change_set["change_set_id"],
             )
             plan = rollback.prepare_rollback(
-                library, 1, actor_reference="audit:test-teacher"
+                library,
+                1,
+                actor_reference="audit:test-teacher",
+                confirmation_nonce="rollback-nonce-0004",
             )
             original_write_json = rollback.write_json
 
@@ -755,6 +855,7 @@ class UpdatePipelineTests(unittest.TestCase):
                     True,
                     plan["rollback_confirmation_id"],
                     "audit:test-teacher",
+                    "rollback-nonce-0004",
                 )
 
             self.assertEqual(result["status"], "audit_write_failed")
@@ -767,7 +868,7 @@ class UpdatePipelineTests(unittest.TestCase):
         rollback = load_module("rollback_release", ROLLBACK_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
             publish.publish_update(
                 change_set,
                 True,
@@ -780,7 +881,10 @@ class UpdatePipelineTests(unittest.TestCase):
             case_path.write_text(json.dumps(damaged, ensure_ascii=False), encoding="utf-8")
 
             result = rollback.prepare_rollback(
-                library, 1, actor_reference="audit:test-teacher"
+                library,
+                1,
+                actor_reference="audit:test-teacher",
+                confirmation_nonce="rollback-nonce-0005",
             )
             self.assertEqual(result["status"], "target_release_invalid")
             self.assertIn("missing_field:title", result["errors"])
@@ -791,7 +895,7 @@ class UpdatePipelineTests(unittest.TestCase):
         rollback = load_module("rollback_release", ROLLBACK_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update([new_candidate()], 1, library)
+            change_set = prepare_change(prepare, [new_candidate()], 1, library)
             publish.publish_update(
                 change_set,
                 True,
@@ -826,7 +930,7 @@ class UpdatePipelineTests(unittest.TestCase):
         rollback = load_module("rollback_release", ROLLBACK_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            first = prepare.prepare_update([new_candidate()], 1, library)
+            first = prepare_change(prepare, [new_candidate()], 1, library)
             publish.publish_update(
                 first,
                 True,
@@ -834,12 +938,15 @@ class UpdatePipelineTests(unittest.TestCase):
                 confirmation_change_set_id=first["change_set_id"],
             )
             rollback_plan = rollback.prepare_rollback(
-                library, 1, actor_reference="audit:test-teacher"
+                library,
+                1,
+                actor_reference="audit:test-teacher",
+                confirmation_nonce="rollback-nonce-0006",
             )
             candidate = new_candidate()
             candidate["title"] = "与回滚并发的新增案例"
             candidate["basic_facts"] = "与既有记录不同的并发新增案例事实。"
-            second = prepare.prepare_update([candidate], 2, library)
+            second = prepare_change(prepare, [candidate], 2, library)
             change_path = Path(tmp) / "change.json"
             change_path.write_text(json.dumps(second, ensure_ascii=False), encoding="utf-8")
             lock_path = library / ".publish.lock"
@@ -856,6 +963,8 @@ class UpdatePipelineTests(unittest.TestCase):
                         rollback_plan["rollback_confirmation_id"],
                         "--actor-reference",
                         "audit:test-teacher",
+                        "--confirmation-nonce",
+                        "rollback-nonce-0006",
                     ],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -899,8 +1008,8 @@ class UpdatePipelineTests(unittest.TestCase):
             candidate_a["title"] = "并发候选 A"
             candidate_b = new_candidate()
             candidate_b["title"] = "并发候选 B"
-            change_a = prepare.prepare_update([candidate_a], 1, library)
-            change_b = prepare.prepare_update([candidate_b], 1, library)
+            change_a = prepare_change(prepare, [candidate_a], 1, library)
+            change_b = prepare_change(prepare, [candidate_b], 1, library)
             path_a = Path(tmp) / "change-a.json"
             path_b = Path(tmp) / "change-b.json"
             path_a.write_text(json.dumps(change_a, ensure_ascii=False), encoding="utf-8")
@@ -941,21 +1050,37 @@ class UpdatePipelineTests(unittest.TestCase):
 
     def test_delete_requires_trusted_audit_context(self):
         prepare = load_module("prepare_update", PREPARE_PATH)
-        publish = load_module("publish_update", PUBLISH_PATH)
         with tempfile.TemporaryDirectory() as tmp:
             library = copy_library(tmp)
-            change_set = prepare.prepare_update(
-                [{"operation": "delete", "target_case_id": "DLCL-0001"}],
+            with self.assertRaisesRegex(ValueError, "audit_context_required"):
+                prepare.prepare_update(
+                    [{"operation": "delete", "target_case_id": "DLCL-0001"}],
+                    1,
+                    library,
+                    actor_reference=None,
+                    confirmation_nonce="test-nonce-missing-actor",
+                )
+
+    def test_prepare_and_rollback_require_nonce_and_opaque_actor(self):
+        prepare = load_module("prepare_update", PREPARE_PATH)
+        rollback = load_module("rollback_release", ROLLBACK_PATH)
+        with tempfile.TemporaryDirectory() as tmp:
+            library = copy_library(tmp)
+            with self.assertRaisesRegex(ValueError, "confirmation_nonce_required"):
+                prepare.prepare_update(
+                    [new_candidate()],
+                    1,
+                    library,
+                    actor_reference="audit:test-teacher",
+                    confirmation_nonce=None,
+                )
+            invalid_actor = rollback.prepare_rollback(
+                library,
                 1,
-                library,
+                actor_reference="teacher@example.com",
+                confirmation_nonce="rollback-nonce-actor",
             )
-            result = publish.publish_update(
-                change_set,
-                True,
-                library,
-                confirmation_change_set_id=change_set["change_set_id"],
-            )
-            self.assertEqual(result["status"], "audit_context_required")
+            self.assertEqual(invalid_actor["status"], "invalid_actor_reference")
 
 
 if __name__ == "__main__":

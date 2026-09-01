@@ -87,6 +87,15 @@ class SkillPackageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "credential_pattern"):
                 packager.build_archives(project, Path(tmp) / "dist-c")
 
+            credential_json.unlink()
+            unquoted = project / "data-law-case-query" / "scripts" / "credentials.txt"
+            unquoted.write_text(
+                "API_KEY=abcdefghijklmnopqrstuvwxyz123456\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "credential_pattern"):
+                packager.build_archives(project, Path(tmp) / "dist-d")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -12,13 +12,13 @@
 - 审查队列：`DLCL-0023`、`DLCL-0024` 与 `DLCL-0034` 的处理结果属于假设性表述，未写入正式 outcome。
 - 学生端：固定模板 HTML 含 77 个案例；搜索、场景筛选、类型筛选和案例详情可用。
 - 教师端：新增、修改、撤下、永久删除、版本冲突、历史 ID 不复用、整库回滚、一次性确认消费和候选版本完整性均有自动化测试。
-- 安全边界：敏感内容递归扫描、AI 草稿隔离、官方/材料证据状态校验、条件性结果拦截、批内查重、并发发布锁、回滚事务 intent、历史产物重生成校验、公开 HTML 审计信息隔离和 ZIP 密钥扫描均有自动化测试。
+- 安全边界：敏感内容递归扫描、AI 草稿隔离、官方域名/材料证据状态校验、条件性结果拦截、批内查重、并发发布锁、一次性 nonce/消费账本、回滚事务 intent、历史产物逐字重生成校验、公开 HTML 审计信息隔离和 ZIP 密钥扫描均有自动化测试。
 
 ## 自动化验证
 
 ```text
 python -m unittest discover -s ai翻转/data-law-case-expert/tests -p 'test_*.py'
-61 tests passed
+66 tests passed
 ```
 
 两个 Skill 分别通过：
@@ -53,7 +53,7 @@ html_has_actor_reference=false
 | 文件 | SHA-256 | 结构 |
 |---|---|---|
 | `data-law-case-query-1.0.0.zip` | `43d1ff2ac5317599969a9891df11d1f6b002f980c6277d4ade6d595ca5c8afff` | 单根目录；4 个文件 |
-| `data-law-case-maintenance-1.0.0.zip` | `babad886a2035b0c7b52cecaf56164f5e3e209fc1a449177b510267a15cd04b5` | 单根目录；13 个文件 |
+| `data-law-case-maintenance-1.0.0.zip` | `5e8a22364333773e3623dab4de8567dd502aefad0cae8cc229853839e649aeef` | 单根目录；13 个文件 |
 
 打包器拒绝符号链接、未知文件后缀、本机绝对路径、私钥、JWT、常见 API Key/token 和带值的 Authorization/Cookie 模式；ZIP 不包含测试、缓存、隐藏文件或本地源文档。
 

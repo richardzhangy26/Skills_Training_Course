@@ -32,7 +32,9 @@ class ExpandedDocumentMergeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp)
             extractor.extract_summary(SUMMARY_DOCX, output)
-            report = extractor.merge_expanded_document(EXPANDED_DOCX, output)
+            report = extractor.merge_expanded_document(
+                EXPANDED_DOCX, output, allow_bootstrap_merge=True
+            )
 
             self.assertEqual(report["total_after_merge"], 77)
             self.assertEqual(report["matched_count"], 4)
@@ -44,7 +46,9 @@ class ExpandedDocumentMergeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp)
             extractor.extract_summary(SUMMARY_DOCX, output)
-            extractor.merge_expanded_document(EXPANDED_DOCX, output)
+            extractor.merge_expanded_document(
+                EXPANDED_DOCX, output, allow_bootstrap_merge=True
+            )
             cases = [
                 json.loads(path.read_text(encoding="utf-8"))
                 for path in sorted((output / "data" / "cases").glob("*.json"))

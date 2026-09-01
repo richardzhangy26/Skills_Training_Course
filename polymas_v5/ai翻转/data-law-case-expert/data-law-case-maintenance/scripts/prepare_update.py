@@ -21,6 +21,7 @@ from library_core import (  # noqa: E402
     find_sensitive_markers,
     resolve_active_root,
     validate_actor_reference,
+    validate_confirmation_nonce,
 )
 
 
@@ -96,8 +97,12 @@ def prepare_update(
     actor_reference: str | None = None,
     confirmation_nonce: str | None = None,
 ) -> dict[str, Any]:
+    if not actor_reference:
+        raise ValueError("audit_context_required")
     if not validate_actor_reference(actor_reference):
         raise ValueError("invalid_actor_reference")
+    if not validate_confirmation_nonce(confirmation_nonce):
+        raise ValueError("confirmation_nonce_required")
     manifest, scenes, cases = load_state(Path(library_root))
     scene_ids = {scene["scene_id"] for scene in scenes}
     cases_by_title = {normalize_title(case["title"]): case for case in cases}
@@ -216,6 +221,21 @@ def prepare_update(
                     "candidate_index": index,
                     "action": "invalid_candidate",
                     "reason": "unsupported_operation",
+                    "candidate": clean,
+                    "resolved": False,
+                }
+            )
+            continue
+        if clean.get("analysis_origin") not in {
+            "source_material",
+            "teacher_confirmed",
+            "ai_draft",
+        }:
+            changes.append(
+                {
+                    "candidate_index": index,
+                    "action": "invalid_candidate",
+                    "reason": "analysis_origin_required",
                     "candidate": clean,
                     "resolved": False,
                 }

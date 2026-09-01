@@ -91,6 +91,25 @@ class SourceExtractionTests(unittest.TestCase):
             self.assertEqual(cases[9]["jurisdiction"], "欧盟或欧洲国家")
             self.assertEqual(cases[73]["jurisdiction"], "以色列")
 
+    def test_summary_extractor_refuses_any_nonempty_target(self):
+        extractor = load_extractor()
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "library"
+            (output / "data").mkdir(parents=True)
+            (output / "data" / "scenes.json").write_text("[]", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "bootstrap_target_not_empty"):
+                extractor.extract_summary(SOURCE_DOCX, output)
+
+    def test_expanded_merge_is_not_a_public_overwrite_entry(self):
+        extractor = load_extractor()
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "library"
+            with self.assertRaisesRegex(ValueError, "bootstrap_merge_not_authorized"):
+                extractor.merge_expanded_document(
+                    ROOT.parent / "AI时代一体化数字营销与法律回望.docx",
+                    output,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

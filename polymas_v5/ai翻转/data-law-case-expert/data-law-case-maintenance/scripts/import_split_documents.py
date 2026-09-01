@@ -113,8 +113,13 @@ def parse_detail_sections(paragraphs: list[str]) -> dict[str, list[str]]:
     sections["unstructured"] = []
     active = "unstructured"
     for paragraph in paragraphs:
-        if paragraph in DETAIL_LABELS:
-            active = DETAIL_LABELS[paragraph]
+        normalized_label = re.sub(
+            r"^\s*(?:\d+|[一二三四五六七八九十]+)\s*[、.．]\s*",
+            "",
+            paragraph,
+        )
+        if normalized_label in DETAIL_LABELS:
+            active = DETAIL_LABELS[normalized_label]
             continue
         sections[active].append(paragraph)
     return sections
@@ -252,11 +257,7 @@ def parse_case_document(
 def import_split_documents(source_root: Path, output_root: Path) -> dict[str, Any]:
     source_root = Path(source_root)
     output_root = Path(output_root)
-    if (
-        (output_root / "data" / "manifest.json").exists()
-        or (output_root / "current.json").exists()
-        or any((output_root / "data" / "cases").glob("DLCL-*.json"))
-    ):
+    if output_root.exists() and any(output_root.iterdir()):
         raise ValueError("bootstrap_target_not_empty")
     index_path = source_root / "00_案例索引.docx"
     if not index_path.is_file():

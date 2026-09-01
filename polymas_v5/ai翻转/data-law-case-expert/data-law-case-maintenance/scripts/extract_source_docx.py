@@ -212,6 +212,8 @@ def build_case(
 def extract_summary(source_docx: Path, output_root: Path) -> dict[str, Any]:
     source_docx = Path(source_docx)
     output_root = Path(output_root)
+    if output_root.exists() and any(output_root.iterdir()):
+        raise ValueError("bootstrap_target_not_empty")
     tables = read_docx_tables(source_docx)
     if len(tables) != 11:
         raise ValueError(f"预期 11 张表，实际 {len(tables)} 张")
@@ -288,8 +290,12 @@ def extract_summary(source_docx: Path, output_root: Path) -> dict[str, Any]:
 
 
 def merge_expanded_document(
-    expanded_docx: Path, output_root: Path
+    expanded_docx: Path,
+    output_root: Path,
+    allow_bootstrap_merge: bool = False,
 ) -> dict[str, Any]:
+    if not allow_bootstrap_merge:
+        raise ValueError("bootstrap_merge_not_authorized")
     expanded_docx = Path(expanded_docx)
     output_root = Path(output_root)
     case_paths = sorted((output_root / "data" / "cases").glob("DLCL-*.json"))
@@ -403,7 +409,9 @@ def main() -> int:
         result = extract_summary(args.source_docx, args.output_root)
         if args.expanded_docx:
             result["expanded_merge"] = merge_expanded_document(
-                args.expanded_docx, args.output_root
+                args.expanded_docx,
+                args.output_root,
+                allow_bootstrap_merge=True,
             )
         print(json.dumps(result, ensure_ascii=False))
         return 0

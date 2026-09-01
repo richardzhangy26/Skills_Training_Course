@@ -31,7 +31,7 @@ SECRET_PATTERNS = (
     re.compile(rb"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
     re.compile(rb"\bxox[baprs]-[A-Za-z0-9-]{16,}\b"),
     re.compile(
-        rb"(?i)[\"']?(?:api[_-]?key|access[_-]?token|client[_-]?secret|secret_key)[\"']?\s*[:=]\s*[\"'][^\"']{8,}[\"']"
+        rb"(?i)[\"']?(?:api[_-]?key|access[_-]?token|client[_-]?secret|secret_key)[\"']?\s*[:=]\s*(?:[\"'][^\"']{8,}[\"']|[A-Za-z0-9_./+-]{16,})"
     ),
 )
 

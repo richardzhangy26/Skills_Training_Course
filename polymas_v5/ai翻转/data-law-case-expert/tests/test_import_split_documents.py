@@ -109,6 +109,15 @@ class SplitDocumentImportTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "bootstrap_target_not_empty"):
                 importer.import_split_documents(SPLIT_ROOT, output)
 
+    def test_importer_refuses_directory_with_only_scene_sentinel(self):
+        importer = load_importer()
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "library"
+            (output / "data").mkdir(parents=True)
+            (output / "data" / "scenes.json").write_text("[]", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "bootstrap_target_not_empty"):
+                importer.import_split_documents(SPLIT_ROOT, output)
+
 
 if __name__ == "__main__":
     unittest.main()

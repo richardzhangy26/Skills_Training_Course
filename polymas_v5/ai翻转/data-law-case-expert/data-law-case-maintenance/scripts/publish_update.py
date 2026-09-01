@@ -51,7 +51,13 @@ VISIBLE_STATUSES = {"已发布"}
 
 
 def materialize_case(candidate: dict[str, Any], case_id: str) -> dict[str, Any]:
-    analysis_origin = candidate.get("analysis_origin", "teacher_confirmed")
+    analysis_origin = candidate.get("analysis_origin")
+    if analysis_origin not in {
+        "source_material",
+        "teacher_confirmed",
+        "ai_draft",
+    }:
+        raise ValueError("analysis_origin_required")
     record = {
         "case_id": case_id,
         "title": candidate["title"],

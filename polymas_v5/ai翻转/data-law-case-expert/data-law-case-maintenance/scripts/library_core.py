@@ -7,6 +7,7 @@ import json
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 
 CASE_ID_PATTERN = re.compile(r"^DLCL-\d{4}$")
@@ -23,13 +24,34 @@ SENSITIVE_PATTERNS = {
     "private_key": re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----"),
     "email_address": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
     "student_identifier": re.compile(
-        r"(?i)(?:学号|学生\s*ID|student[_ -]?id)\s*[:=：]?\s*[A-Za-z0-9_-]{6,32}"
+        r"(?i)(?:学号|学生\s*ID|student[_ -]?id)\s*(?:为|是)?\s*[:=：]?\s*[A-Za-z0-9_-]{6,32}"
     ),
     "minor_name": re.compile(
         r"(?:未成年人姓名|儿童姓名|学生姓名)\s*[:=：]?\s*[\u3400-\u9fff·]{2,12}"
     ),
 }
 ACTOR_REFERENCE_PATTERN = re.compile(r"^audit:[A-Za-z0-9_-]{8,64}$")
+CONFIRMATION_NONCE_PATTERN = re.compile(r"^[A-Za-z0-9_-]{12,128}$")
+OFFICIAL_HOST_SUFFIXES = {
+    "gov.cn",
+    "npc.gov.cn",
+    "court.gov.cn",
+    "spp.gov.cn",
+    "cac.gov.cn",
+    "samr.gov.cn",
+    "miit.gov.cn",
+    "moj.gov.cn",
+    "mps.gov.cn",
+    "ftc.gov",
+    "justice.gov",
+    "sec.gov",
+    "europa.eu",
+    "eur-lex.europa.eu",
+    "coe.int",
+    "edpb.europa.eu",
+    "ico.org.uk",
+    "gov.uk",
+}
 REQUIRED_CASE_FIELDS = (
     "case_id",
     "title",
@@ -77,6 +99,12 @@ def validate_case(record: dict[str, Any]) -> list[str]:
         errors.append("outcome_requires_evidence")
     if not isinstance(record["version"], int) or record["version"] < 1:
         errors.append("invalid_version")
+    if record.get("analysis_origin") not in {
+        "source_material",
+        "teacher_confirmed",
+        "ai_draft",
+    }:
+        errors.append("invalid_analysis_origin")
     errors.extend(evidence_validation_errors(record))
     for marker in find_sensitive_markers(record):
         errors.append(f"sensitive_content:{marker}")
@@ -90,7 +118,7 @@ def evidence_validation_errors(record: dict[str, Any]) -> list[str]:
         source
         for source in sources
         if isinstance(source, dict)
-        and str(source.get("url") or "").startswith(("https://", "http://"))
+        and is_official_source_url(source.get("url"))
         and source.get("source_tier") in {"official", "primary_official"}
     ]
     if record.get("evidence_status") == "官方来源已核验" and not official_sources:
@@ -105,18 +133,24 @@ def evidence_validation_errors(record: dict[str, Any]) -> list[str]:
         errors.append("invalid_outcome_evidence_status")
     outcome = str(record.get("outcome") or "")
     if outcome and re.search(
-        r"若.{0,120}(?:可能|将)|可能面临|还可能涉及|可能从|可能被要求",
+        r"(?:若|如|如果).{0,160}(?:可能|将|会)|可能面临|还可能涉及|可能从|可能被要求|预计将|预计会|(?:法院|平台|机构|企业|经营者).{0,60}(?:可能|预计|或将).{0,60}(?:判令|承担|面临|被要求)",
         outcome,
     ):
         errors.append("speculative_outcome_requires_review")
-    if outcome and outcome_status == "source_material" and not sources:
+    valid_material_sources = [
+        source
+        for source in sources
+        if isinstance(source, dict)
+        and (str(source.get("title") or "").strip() or str(source.get("url") or "").strip())
+    ]
+    if outcome and outcome_status == "source_material" and not valid_material_sources:
         errors.append("source_outcome_requires_source")
     for item in record.get("legal_provisions") or []:
         if not isinstance(item, dict):
             continue
-        if item.get("evidence_status") in {"官方来源已核验", "verified"} and not str(
-            item.get("source_url") or ""
-        ).startswith(("https://", "http://")):
+        if item.get("evidence_status") in {"官方来源已核验", "verified"} and not is_official_source_url(
+            item.get("source_url")
+        ):
             errors.append("verified_law_requires_source")
             break
     return errors
@@ -126,6 +160,85 @@ def validate_actor_reference(actor_reference: str | None) -> bool:
     return actor_reference is None or bool(
         ACTOR_REFERENCE_PATTERN.fullmatch(actor_reference)
     )
+
+
+def validate_confirmation_nonce(confirmation_nonce: str | None) -> bool:
+    return bool(
+        confirmation_nonce
+        and CONFIRMATION_NONCE_PATTERN.fullmatch(confirmation_nonce)
+    )
+
+
+def is_official_source_url(url: Any) -> bool:
+    try:
+        parsed = urlparse(str(url or ""))
+    except ValueError:
+        return False
+    if parsed.scheme not in {"https", "http"} or not parsed.hostname:
+        return False
+    host = parsed.hostname.lower().rstrip(".")
+    return any(host == suffix or host.endswith(f".{suffix}") for suffix in OFFICIAL_HOST_SUFFIXES)
+
+
+def format_optional(value: str | None) -> str:
+    return value.strip() if value and value.strip() else "原材料未提供"
+
+
+def build_knowledge_block(
+    case: dict[str, Any], scene: dict[str, Any]
+) -> dict[str, Any]:
+    laws = "\n".join(
+        f"- {item['citation_text']}（{item['evidence_status']}）"
+        for item in case.get("legal_provisions", [])
+    ) or "- 原材料未提供"
+    sources = "\n".join(
+        f"- {item['title']}；链接：{item.get('url') or '未提供'}"
+        for item in case.get("sources", [])
+    ) or "- 原材料未提供"
+    content = f"""# {case['title']}
+
+案例ID：{case['case_id']}
+主场景：{scene['name']}
+案例类型：{case['record_type']}
+主要法域：{case['jurisdiction']}
+证据状态：{case['evidence_status']}
+
+## 基本案情
+{format_optional(case.get('basic_facts'))}
+
+## 争议焦点
+{format_optional(case.get('dispute_focus'))}
+
+## 涉及法律条文
+{laws}
+
+## 裁判或处理结果
+{format_optional(case.get('outcome'))}
+结果类型：{case['outcome_type']}
+结果证据：{case['outcome_evidence_status']}
+
+## 法律问题分析
+{format_optional(case.get('legal_analysis'))}
+分析来源：{case['analysis_origin']}
+
+## 材料来源
+{sources}
+
+边界提示：材料未记载的案号、裁判结果、事实或法律时效状态不得补造；境外案例中的中国法条仅作比较法教学映射。
+"""
+    return {
+        "knowledge_id": f"case:{case['case_id']}:v{case['version']}",
+        "title": case["title"],
+        "content": content,
+        "metadata": {
+            "case_id": case["case_id"],
+            "case_version": case["version"],
+            "scene_id": case["scene_id"],
+            "record_type": case["record_type"],
+            "evidence_status": case["evidence_status"],
+            "publication_status": case["case_status"],
+        },
+    }
 
 
 def find_sensitive_markers(value: Any) -> list[str]:
@@ -241,6 +354,22 @@ def validate_release_root(
             errors.append("html_case_ids_mismatch")
         if "actor_reference" in html_text:
             errors.append("html_contains_private_audit_field")
+        payload_match = re.search(
+            r'<script id="case-data" type="application/json">(.*?)</script>',
+            html_text,
+            re.DOTALL,
+        )
+        if not payload_match:
+            errors.append("html_case_payload_missing")
+        else:
+            payload = json.loads(payload_match.group(1))
+            expected_payload = {
+                "manifest": manifest,
+                "scenes": scenes,
+                "cases": visible_cases,
+            }
+            if payload != expected_payload:
+                errors.append("html_case_payload_mismatch")
         knowledge_records = [
             json.loads(line)
             for line in knowledge_path.read_text(encoding="utf-8").splitlines()
@@ -254,6 +383,13 @@ def validate_release_root(
         block_ids = [item.get("knowledge_id") for item in knowledge_records]
         if len(block_ids) != len(set(block_ids)):
             errors.append("duplicate_knowledge_id")
+        scenes_by_id = {scene["scene_id"]: scene for scene in scenes}
+        expected_knowledge_records = [
+            build_knowledge_block(case, scenes_by_id[case["scene_id"]])
+            for case in visible_cases
+        ]
+        if knowledge_records != expected_knowledge_records:
+            errors.append("knowledge_content_mismatch")
     except Exception as exc:
         errors.append(f"release_artifact_unreadable:{type(exc).__name__}")
     return sorted(set(errors))

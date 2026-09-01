@@ -19,7 +19,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from library_core import read_json, validate_release_root, write_json  # noqa: E402
+from library_core import (  # noqa: E402
+    read_json,
+    validate_actor_reference,
+    validate_confirmation_nonce,
+    validate_release_root,
+    write_json,
+)
 from build_knowledge_pack import build_knowledge_pack  # noqa: E402
 from prepare_update import resolve_release  # noqa: E402
 from render_html import render_library  # noqa: E402
@@ -55,6 +61,13 @@ def prepare_rollback(
     library_root = Path(library_root)
     if not actor_reference:
         return {"status": "audit_context_required", "target_version": target_version}
+    if not validate_actor_reference(actor_reference):
+        return {"status": "invalid_actor_reference", "target_version": target_version}
+    if not validate_confirmation_nonce(confirmation_nonce):
+        return {
+            "status": "confirmation_nonce_required",
+            "target_version": target_version,
+        }
     target = library_root / "releases" / f"v{target_version:04d}"
     manifest_path = target / "data" / "manifest.json"
     if not manifest_path.is_file():
@@ -75,7 +88,7 @@ def prepare_rollback(
     if int(manifest.get("library_version", -1)) != target_version:
         return {"status": "target_version_invalid", "target_version": target_version}
     release_errors = validate_release_root(target, require_exports=True)
-    if not release_errors:
+    try:
         with tempfile.TemporaryDirectory() as tmp:
             temporary = Path(tmp)
             expected_html = temporary / "数据法学案例库.html"
@@ -90,6 +103,10 @@ def prepare_rollback(
                 target / "exports" / "案例专家知识包.jsonl"
             ).read_bytes():
                 release_errors.append("knowledge_not_reproducible")
+    except Exception as exc:
+        release_errors.append(
+            f"release_regeneration_failed:{type(exc).__name__}"
+        )
     if release_errors:
         return {
             "status": "target_release_invalid",
