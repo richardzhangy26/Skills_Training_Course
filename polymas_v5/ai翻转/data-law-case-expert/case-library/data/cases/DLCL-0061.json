@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0061",
+  "title": "吉林市船营区法院金融借款电子签名验证案例",
+  "scene_id": "scene-09",
+  "record_type": "judicial_case",
+  "jurisdiction": "待确认",
+  "case_status": "待补证",
+  "basic_facts": "吉林市船营区法院审理金融借款案件时，通过电子证据平台在线验证原告提交的电子签名照片，确认其未被篡改，并直接采信为证据。\n\n该案例说明，区块链存证和电子证据平台可以为金融借款、电子合同、电子签名等场景提供真实性和完整性验证。其治理意义在于，金融数字化背景下，电子签名和电子合同应通过可靠技术机制和司法审查机制共同保障交易安全。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《电子签名法》；《民事诉讼法》电子数据规则；最高法电子数据证据相关规定。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "电子签名的证明力取决于身份认证、签署流程、日志、证书和系统安全，而非仅有电子文档。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例21_21. 吉林市船营区法院金融借款电子签名验证案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "0d4a33ada7467134e6e51228ff1809f4d21c02e3a09fc02d5a6f9e18a3c46087"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

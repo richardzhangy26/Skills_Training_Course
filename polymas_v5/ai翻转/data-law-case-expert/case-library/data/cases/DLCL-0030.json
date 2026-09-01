@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0030",
+  "title": "Musical.ly/TikTok 儿童个人信息收集案",
+  "scene_id": "scene-05",
+  "record_type": "security_incident",
+  "jurisdiction": "美国",
+  "case_status": "待补证",
+  "basic_facts": "资料来源：美国联邦贸易委员会（FTC）：Musical.ly agrees to settle COPPA allegations；原文链接\n\n1、案例事实\n\n2019年，FTC宣布短视频社交应用 Musical.ly（后并入 TikTok）运营方同意支付570万美元，以解决其涉嫌违反儿童隐私法的指控。FTC认为，Musical.ly 明知有大量13岁以下儿童使用其服务，却未在收集儿童姓名、邮箱、手机号、用户名、头像、个人简介和视频等信息前取得父母同意。\n\n该应用用户账号默认公开，儿童的个人简介、头像和视频可被其他用户看到。FTC还指出，应用曾允许用户查看50英里范围内的其他用户，且收到大量父母投诉称儿童在未经父母知情的情况下创建账号。\n\n2、争议焦点\n\n平台在明知或应知存在儿童用户时，能否通过“不主动询问年龄”或普通用户协议规避儿童隐私规则；儿童账号默认公开是否符合儿童最大利益。\n\n3、涉及法律条文\n\n美国COPPA及COPPA Rule。若置于我国法语境下，可对应《个人信息保护法》第三十一条、《未成年人保护法》第七十二条及《未成年人网络保护条例》关于监护人同意、专门规则、信息删除和网络服务提供者保护义务的规定。\n\n4、法院判决/处理结果\n\nMusical.ly运营方同意支付570万美元罚款，遵守COPPA，并将13岁以下儿童制作的视频下线。该金额在当时是FTC儿童隐私案件中最高民事罚款。\n\n5、法律问题分析\n\n该案表明，平台不能通过年龄中立设计逃避儿童保护义务。如果产品形态、内容、用户投诉和实际运营均显示存在大量儿童用户，平台就应主动采取年龄识别、监护人同意和默认隐私保护措施。\n\n短视频平台尤其需要审查公开主页、头像、评论、私信、附近的人、地理位置和推荐算法等功能。对未成年人而言，默认公开和陌生人可接触会显著放大个人信息泄露与人身安全风险。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "美国 COPPA；对应我国《个人信息保护法》第31条、《儿童个人信息网络保护规定》第7条、第9条、第10条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "平台不能以社交娱乐属性弱化儿童同意机制。涉及儿童公开视频、互动和账号资料时，应建立年龄识别、监护人同意、删除和最小化处理机制。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景05_案例03_3. Musical.ly_TikTok 儿童个人信息收集案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "0b3b298097297ba86ac4cc8db2712014cd3845f19e08a47966d94d46daf8142d"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

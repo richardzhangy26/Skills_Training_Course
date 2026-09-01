@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0043",
+  "title": "小米米家摄像头被侵入显示他人画面事件",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "待补证",
+  "basic_facts": "2020 年 1 月，一名米家智能摄像头用户发现，当其视频内容传输到 Google Nest Hub 时，设备显示了许多来自其他人家中的静止图像，包括人们睡觉的画面和摇篮中婴儿的画面。谷歌随后禁用了小米摄像头对 Google 家居设备和 Google Assistant 的集成功能。类似智能摄像头安全隐患也曾出现在 Ring 摄像头、Wyze 摄像头、360 水滴摄像头直播事件中。\n\n摄像头采集的是家庭内部高度私密的图像信息，一旦设备云端同步、账号绑定或第三方平台接口出现问题，就可能造成他人家庭生活被错误展示或泄露。智能家居设备处理个人信息时，应特别重视访问权限、设备绑定、云端隔离、第三方接入审查和默认隐私保护。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《个人信息保护法》第28条、第51条；《网络安全法》第21条、第42条；家庭隐私和视频图像保护规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "家庭摄像头采集高度私密信息，云端同步、账号绑定和第三方接口应进行严格隔离、授权和默认隐私保护。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例03_3. 小米米家摄像头被侵入显示他人画面事件.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "78cda04c8d0ea505e12fcea17acf8e6996b1033cb3be94de09a16c42e18c88dc"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

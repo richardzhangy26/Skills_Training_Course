@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0015",
+  "title": "特斯拉中国建立本地数据中心",
+  "scene_id": "scene-02",
+  "record_type": "compliance_event",
+  "jurisdiction": "中国",
+  "case_status": "待补证",
+  "basic_facts": "1. 特斯拉中国建立本地数据中心\n\n特斯拉曾宣布在中国建立数据中心，实现数据存储本地化，中国大陆市场车辆产生的数据将存储在境内，并计划向车主开放车辆信息查询平台。智能汽车产生的数据不仅包括车辆运行数据，还可能包括车辆位置、驾驶行为、车内外图像、车机账号信息、服务记录等个人信息，甚至可能包括道路环境、地图、交通流量等重要数据。跨国车企如果需要将这些数据传输至境外总部或境外研发中心，不能仅以集团统一管理或全球研发需要为由直接出境，而应根据中国数据出境规则进行合规审查。\n\n在智能网联汽车行业，数据本地化已经成为跨境合规的重要方式。企业应先进行数据分类分级，区分车外数据、座舱数据、位置轨迹数据、运行数据、个人信息、敏感个人信息和重要数据，再判断是否允许出境、是否需要安全评估，以及是否需要向用户进行单独告知和单独同意。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《个人信息保护法》第38条至第40条；《数据安全法》第27条、第29条；《汽车数据安全管理若干规定（试行）》关于境内存储、必要出境和安全评估要求。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "该案属于合规治理型案例，说明智能汽车数据跨境应以境内存储为原则。确需出境时，应先分类分级、评估是否涉及重要数据和敏感个人信息，再履行相应合规路径。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景02_案例03_3. 特斯拉中国建立本地数据中心.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "b764efe979e347963fb2b49a012b7b69a2465c8e632b4c857f8ce7eeef1ff73a"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

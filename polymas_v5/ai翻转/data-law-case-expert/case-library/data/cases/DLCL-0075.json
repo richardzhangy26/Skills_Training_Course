@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0075",
+  "title": "黎巴嫩贝鲁特港口爆炸伪造视频鉴定",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "黎巴嫩",
+  "case_status": "待补证",
+  "basic_facts": "在黎巴嫩贝鲁特港口爆炸事件中，数字取证技术鉴定出伪造视频中插入导弹画面的造假行为，揭露不实信息。\n\n面对 AI 换脸、视频拼接和虚假影像传播，司法机关需要技术手段验证视频真实性。治理上应加强视频鉴定标准、鉴定程序和专家证人审查。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "电子数据、视听资料鉴定规则；网络信息内容治理规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "面对 AI 换脸、视频拼接和虚假影像传播，司法与平台治理需建立视频真实性鉴定标准和专家审查机制。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例35_35. 黎巴嫩贝鲁特港口爆炸伪造视频鉴定.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "c635d66cf02d344f7280895ddd11d6b47eb0d965693cf623d5a02110c2c71262"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

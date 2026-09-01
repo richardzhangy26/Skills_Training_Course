@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0050",
+  "title": "迪克·切尼心脏除颤器无线连接风险",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "美国",
+  "case_status": "待补证",
+  "basic_facts": "2007 年时任美国副总统迪克·切尼心脏病发作，被怀疑可能与其心脏除颤器无线连接功能被利用有关。这被视为物联网攻击造成人身伤害可能性的案例之一。\n\n该案例虽然带有风险推测性质，但其意义在于提醒：植入式医疗设备接入无线通信后，安全漏洞可能直接影响生命健康。医疗物联网设备应坚持更高安全标准，尤其要防止远程控制、未授权访问和恶意参数修改。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "医疗器械网络安全规范；对应我国《个人信息保护法》第28条、第51条，《网络安全法》第21条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "植入设备安全风险直接关联生命健康，应采取最小连接、加密通信、身份认证和应急关闭机制。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例10_10. 迪克·切尼心脏除颤器无线连接风险.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "d654a6ea332082101c2282c00e4970bb35e8b850f85b98ec5478d06309a532e5"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

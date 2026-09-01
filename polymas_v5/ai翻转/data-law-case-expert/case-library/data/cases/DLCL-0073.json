@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0073",
+  "title": "案件中的 3D 证据管理",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "待确认",
+  "case_status": "待补证",
+  "basic_facts": "青岛中院“智能 3D 证据管理系统”结合 3D 扫描建模技术，对实物证据进行高精度数字化建模，实现在线存储与管理。在知识产权案件中，可通过 3D 扫描保全侵权产品，便于法官及当事人在庭审中查看细节，比较侵权产品与正品差异。\n\n3D 证据管理可以解决实物证据存储难、易损坏、庭审展示不便等问题。其法律意义在于增强物证展示和质证效果，但应保障 3D 模型与原物之间的一致性，并对扫描过程进行留痕。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《刑事诉讼法》证据规则；司法鉴定和视听资料规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "3D 技术应作为辅助展示和分析工具，基础仍是原始证据、建模依据和专家可质证说明。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例33_33. 案件中的 3D 证据管理.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "61ce03e87f79ea6ece4f1017ef2b4486d9c87890de3dae3a111bc954f975d488"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

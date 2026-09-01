@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0048",
+  "title": "SWARCO 交通信号灯控制器漏洞",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "欧盟或欧洲国家",
+  "case_status": "待补证",
+  "basic_facts": "2020 年 6 月，德国安全公司研究员发现全球最大信号灯控制器制造商 SWARCO 存在严重漏洞。攻击者可利用该漏洞破坏交通信号灯，甚至随意切换红绿灯，引发交通瘫痪和交通事故。研究人员发现，其 CPU LS4000 交通灯控制器存在可调试开放端口，且缺乏加密保护，漏洞利用难度低，CVSS 评分为 10。\n\n智慧城市基础设施的物联网化会使网络攻击直接影响公共秩序和公共安全。交通信号灯属于公共基础设施，一旦被远程控制，后果可能波及整个城市交通系统。\n\n治理启示：应加强关键基础设施安全测评、端口封闭、加密通信、身份认证和远程维护权限管理。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》第21条；《数据安全法》第27条；关键信息基础设施安全保护规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "智慧交通设备属于城市治理基础设施，应执行网络隔离、强口令、补丁、远程访问控制和实战演练。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例08_8. SWARCO 交通信号灯控制器漏洞.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "b7e64889924e5fabf1b50285d887e2bafb4f9f8dd6e54e48e504e0722fa48f69"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

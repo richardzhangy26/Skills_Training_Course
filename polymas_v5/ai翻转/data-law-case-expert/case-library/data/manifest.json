@@ -1,0 +1,15 @@
+{
+  "library_name": "数据法学案例库",
+  "library_version": 1,
+  "source_type": "split_docx_directory",
+  "source_directory": "案例拆分文档",
+  "source_index_file": "00_案例索引.docx",
+  "source_document_count": 77,
+  "source_sha256": "4858b2c2cb31ef3a0b4dc100a0e30bfa1151e9bffc211f3df0a40ce63da6e1ea",
+  "scene_count": 10,
+  "case_count": 77,
+  "visible_case_count": 77,
+  "review_required_count": 3,
+  "evidence_status": "待补证",
+  "knowledge_sync_status": "not_started"
+}

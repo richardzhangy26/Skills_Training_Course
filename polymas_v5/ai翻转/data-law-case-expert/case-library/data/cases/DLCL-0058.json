@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0058",
+  "title": "亚马逊 FreeRTOS 及 AWS 连接模块漏洞案例",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "待补证",
+  "basic_facts": "2018 年 11 月，亚马逊公布物联网操作系统 FreeRTOS 及 AWS 连接模块的 13 个安全漏洞。这些漏洞可能导致攻击者破坏设备、泄露内存内容、远程运行代码，并获得设备完全控制权。FreeRTOS 被应用于汽车、飞机、医疗设备等 40 余种硬件平台。\n\n该案例说明，物联网操作系统作为基础软件，其漏洞会影响大量行业设备。操作系统层面的漏洞具有跨行业、跨设备扩散性。治理上应强化开源组件安全治理、供应链安全审查、版本更新和漏洞披露机制。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》第21条；《数据安全法》第27条；供应链安全和开源组件治理规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "开源组件和云连接模块应建立 SBOM、漏洞跟踪、依赖升级和安全测试流程。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例18_18. 亚马逊 FreeRTOS 及 AWS 连接模块漏洞案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "f7ec02f14c743fe1a3d0310952a273ff95997bc9c684cbe92e6e658c8c6e4e8b"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

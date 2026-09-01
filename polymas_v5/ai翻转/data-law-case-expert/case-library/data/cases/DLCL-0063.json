@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0063",
+  "title": "“团圆”行动打拐寻亲案例",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "中国",
+  "case_status": "待补证",
+  "basic_facts": "在 2021 年“团圆”行动中，吕游团队通过人像比对确认被拐儿童 27 名，抓获拐卖人员 5 名。技术难点在于跨 20—30 年的人脸老化比对，需要依靠人脸动态生长模型和特征点校准。\n\n该案例说明，人脸识别技术在打拐寻亲等重大公共利益场景中具有积极价值。但由于涉及儿童个人信息和生物识别信息，应坚持严格授权、目的限定和安全存储，避免数据被挪用于其他无关目的。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《刑事诉讼法》；《个人信息保护法》第13条关于履行法定职责和公共利益场景；公安 DNA 数据管理规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "公益目的和法定职责可支撑特定数据处理，但应控制用途、保存期限、访问权限和亲属隐私牵连。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例23_23. “团圆”行动打拐寻亲案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "01e32b8a307c026c0cb5a1f27969378c7a7839d0b770911f99f78d77a7356793"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

@@ -1,0 +1,40 @@
+{
+  "case_id": "DLCL-0024",
+  "title": "基因检测 App 采集和商业开发遗传信息风险案",
+  "scene_id": "scene-03",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "待补证",
+  "basic_facts": "基因检测应用通过线下采集唾液或血液样本，经实验室测序分析后向用户提供祖源分析、遗传病风险、药物反应、营养需求、肿瘤治疗建议等报告。基因数据具有唯一性和不可更改性，一旦泄露可能影响个人及家族遗传隐私，且用户往往缺乏对基因数据存储、共享和商业开发的知情权与控制权。",
+  "dispute_focus": "基因检测机构能否以一次性用户协议概括授权样本检测、报告生成、科研开发、商业合作和跨境分析。",
+  "legal_provisions": [
+    {
+      "citation_text": "《个人信息保护法》第二十八条、第二十九条、第三十条、第三十一条、第三十八条至第四十条、第五十五条；《生物安全法》关于人类遗传资源与生物安全的相关规定；《人类遗传资源管理条例》关于采集、保藏、利用、对外提供我国人类遗传资源的相关规定。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    },
+    {
+      "citation_text": "《个人信息保护法》第28条、第29条、第30条、第31条、第38条至第40条、第55条；《生物安全法》；《人类遗传资源管理条例》。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "基因检测数据与一般体征数据相比具有更强的不可变性、家族关联性和长期风险。即使个人本人同意，也可能影响其亲属的遗传隐私。检测报告生成是否需要同意，科研二次利用是否需要单独同意，商业合作是否需要再次授权，数据出境是否需要履行安全评估或其他合规路径。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景03_案例05_5. 基因检测 App 采集和商业开发遗传信息风险案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "91763a65fca7c71e47aab06a98edaa6bef1b58b0293ad016bef9801708a8abe7"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

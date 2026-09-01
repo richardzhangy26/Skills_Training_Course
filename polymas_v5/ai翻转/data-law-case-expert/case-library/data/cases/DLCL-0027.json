@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0027",
+  "title": "Capital One 云迁移风险控制不足导致数据泄露处罚案",
+  "scene_id": "scene-04",
+  "record_type": "security_incident",
+  "jurisdiction": "美国",
+  "case_status": "待补证",
+  "basic_facts": "资料来源：美国货币监理署（OCC）：OCC Assesses $80 Million Civil Money Penalty Against Capital One；原文链接\n\n1、案例事实\n\n2019年，Capital One 发生大规模数据泄露事件。2020年8月，美国货币监理署对 Capital One, N.A. 和 Capital One Bank (USA), N.A. 处以8000万美元民事罚款。OCC认为，该行在将重要信息技术运营迁移至公有云前，未建立有效风险评估流程，也未及时纠正相关缺陷。\n\nOCC指出，负责任的创新需要以稳健的风险管理和内部控制为前提，银行运营必须保持安全稳健并充分保护客户。\n\n2、争议焦点\n\n金融机构将核心信息技术和客户数据迁移至公有云环境时，是否应在迁移前完成充分的风险评估、控制设计和持续整改；云服务使用不当导致数据泄露时，金融机构能否以云服务商责任进行抗辩。\n\n3、涉及法律条文\n\n美国12 C.F.R. Part 30 Appendix B《信息安全标准跨机构指南》等金融监管规则。若置于我国法语境下，可对应《网络安全法》第二十一条、第四十二条，《数据安全法》第二十七条，《个人信息保护法》第五十一条，以及金融机构信息科技外包和数据安全相关监管规则。\n\n4、法院判决/处理结果\n\n本案为金融监管处罚。OCC对 Capital One 处以8000万美元民事罚款，并采取停止和纠正命令等监管措施。\n\n5、法律问题分析\n\n该案说明金融数据保护已经进入“云治理”阶段。金融机构可以使用云服务和新技术，但不能将风险评估、配置审计、访问控制和应急责任外包给云服务商。\n\n对金融机构而言，云迁移前应明确数据分类分级、访问控制模型、密钥管理、日志审计、第三方责任边界和应急预案。尤其是客户账户、借贷、征信和支付数据，应适用高敏感等级的安全架构。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "美国金融监管与消费者保护规则；对应我国《个人信息保护法》第51条、第55条，《数据安全法》第27条、第29条，《网络安全法》第21条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "金融机构上云不能削弱安全义务。应开展云配置审计、最小权限、密钥轮换、入侵检测、第三方风险评估和云端日志留存。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景04_案例03_3. Capital One 云迁移风险控制不足导致数据泄露处罚案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "969e29195f4e3db037e65eb51a4025ac5d58d1704b06dc322b567d99ddd0ed5d"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

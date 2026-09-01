@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0001",
+  "title": "虚假招聘侵害个人信息案",
+  "scene_id": "scene-01",
+  "record_type": "research_material",
+  "jurisdiction": "中国",
+  "case_status": "待补证",
+  "basic_facts": "一些不法分子通过虚假注册企业或者冒用他人公司名义，在招聘网站发布虚假招聘广告，获取求职者简历中的姓名、手机号、籍贯、毕业学校、专业、工作经历等信息并非法出售牟利。检察机关调查发现，招聘平台存在企业账户审核不严、求职者信息未脱敏、异常招聘行为动态监测不足等问题，不法分子非法获取个人信息3.7万余条。检察机关向人社、市场监管部门制发检察建议，推动平台封禁、警告、限流风险账号，并推动行政机关开展专项治理。\n\n该案体现了招聘平台与用人单位在招聘场景下的共同合规边界。求职简历属于高度集中化的个人信息集合，平台和招聘主体应遵守《个人信息保护法》第五条规定的处理个人信息的合法、正当、必要和诚信原则，做到目的明确、最小必要、充分告知、禁止非法买卖或提供个人信息，关注求职过程中的宗教信仰、特定身份、医疗健康、金融账户、行踪轨迹等敏感个人信息处理问题，并通过权限控制、信息脱敏、异常下载监测等措施保障信息安全。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《个人信息保护法》第5条、第6条、第10条、第17条、第51条；《网络安全法》第42条；刑事层面可涉及侵犯公民个人信息罪。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "简历属于高密度个人信息集合。招聘平台不仅要审查企业真实性，还应限制下载权限、脱敏展示、监测批量抓取，并对虚假招聘、账号转售等行为及时封禁和报告。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景01_案例01_1. 虚假招聘侵害个人信息案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "b9b5a9b630a9dffe305d7937c70bf08bd2e52ce7a4eaf6e0e879cf132d3b621a"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

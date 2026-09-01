@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0065",
+  "title": "哈尔滨平房分局银行盗窃案视频识别",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "待确认",
+  "case_status": "待补证",
+  "basic_facts": "哈尔滨平房分局办理一起银行 20 万盗窃案时，使用视频识别技术实现 30 秒抓脸、1 分钟追轨迹、5 分钟定身份，1 小时破案；夏季行动中抓获 43 人，侵财案件下降 55%。\n\n视频结构化、人脸识别和轨迹追踪技术可以显著提升案件侦破效率。但其法律问题在于，轨迹追踪涉及连续性个人行动信息，应确保仅限于案件侦查所必需，防止形成无差别人员画像。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《刑事诉讼法》；电子数据、视听资料证据规则；个人信息保护相关规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "视频识别可作为线索和证据来源，但需说明提取、保存、比对和鉴定流程，防止算法结果不可质证。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例25_25. 哈尔滨平房分局银行盗窃案视频识别.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "dc646a2380ac99551c9a4f4e491babf6c6556e5527ce752cd8846cc0554ef1f6"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

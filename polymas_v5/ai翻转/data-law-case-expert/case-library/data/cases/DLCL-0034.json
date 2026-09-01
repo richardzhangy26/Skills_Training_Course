@@ -1,0 +1,40 @@
+{
+  "case_id": "DLCL-0034",
+  "title": "AEO/GEO 恶性营销与 AI 语料投毒场景案",
+  "scene_id": "scene-06",
+  "record_type": "research_material",
+  "jurisdiction": "待确认",
+  "case_status": "待补证",
+  "basic_facts": "AI时代内容创作进入AEO阶段，品牌需要使内容结构化、语义自洽，以适配AI检索与整合。但在实践中，也可能出现“互黑”模式：在AI上搜索某类产品时，竞争品牌被列入“黑榜”，并附带跳转链接至“十大差评榜”“五大消费者反映特别不好”等文章。公开报道还显示，GEO黑产可能通过批量伪造测评、虚构专家身份、植入隐蔽指令等方式影响大模型推荐结果。",
+  "dispute_focus": "经营者能否通过批量生成虚假测评、伪造专业内容、操纵AI答案来获取流量或打击竞争对手；AI搜索和推荐结果被操纵时，广告主、内容服务商、平台和AI服务提供者如何划分责任。",
+  "legal_provisions": [
+    {
+      "citation_text": "《反不正当竞争法》第二条、第八条、第十一条、第十二条；《广告法》第四条、第二十八条；《消费者权益保护法》第八条、第二十条；《互联网广告管理办法》关于互联网广告可识别性和真实性的规定；《生成式人工智能服务管理暂行办法》关于生成内容真实准确、尊重合法权益的原则性要求。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    },
+    {
+      "citation_text": "《反不正当竞争法》第2条、第8条、第11条、第12条；《广告法》第4条、第28条；《互联网广告管理办法》；生成式人工智能服务相关管理规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "当AI助手成为流量入口，经营者通过伪造语料影响AI输出，本质上仍是面向消费者和市场的商业表达。其法律评价要看是否造成消费者误认、是否损害竞争对手商誉、是否破坏公平竞争秩序。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景06_案例03_3. AEO_GEO 恶性营销与 AI 语料投毒场景案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "e5121e38d4d4a250619991a0df144bc5d21fe776dbeba256b7407452484730e5"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

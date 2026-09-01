@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0047",
+  "title": "运营商通信协议高危漏洞案例",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "待补证",
+  "basic_facts": "2020 年 6 月，伦敦网络安全公司 Positive Technologies 发现移动网络运营商使用的现代通信协议存在高危漏洞。攻击者可利用该漏洞拦截用户数据，或假冒用户实施欺诈和拒绝服务攻击。即使迁移至 5G 基础架构，该漏洞仍可能继续影响移动运营商。\n\n5G 和移动通信网络是万物互联的数据传输基础，如果通信协议存在缺陷，用户身份、通信内容和设备控制指令都可能被拦截或伪造。\n\n治理启示在于网络基础设施安全评估、通信协议安全设计、运营商漏洞响应和跨代际网络安全兼容。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》第21条、第42条；《数据安全法》第27条；通信网络安全管理规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "管道侧安全是物联网数据流转基础，运营商应进行协议安全加固、异常信令监测和跨网协同响应。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例07_7. 运营商通信协议高危漏洞案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "6290c3882cb91e5a1c15f5acad4e149249f7565f49f8e574b5ed3ff0d8a69ad6"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

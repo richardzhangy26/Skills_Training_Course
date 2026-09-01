@@ -1,0 +1,82 @@
+[
+  {
+    "scene_id": "scene-01",
+    "order": 1,
+    "name": "就业、劳动管理与跨境 HR 数据场景",
+    "slug": "scene-01",
+    "description": null,
+    "case_count": 12
+  },
+  {
+    "scene_id": "scene-02",
+    "order": 2,
+    "name": "智能网联汽车、车联网与出行平台场景",
+    "slug": "scene-02",
+    "description": null,
+    "case_count": 7
+  },
+  {
+    "scene_id": "scene-03",
+    "order": 3,
+    "name": "医疗健康数据与敏感个人信息保护场景",
+    "slug": "scene-03",
+    "description": null,
+    "case_count": 5
+  },
+  {
+    "scene_id": "scene-04",
+    "order": 4,
+    "name": "金融征信与金融数据安全场景",
+    "slug": "scene-04",
+    "description": null,
+    "case_count": 3
+  },
+  {
+    "scene_id": "scene-05",
+    "order": 5,
+    "name": "儿童与未成年人个人信息保护场景",
+    "slug": "scene-05",
+    "description": null,
+    "case_count": 4
+  },
+  {
+    "scene_id": "scene-06",
+    "order": 6,
+    "name": "AI 时代一体化数字营销、画像与广告推荐场景",
+    "slug": "scene-06",
+    "description": null,
+    "case_count": 3
+  },
+  {
+    "scene_id": "scene-07",
+    "order": 7,
+    "name": "AIGC 竞争法保护与反垄断治理场景",
+    "slug": "scene-07",
+    "description": null,
+    "case_count": 3
+  },
+  {
+    "scene_id": "scene-08",
+    "order": 8,
+    "name": "网络暴力、中国治理与人格权益保护场景",
+    "slug": "scene-08",
+    "description": null,
+    "case_count": 3
+  },
+  {
+    "scene_id": "scene-09",
+    "order": 9,
+    "name": "物联网安全、智慧司法与电子取证场景",
+    "slug": "scene-09",
+    "description": null,
+    "case_count": 35
+  },
+  {
+    "scene_id": "scene-10",
+    "order": 10,
+    "name": "公共数据授权运营、开放利用与行政垄断风险防范场景",
+    "slug": "scene-10",
+    "description": null,
+    "case_count": 2
+  }
+]
