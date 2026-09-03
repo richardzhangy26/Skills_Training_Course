@@ -24,6 +24,7 @@ __pycache__/
 .qoder/
 .codex/
 .agents/
+.superpowers/
 .playwright-mcp/
 .worktrees/
 
