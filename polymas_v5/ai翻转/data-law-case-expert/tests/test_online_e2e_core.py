@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from dataclasses import replace
 from pathlib import Path
 import sys
 import tempfile
@@ -43,6 +44,8 @@ class OnlineE2ECoreTests(unittest.TestCase):
 
         self.assertEqual(config.target_id, "data-law-case-expert")
         self.assertEqual(config.expert_nid, "x3PalTZaWr")
+        self.assertTrue(hasattr(config, "runtime_agent_nid"))
+        self.assertIsNone(config.runtime_agent_nid)
         self.assertEqual(config.expert_name, "数据法学案例专家")
         self.assertEqual(config.assistant_name, "中药材 AI助教")
         self.assertEqual(config.agent_path, ROOT / "Agent.md")
@@ -104,6 +107,99 @@ class OnlineE2ECoreTests(unittest.TestCase):
         self.assertEqual(report.items[0].kind, "undeclared_skill")
         self.assertEqual(report.items[0].actual, "skill-rogue")
 
+    def test_apply_gate_rejects_missing_unexpected_and_unresolved_skill_nids(self):
+        config_diff = load_config_diff()
+        cases = (
+            (
+                "actual skill without nid",
+                {"skills": [{"name": "查询"}]},
+                {"skills": [{"nid": "skill-a", "name": "查询"}]},
+                {"查询": "skill-a"},
+                "missing_skill_nid",
+            ),
+            (
+                "actual immutable nid is not expected",
+                {"skills": [{"nid": "skill-a"}]},
+                {"skills": [{"nid": "skill-b"}]},
+                {"查询": "skill-a", "维护": "skill-b"},
+                "unexpected_skill_nid",
+            ),
+            (
+                "expected skill without nid",
+                {"skills": [{"name": "查询"}]},
+                {"skills": []},
+                {},
+                "missing_skill_nid",
+            ),
+            (
+                "unresolved placeholder is dry run only",
+                {"skills": [{"nid": "PDS_NID_UNRESOLVED_query"}]},
+                {"skills": [{"nid": "PDS_NID_UNRESOLVED_query"}]},
+                {"查询": "PDS_NID_UNRESOLVED_query"},
+                "unresolved_skill_nid",
+            ),
+        )
+        for name, expected, actual, declared, reason in cases:
+            with self.subTest(name=name):
+                report = config_diff.compare_configs(
+                    expected, actual, declared_skill_nids=declared
+                )
+                self.assertFalse(report.apply_allowed)
+                self.assertIn(reason, [item.kind for item in report.items])
+                with self.assertRaisesRegex(ValueError, reason):
+                    config_diff.require_apply_allowed(report)
+
+    def test_root_skills_have_individual_readable_differences_and_change_digest(self):
+        contracts = load_contracts()
+        config_diff = load_config_diff()
+        report = config_diff.compare_configs(
+            expected={
+                "skills": [
+                    {"nid": "skill-a", "name": "旧名称"},
+                    {"nid": "skill-b", "name": "待删除"},
+                ]
+            },
+            actual={
+                "skills": [
+                    {"nid": "skill-a", "name": "新名称"},
+                    {"nid": "skill-c", "name": "新增"},
+                ]
+            },
+            declared_skill_nids={
+                "查询": "skill-a",
+                "维护": "skill-b",
+                "额外": "skill-c",
+            },
+        )
+
+        paths = {item.path for item in report.items}
+        self.assertIn("skills[nid=skill-a].name", paths)
+        self.assertIn("skills[nid=skill-b]", paths)
+        self.assertIn("skills[nid=skill-c]", paths)
+        self.assertNotEqual(
+            config_diff.summarize_differences(report.items),
+            config_diff.summarize_differences(
+                (contracts.Difference("skills", "changed", None, None),)
+            ),
+        )
+
+    def test_config_snapshot_is_deeply_immutable_after_digest_calculation(self):
+        config_diff = load_config_diff()
+        snapshot = config_diff.snapshot_config(
+            {"metadata": {"nested": {"name": "初始"}}, "skills": [{"nid": "a"}]}
+        )
+
+        with self.assertRaises(TypeError):
+            snapshot.normalized["metadata"]["nested"]["name"] = "篡改"
+        with self.assertRaises(TypeError):
+            snapshot.normalized["skills"][0] = {"nid": "b"}
+        self.assertEqual(
+            snapshot.digest,
+            config_diff.snapshot_config(
+                {"metadata": {"nested": {"name": "初始"}}, "skills": [{"nid": "a"}]}
+            ).digest,
+        )
+
     def test_apply_guard_rejects_diff_that_contains_undeclared_skill(self):
         config_diff = load_config_diff()
         require_apply_allowed = getattr(config_diff, "require_apply_allowed", None)
@@ -154,14 +250,16 @@ class OnlineE2ECoreTests(unittest.TestCase):
 
         token = manager.issue(binding)
 
-        self.assertFalse(
-            manager.consume(
-                token,
-                contracts.ConfirmationBinding(
-                    **{**binding.__dict__, "nonce": "other-session-nonce"}
-                ),
-            )
-        )
+        for field in (
+            "target_id",
+            "snapshot_digest",
+            "expected_digest",
+            "knowledge_version",
+            "diff_digest",
+            "nonce",
+        ):
+            with self.subTest(field=field):
+                self.assertFalse(manager.consume(token, replace(binding, **{field: "tampered"})))
         self.assertTrue(manager.consume(token, binding))
         self.assertFalse(manager.consume(token, binding))
 
@@ -203,6 +301,18 @@ class OnlineE2ECoreTests(unittest.TestCase):
 
         self.assertNotIn(openai_token, rendered)
         self.assertNotIn(github_token, rendered)
+
+    def test_redaction_removes_json_quoted_credentials_from_nested_serialized_text(self):
+        safety = load_safety()
+        authorization = "Bearer plain-secret-1234567890"
+        cookie = "sessionid=cookie-plain-secret-1234567890"
+        nested = json.dumps({"Authorization": authorization, "Cookie": cookie})
+        serialized = json.dumps({"nested": nested})
+
+        redacted = safety.redact_sensitive(serialized)
+
+        self.assertNotIn(authorization, redacted)
+        self.assertNotIn(cookie, redacted)
 
     def test_checkpoint_write_is_atomic_private_and_redacted(self):
         safety = load_safety()

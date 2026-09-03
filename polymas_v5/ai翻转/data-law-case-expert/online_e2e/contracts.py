@@ -25,6 +25,7 @@ class TargetConfig:
     knowledge_jsonl_path: Path
     manifest_path: Path
     online_skill_nids: Mapping[str, str]
+    runtime_agent_nid: str | None = None
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,7 @@ class ConfigSnapshot:
 
     normalized: Mapping[str, Any]
     digest: str
+    canonical_json: str
 
 
 @dataclass(frozen=True)
@@ -150,4 +152,5 @@ def load_target_config(target_id: str, *, root: Path | None = None) -> TargetCon
         knowledge_jsonl_path=project_root / assets["knowledge_jsonl"],
         manifest_path=project_root / assets["manifest"],
         online_skill_nids=MappingProxyType(dict(data["online_skill_nids"])),
+        runtime_agent_nid=data.get("runtime_agent_nid"),
     )

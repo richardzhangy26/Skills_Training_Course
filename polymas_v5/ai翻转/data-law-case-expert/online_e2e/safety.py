@@ -23,6 +23,12 @@ _LABELED_CREDENTIAL = re.compile(
     r"(?i)\b(authorization|cookie|jwt|access[_-]?token|refresh[_-]?token|api[_-]?key|token)"
     r"\s*([:=])\s*(?:bearer\s+)?[^\s,;]+"
 )
+_JSON_QUOTED_CREDENTIAL = re.compile(
+    r"(?i)((?:\\?[\"'])"
+    r"(?:authorization|cookie|jwt|access[_-]?token|refresh[_-]?token|api[_-]?key|token)"
+    r"(?:\\?[\"'])\s*:\s*(?:\\?[\"']))"
+    r"(?:bearer\s+)?[^\"\\']+"
+)
 _JWT = re.compile(
     r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b"
 )
@@ -97,6 +103,9 @@ class ConfirmationTokenManager:
 
 
 def _redact_text(value: str) -> str:
+    value = _JSON_QUOTED_CREDENTIAL.sub(
+        lambda match: f"{match.group(1)}{_REDACTED}", value
+    )
     value = _LABELED_CREDENTIAL.sub(
         lambda match: f"{match.group(1)}{match.group(2)}{_REDACTED}", value
     )

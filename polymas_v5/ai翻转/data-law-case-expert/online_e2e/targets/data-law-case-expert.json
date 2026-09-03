@@ -2,6 +2,7 @@
   "schema_version": 1,
   "target_id": "data-law-case-expert",
   "expert_nid": "x3PalTZaWr",
+  "runtime_agent_nid": null,
   "expert_name": "数据法学案例专家",
   "assistant_name": "中药材 AI助教",
   "local_assets": {
