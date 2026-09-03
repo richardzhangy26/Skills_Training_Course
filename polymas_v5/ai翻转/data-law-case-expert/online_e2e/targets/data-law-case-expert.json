@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "target_id": "data-law-case-expert",
+  "expert_nid": "x3PalTZaWr",
+  "expert_name": "数据法学案例专家",
+  "assistant_name": "中药材 AI助教",
+  "local_assets": {
+    "agent": "Agent.md",
+    "query_skill": "data-law-case-query/SKILL.md",
+    "maintenance_skill": "data-law-case-maintenance/SKILL.md",
+    "html": "case-library/exports/数据法学案例库.html",
+    "knowledge_jsonl": "case-library/exports/案例专家知识包.jsonl",
+    "manifest": "case-library/data/manifest.json"
+  },
+  "online_skill_nids": {
+    "data-law-case-query": "PDS_NID_UNRESOLVED_data_law_case_query",
+    "data-law-case-maintenance": "PDS_NID_UNRESOLVED_data_law_case_maintenance"
+  }
+}
