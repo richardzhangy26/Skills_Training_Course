@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0072",
+  "title": "网络性侵威胁案中微信撤回记录与云端日志",
+  "scene_id": "scene-09",
+  "record_type": "judicial_case",
+  "jurisdiction": "待确认",
+  "case_status": "已发布",
+  "basic_facts": "2025 年，嫌疑人虚构“富豪”身份，以“包养验货”为名威胁性侵，删除并撤回微信威胁记录，否认胁迫行为。办案机关通过手机深度扫描恢复已删除微信聊天记录，包括撤回前原文、威胁信息和见面约定，并依法向腾讯调取服务器 72 小时日志，固定撤回记录的原始内容与发送时间，再按时间线重构“诱骗—威胁—见面—作案”链条。最终证据链完整，嫌疑人以强奸罪定罪，电子数据被法院采信。\n\n云端日志和本地恢复数据可以相互印证，形成完整电子证据链。但涉及平台数据调取时，应严格遵守法定程序，明确调取范围和保存期限，防止以侦查便利为由超范围调取用户通信数据。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《刑事诉讼法》；电子数据证据规则；个人信息和通信隐私保护规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "通信记录调取应有明确案件关联和审批程序，既要保障被害人权益，也要防止过度调取无关聊天。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例32_32. 网络性侵威胁案中微信撤回记录与云端日志.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "1a9da2317188cd832ea8d263bf390978c6b10e78b5cb14602363a59de736330f"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

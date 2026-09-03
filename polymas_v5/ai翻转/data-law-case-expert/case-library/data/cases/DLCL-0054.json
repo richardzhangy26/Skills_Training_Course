@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0054",
+  "title": "CloudPets 智能玩具语音信息泄露",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "待确认",
+  "case_status": "已发布",
+  "basic_facts": "2017 年 3 月，Spiral Toys 旗下 CloudPets 系列动物填充玩具发生数据泄露，泄露内容包括玩具录音、MongoDB 数据、220 万账户语音信息、数据库勒索信息等。这些数据被保存在未经密码保护的公开数据库中。\n\n本事件体现出儿童个人信息和家庭隐私保护风险。智能玩具采集儿童语音和家庭互动内容，具有高度敏感性。治理上应对儿童信息采取更严格保护，包括加密存储、访问控制、最小化采集、家长授权和安全合规审计。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "儿童隐私保护规则；对应我国《个人信息保护法》第31条、第51条，《未成年人保护法》第72条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "儿童语音和家庭互动数据具有高度敏感性，智能玩具应采用儿童友好默认保护、加密和最小留存。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例14_14. CloudPets 智能玩具语音信息泄露.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "d15243c9e07d050101e0f7158d81bd45dfcac5126ced0f3c7ef9453a8213dc2e"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

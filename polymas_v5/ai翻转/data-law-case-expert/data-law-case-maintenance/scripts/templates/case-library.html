@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>数据法学案例库</title>
+  <style>
+    :root {
+      --ink: #18284a;
+      --ink-deep: #0d1931;
+      --paper: #f7f2e8;
+      --paper-bright: #fffdf8;
+      --paper-muted: #e9e1d3;
+      --vermilion: #b13c2e;
+      --vermilion-dark: #8e2a21;
+      --gold: #bd9254;
+      --line: rgba(24, 40, 74, 0.18);
+      --muted: #657086;
+      --shadow: 0 24px 70px rgba(9, 21, 46, 0.15);
+      --serif: "Songti SC", "Noto Serif CJK SC", STSong, SimSun, serif;
+      --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink-deep);
+      background:
+        linear-gradient(rgba(24, 40, 74, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(24, 40, 74, 0.025) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: var(--sans);
+    }
+
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 3px solid rgba(177, 60, 46, 0.3);
+      outline-offset: 3px;
+    }
+
+    .masthead {
+      position: relative;
+      overflow: hidden;
+      color: white;
+      background: var(--ink-deep);
+      border-bottom: 5px solid var(--vermilion);
+    }
+    .masthead::before {
+      content: "法";
+      position: absolute;
+      right: max(4vw, 24px);
+      top: -0.28em;
+      color: rgba(255,255,255,0.045);
+      font: 700 clamp(220px, 34vw, 520px)/1 var(--serif);
+      pointer-events: none;
+    }
+    .masthead-inner {
+      position: relative;
+      width: min(1440px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 70px 0 60px;
+    }
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 0 0 22px;
+      color: #e2c38f;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 42px; height: 1px; background: currentColor; }
+    h1 {
+      max-width: 780px;
+      margin: 0;
+      font: 700 clamp(44px, 6vw, 88px)/1.05 var(--serif);
+      letter-spacing: 0.035em;
+    }
+    .dek {
+      max-width: 670px;
+      margin: 24px 0 0;
+      color: rgba(255,255,255,0.72);
+      font-size: clamp(15px, 1.7vw, 19px);
+      line-height: 1.85;
+    }
+    .edition {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      margin-top: 42px;
+      color: rgba(255,255,255,0.64);
+      font-size: 13px;
+    }
+    .edition b { color: white; font-size: 18px; margin-right: 7px; }
+
+    main {
+      width: min(1440px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 42px 0 80px;
+    }
+    .section-kicker {
+      margin: 0 0 8px;
+      color: var(--vermilion);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+    }
+    h2 { margin: 0; font: 700 clamp(28px, 3vw, 42px)/1.2 var(--serif); }
+    .section-note { margin: 9px 0 0; color: var(--muted); line-height: 1.7; }
+
+    .scene-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 1px;
+      margin: 28px 0 52px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .scene-card {
+      min-height: 150px;
+      padding: 22px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 15px;
+      align-items: start;
+      text-align: left;
+      border: 0;
+      background: var(--paper-bright);
+      cursor: pointer;
+      transition: color .2s ease, background .2s ease, transform .2s ease;
+    }
+    .scene-card:hover, .scene-card[aria-pressed="true"] {
+      color: white;
+      background: var(--ink);
+      transform: translateY(-3px);
+      z-index: 1;
+    }
+    .scene-number { color: var(--vermilion); font: 700 13px/1 var(--serif); }
+    .scene-card:hover .scene-number, .scene-card[aria-pressed="true"] .scene-number { color: #efb17a; }
+    .scene-copy { display: grid; gap: 14px; }
+    .scene-copy strong { font: 700 16px/1.55 var(--serif); }
+    .scene-copy small { color: var(--muted); }
+    .scene-card:hover small, .scene-card[aria-pressed="true"] small { color: rgba(255,255,255,.62); }
+    .scene-arrow { opacity: .45; }
+
+    .library-layout {
+      display: grid;
+      grid-template-columns: minmax(0, .86fr) minmax(440px, 1.14fr);
+      gap: 24px;
+      align-items: start;
+    }
+    .index-panel, .detail-panel {
+      border: 1px solid var(--line);
+      background: rgba(255,253,248,.88);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+    .index-panel { overflow: hidden; }
+    .toolbar {
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 190px;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: #efe8dc;
+    }
+    .search-wrap { position: relative; }
+    .search-wrap::before {
+      content: "⌕";
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-53%);
+      color: var(--vermilion);
+      font-size: 22px;
+    }
+    input, select {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid rgba(24,40,74,.24);
+      border-radius: 0;
+      color: var(--ink-deep);
+      background: var(--paper-bright);
+    }
+    input { padding: 0 14px 0 44px; }
+    select { padding: 0 38px 0 13px; }
+    .result-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 20px;
+      color: var(--muted);
+      font-size: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .clear-filter {
+      padding: 0;
+      border: 0;
+      color: var(--vermilion);
+      background: transparent;
+      cursor: pointer;
+    }
+    .case-list { max-height: 720px; overflow: auto; }
+    .case-row { border-bottom: 1px solid var(--line); }
+    .case-row[hidden] { display: none; }
+    .case-open {
+      width: 100%;
+      min-height: 82px;
+      padding: 16px 18px;
+      display: grid;
+      grid-template-columns: 78px minmax(0, 1fr) auto auto 22px;
+      gap: 12px;
+      align-items: center;
+      text-align: left;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      transition: background .18s ease, padding-left .18s ease;
+    }
+    .case-open:hover, .case-open[aria-current="true"] {
+      padding-left: 24px;
+      background: rgba(189,146,84,.12);
+    }
+    .case-id { color: var(--vermilion); font: 700 12px/1 var(--serif); }
+    .case-title { font: 700 16px/1.5 var(--serif); }
+    .case-type, .case-status {
+      padding: 5px 7px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .case-status { color: var(--vermilion-dark); border-color: rgba(177,60,46,.28); }
+
+    .detail-panel {
+      position: sticky;
+      top: 20px;
+      min-height: 680px;
+      overflow: hidden;
+    }
+    .detail-empty {
+      min-height: 680px;
+      padding: 52px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty-mark {
+      display: block;
+      margin-bottom: 20px;
+      color: rgba(24,40,74,.12);
+      font: 700 110px/1 var(--serif);
+    }
+    .detail-content[hidden], .detail-empty[hidden] { display: none; }
+    .detail-cover {
+      position: relative;
+      padding: 34px 36px 30px;
+      color: white;
+      background: var(--ink);
+      border-left: 7px solid var(--vermilion);
+    }
+    .detail-cover::after {
+      content: "CASE FILE";
+      position: absolute;
+      right: 28px;
+      top: 30px;
+      color: rgba(255,255,255,.16);
+      font: 700 10px/1 var(--sans);
+      letter-spacing: .28em;
+    }
+    .detail-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .detail-meta span { padding: 6px 8px; border: 1px solid rgba(255,255,255,.22); font-size: 11px; }
+    .detail-cover h3 { max-width: 620px; margin: 0; font: 700 clamp(26px, 3vw, 42px)/1.3 var(--serif); }
+    .detail-scene { margin: 15px 0 0; color: rgba(255,255,255,.65); line-height: 1.5; }
+    .detail-body { padding: 12px 36px 42px; }
+    .field {
+      display: grid;
+      grid-template-columns: 118px minmax(0, 1fr);
+      gap: 26px;
+      padding: 24px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .field:last-child { border-bottom: 0; }
+    .field h4 { margin: 2px 0 0; color: var(--vermilion); font: 700 13px/1.5 var(--serif); letter-spacing: .08em; }
+    .field-content { margin: 0; font-size: 15px; line-height: 1.9; white-space: pre-wrap; }
+    .field-content.missing { color: var(--muted); font-style: italic; }
+    .law-list, .source-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+    .law-list li, .source-list li { padding-left: 18px; position: relative; line-height: 1.75; }
+    .law-list li::before, .source-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .72em;
+      width: 6px;
+      height: 6px;
+      background: var(--gold);
+      transform: rotate(45deg);
+    }
+    .evidence-note {
+      margin: 26px 0 0;
+      padding: 16px 18px;
+      color: #664039;
+      background: #f4e4d9;
+      border-left: 3px solid var(--vermilion);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    footer {
+      padding: 30px 24px;
+      color: rgba(255,255,255,.58);
+      text-align: center;
+      background: var(--ink-deep);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1180px) {
+      .scene-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .library-layout { grid-template-columns: 1fr; }
+      .detail-panel { position: static; }
+    }
+    @media (max-width: 860px) {
+      .masthead-inner, main { width: min(100% - 28px, 720px); }
+      .masthead-inner { padding: 54px 0 46px; }
+      .scene-grid { grid-template-columns: 1fr; }
+      .scene-card { min-height: 112px; }
+      .toolbar { grid-template-columns: 1fr; }
+      .case-open { grid-template-columns: 68px minmax(0, 1fr) 18px; }
+      .case-type, .case-status { display: none; }
+      .detail-cover, .detail-body { padding-left: 22px; padding-right: 22px; }
+      .field { grid-template-columns: 1fr; gap: 8px; }
+      .detail-empty { padding: 36px 22px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <p class="eyebrow">Data Law · Case Archive</p>
+      <h1>数据法学<br>案例库</h1>
+      <p class="dek">以场景为索引，以证据为边界。浏览个人信息、平台治理、人工智能竞争与数据安全领域的教学案例档案。</p>
+      <div class="edition" aria-label="案例库统计">
+        <span><b>{{CASE_COUNT}}</b> 案例</span>
+        <span><b>{{SCENE_COUNT}}</b> 场景</span>
+        <span><b>v{{LIBRARY_VERSION}}</b> 数据版本</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section aria-labelledby="scene-heading">
+      <p class="section-kicker">卷宗分类</p>
+      <h2 id="scene-heading">按法律场景进入</h2>
+      <p class="section-note">选择场景可直接筛选案例；再次点击或使用“清除筛选”恢复完整目录。</p>
+      <div class="scene-grid">{{SCENE_CARDS}}</div>
+    </section>
+
+    <section aria-labelledby="catalog-heading">
+      <p class="section-kicker">案例目录</p>
+      <h2 id="catalog-heading">检索与阅览</h2>
+      <p class="section-note">可按案例名称、案情关键词、场景或法律条文检索。证据状态为“待补证”的内容仅代表原始课程材料。</p>
+
+      <div class="library-layout">
+        <div class="index-panel">
+          <div class="toolbar">
+            <label class="search-wrap">
+              <span hidden>搜索案例</span>
+              <input id="case-search" type="search" aria-label="搜索案例" placeholder="搜索案例、法条或案情关键词…" autocomplete="off">
+            </label>
+            <label>
+              <span hidden>案例类型</span>
+              <select id="type-filter" aria-label="按案例类型筛选">
+                <option value="">全部案例类型</option>
+                <option value="judicial_case">司法裁判</option>
+                <option value="administrative_enforcement">行政执法</option>
+                <option value="regulatory_event">监管事件</option>
+                <option value="compliance_event">合规事件</option>
+                <option value="security_incident">安全事件</option>
+                <option value="pending_dispute">未决争议</option>
+                <option value="research_material">研究材料</option>
+              </select>
+            </label>
+          </div>
+          <div class="result-line" aria-live="polite">
+            <span id="result-count">共 {{CASE_COUNT}} 个案例</span>
+            <button id="clear-filter" class="clear-filter" type="button">清除筛选</button>
+          </div>
+          <div id="case-list" class="case-list">{{CASE_ROWS}}</div>
+        </div>
+
+        <aside class="detail-panel" aria-label="案例详情">
+          <div id="detail-empty" class="detail-empty">
+            <div><span class="empty-mark" aria-hidden="true">卷</span><p>从左侧选择一个案例，查看完整案情、争议焦点、法律条文、处理结果和教学分析。</p></div>
+          </div>
+          <div id="detail-content" class="detail-content" hidden>
+            <div class="detail-cover">
+              <div id="detail-meta" class="detail-meta"></div>
+              <h3 id="detail-title"></h3>
+              <p id="detail-scene" class="detail-scene"></p>
+            </div>
+            <div class="detail-body">
+              <div class="field"><h4>基本案情</h4><p id="detail-facts" class="field-content"></p></div>
+              <div class="field"><h4>争议焦点</h4><p id="detail-dispute" class="field-content"></p></div>
+              <div class="field"><h4>涉及法律条文</h4><ul id="detail-laws" class="law-list"></ul></div>
+              <div class="field"><h4>裁判 / 处理结果</h4><p id="detail-outcome" class="field-content"></p></div>
+              <div class="field"><h4>法律问题分析</h4><p id="detail-analysis" class="field-content"></p></div>
+              <div class="field"><h4>材料来源</h4><ul id="detail-sources" class="source-list"></ul></div>
+              <p id="evidence-note" class="evidence-note"></p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer>本案例库用于教学研讨，不构成法律意见。未标注官方来源的内容仍需补证。</footer>
+  <script id="case-data" type="application/json">{{CASE_DATA}}</script>
+  <script>
+    (() => {
+      'use strict';
+      const payload = JSON.parse(document.getElementById('case-data').textContent);
+      const caseMap = new Map(payload.cases.map(item => [item.case_id, item]));
+      const sceneMap = new Map(payload.scenes.map(item => [item.scene_id, item]));
+      const rows = [...document.querySelectorAll('.case-row')];
+      const search = document.getElementById('case-search');
+      const typeFilter = document.getElementById('type-filter');
+      const count = document.getElementById('result-count');
+      const sceneButtons = [...document.querySelectorAll('[data-scene-filter]')];
+      let activeScene = '';
+
+      const recordTypeLabels = {
+        judicial_case: '司法裁判', administrative_enforcement: '行政执法',
+        regulatory_event: '监管事件', compliance_event: '合规事件',
+        security_incident: '安全事件', pending_dispute: '未决争议',
+        research_material: '研究材料', unclassified: '待分类'
+      };
+      const outcomeTypeLabels = {
+        judgment: '法院裁判', administrative_action: '行政处理', settlement: '调解/和解',
+        event_progress: '事件进展', not_applicable: '不适用', unknown: '材料未说明'
+      };
+
+      function setText(id, value, missingLabel = '原材料未提供') {
+        const el = document.getElementById(id);
+        el.textContent = value || missingLabel;
+        el.classList.toggle('missing', !value);
+      }
+
+      function makeList(id, values, render) {
+        const list = document.getElementById(id);
+        list.replaceChildren();
+        if (!values.length) {
+          const item = document.createElement('li');
+          item.textContent = '原材料未提供';
+          item.className = 'missing';
+          list.append(item);
+          return;
+        }
+        values.forEach(value => {
+          const item = document.createElement('li');
+          item.textContent = render(value);
+          list.append(item);
+        });
+      }
+
+      function openCase(caseId) {
+        const item = caseMap.get(caseId);
+        if (!item) return;
+        const scene = sceneMap.get(item.scene_id);
+        document.getElementById('detail-empty').hidden = true;
+        document.getElementById('detail-content').hidden = false;
+        document.getElementById('detail-title').textContent = item.title;
+        document.getElementById('detail-scene').textContent = scene ? scene.name : '场景待确认';
+        const meta = document.getElementById('detail-meta');
+        meta.replaceChildren();
+        [item.case_id, recordTypeLabels[item.record_type] || item.record_type, item.jurisdiction, item.evidence_status].forEach(value => {
+          const tag = document.createElement('span');
+          tag.textContent = value;
+          meta.append(tag);
+        });
+        setText('detail-facts', item.basic_facts);
+        setText('detail-dispute', item.dispute_focus);
+        makeList('detail-laws', item.legal_provisions || [], law => `${law.citation_text}（${law.evidence_status}）`);
+        setText('detail-outcome', item.outcome, outcomeTypeLabels[item.outcome_type] || '材料未提供');
+        setText('detail-analysis', item.legal_analysis);
+        makeList('detail-sources', item.sources || [], source => `${source.title}${source.url ? ` · ${source.url}` : ' · 未提供公开链接'}`);
+        document.getElementById('evidence-note').textContent = item.evidence_status === '官方来源已核验'
+          ? '证据状态：官方来源已核验。仍建议结合案件发生时有效法律理解。'
+          : `证据状态：${item.evidence_status}。本条尚缺少完整官方来源、案号或时效核验，不应据此推断材料未记载的事实。`;
+        document.querySelectorAll('[data-open-case]').forEach(button => {
+          button.toggleAttribute('aria-current', button.dataset.openCase === caseId);
+        });
+        if (window.innerWidth < 1180) document.querySelector('.detail-panel').scrollIntoView({behavior: 'smooth', block: 'start'});
+      }
+
+      function applyFilters() {
+        const query = search.value.trim().toLocaleLowerCase('zh-CN');
+        const type = typeFilter.value;
+        let visible = 0;
+        rows.forEach(row => {
+          const item = caseMap.get(row.dataset.caseId);
+          const matches = (!activeScene || row.dataset.scene === activeScene)
+            && (!type || item.record_type === type)
+            && (!query || row.dataset.search.includes(query));
+          row.hidden = !matches;
+          if (matches) visible += 1;
+        });
+        count.textContent = `显示 ${visible} / ${rows.length} 个案例`;
+      }
+
+      document.getElementById('case-list').addEventListener('click', event => {
+        const button = event.target.closest('[data-open-case]');
+        if (button) openCase(button.dataset.openCase);
+      });
+      search.addEventListener('input', applyFilters);
+      typeFilter.addEventListener('change', applyFilters);
+      sceneButtons.forEach(button => button.addEventListener('click', () => {
+        activeScene = activeScene === button.dataset.sceneFilter ? '' : button.dataset.sceneFilter;
+        sceneButtons.forEach(item => item.setAttribute('aria-pressed', String(item.dataset.sceneFilter === activeScene)));
+        applyFilters();
+        document.getElementById('catalog-heading').scrollIntoView({behavior: 'smooth', block: 'start'});
+      }));
+      document.getElementById('clear-filter').addEventListener('click', () => {
+        activeScene = '';
+        search.value = '';
+        typeFilter.value = '';
+        sceneButtons.forEach(item => item.setAttribute('aria-pressed', 'false'));
+        applyFilters();
+      });
+      sceneButtons.forEach(item => item.setAttribute('aria-pressed', 'false'));
+      applyFilters();
+    })();
+  </script>
+</body>
+</html>

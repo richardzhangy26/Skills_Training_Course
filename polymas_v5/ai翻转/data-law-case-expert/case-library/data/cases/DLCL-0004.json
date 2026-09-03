@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0004",
+  "title": "办公区域隐蔽摄像头案",
+  "scene_id": "scene-01",
+  "record_type": "judicial_case",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "北京某建筑装饰工程公司在员工长期固定办公、相对封闭的办公室内，安装烟感伪装针孔摄像设备，摄像头正对员工工位。员工发现后认为，公司未提前明示，也未取得其同意，安装隐蔽摄像头的行为严重侵犯其隐私权，遂向法院起诉。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《民法典》第1032条、第1034条、第1035条、第1038条；《个人信息保护法》第5条、第6条、第13条、第17条、第51条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "judgment",
+  "outcome": "法院认为，用人单位基于经营管理需要，可以在必要范围内设置监控设备，但不得以隐蔽、伪装、定向拍摄等方式持续监控员工。办公室虽然属于工作场所，但并不意味着员工完全丧失合理隐私期待。公司未经告知、未经同意，在相对封闭办公空间内安装隐蔽摄像设备，已超出企业正常管理需要，构成对员工隐私权的侵害。法院判令公司销毁相关视频资料、向员工书面道歉，并赔偿精神损害抚慰金5000元。",
+  "outcome_evidence_status": "source_material",
+  "legal_analysis": "劳动管理权不等于全天候监视权。工作场所监控应公开、必要、适度，范围一般限于公共区域和安全需要，不得以隐蔽方式持续、定向拍摄员工。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景01_案例04_4. 办公区域隐蔽摄像头案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "06a085f14b561394681da5d0b0624feec087ab36e14aade8082eafe4c0f3aac5"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

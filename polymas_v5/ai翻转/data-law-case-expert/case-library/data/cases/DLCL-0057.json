@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0057",
+  "title": "特斯拉等车辆遥控钥匙系统漏洞",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "2018 年 9 月，比利时 KU Leuven 大学研究人员发现，利用约 600 美元的无线电和树莓派等设备即可开走一辆特斯拉。类似攻击方法也可用于迈凯伦、Karma 汽车及凯旋摩托车，因为它们使用了存在安全缺陷的 Pektron 遥控钥匙系统。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》第21条；《个人信息保护法》第51条；汽车网络安全和产品安全规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "车辆身份认证与用户财产安全紧密相关，应加强密钥更新、距离验证、异常告警和售后补丁。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例17_17. 特斯拉等车辆遥控钥匙系统漏洞.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "6ab8569cbb9a7527e969e7ec7a2c81a4091cb01291c379cc86d253c7665405ec"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

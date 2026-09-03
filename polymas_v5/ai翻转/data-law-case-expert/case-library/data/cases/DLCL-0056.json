@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0056",
+  "title": "智慧城市系统 17 个漏洞",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "2018 年 6 月，IBM 研究团队发现 Libelium、Echelon 和 Battelle 三种智慧城市主要系统中存在 17 个安全漏洞，包括默认密码、可绕过身份验证等。攻击者可利用这些漏洞控制报警系统、篡改传感器数据，影响城市交通和公共管理。\n\n该案例体现智慧城市建设中的系统性安全风险。智慧城市依赖大量传感器、通信网络和城市管理平台，一旦基础系统存在漏洞，攻击者可能操纵城市运行数据，影响公共决策和城市秩序。治理上应将智慧城市纳入关键基础设施安全体系，强化系统集成商责任、数据真实性校验和安全评估。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》第21条；《数据安全法》第27条、第29条；关键信息基础设施安全保护规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "智慧城市系统应从单点设备安全转向体系化资产管理、漏洞扫描、分级保护和供应商安全审计。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例16_16. 智慧城市系统 17 个漏洞.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "f32013e2b09d5485dc0cf27434148b1f77744b96c4df72d7327d22e36214b7b2"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

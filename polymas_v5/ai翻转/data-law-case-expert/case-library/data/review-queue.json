@@ -1,0 +1,26 @@
+[
+  {
+    "case_id": "DLCL-0023",
+    "title": "第三方医疗服务平台逻辑漏洞导致患者信息泄露风险案",
+    "reason": "speculative_outcome",
+    "candidate_outcome": "若进入司法或行政程序，平台可能被要求停止违法处理、修复漏洞、删除非法获取或超范围保存的数据、赔偿损失；造成个人信息泄露、篡改、丢失的，还应通知履行个人信息保护职责的部门和个人，并依法承担行政、民事乃至刑事责任。",
+    "source_file": "场景03_案例04_4. 第三方医疗服务平台逻辑漏洞导致患者信息泄露风险案.docx",
+    "status": "awaiting_teacher_confirmation"
+  },
+  {
+    "case_id": "DLCL-0024",
+    "title": "基因检测 App 采集和商业开发遗传信息风险案",
+    "reason": "speculative_outcome",
+    "candidate_outcome": "若机构未经单独同意或合法审批，将基因数据用于二次开发、对外共享或出境，可能面临监管处罚、停止处理、删除数据、赔偿损失；情节严重的，还可能涉及生物安全、人类遗传资源管理和刑事责任。",
+    "source_file": "场景03_案例05_5. 基因检测 App 采集和商业开发遗传信息风险案.docx",
+    "status": "awaiting_teacher_confirmation"
+  },
+  {
+    "case_id": "DLCL-0034",
+    "title": "AEO/GEO 恶性营销与 AI 语料投毒场景案",
+    "reason": "speculative_outcome",
+    "candidate_outcome": "若进入司法程序，可能从虚假宣传、商业诋毁、流量劫持、数据抓取不正当竞争、消费者知情权侵害等路径认定责任；相关平台也可能被要求删除违法内容、停止不正当竞争、消除影响并赔偿损失。",
+    "source_file": "场景06_案例03_3. AEO_GEO 恶性营销与 AI 语料投毒场景案.docx",
+    "status": "awaiting_teacher_confirmation"
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0059",
+  "title": "医疗器械软件安全不足与心脏起搏器漏洞",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "2018 年国家药监局发布大批医疗器械企业主动召回公告，涉及美敦力、GE、雅培等企业，召回设备包括磁共振成像系统、麻醉剂、麻醉系统、人工心肺机等，涉及产品超过 24 万，主要原因在于软件安全性不足。2016 年底白帽黑客发现可远程控制美敦力心脏起搏器；2017 年研究者发现网购起搏器存在 8000 个程序漏洞。\n\n该案例进一步说明医疗物联网设备安全直接关联生命健康。医疗器械软件缺陷不只是产品质量问题，也是数据安全、人身安全和医疗秩序问题。治理上应强化医疗器械网络安全审查、上市后持续监测、主动召回、漏洞报告和临床风险评估。\n\n智慧司法与电子取证案例",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "医疗器械监管规则；《个人信息保护法》第28条、第51条；《网络安全法》第21条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "医疗器械网络安全应进入设计、注册、运维和召回全生命周期，而非事后补丁化治理。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例19_19. 医疗器械软件安全不足与心脏起搏器漏洞.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "b46815845a50296e9189b802c3431a3fa86708a118c2b72f34e5e98f04f63f55"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

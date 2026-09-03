@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0037",
+  "title": "xAI、X 平台诉苹果公司、OpenAI 排他合作反垄断诉讼",
+  "scene_id": "scene-07",
+  "record_type": "judicial_case",
+  "jurisdiction": "美国",
+  "case_status": "已发布",
+  "basic_facts": "【案情摘要】2024年6月，苹果宣布与OpenAI合作，将ChatGPT深度集成至iOS、iPadOS和macOS系统，并接入Siri及系统智能功能。2025年8月25日，马斯克旗下xAI和X平台在美国得州联邦法院起诉苹果公司和OpenAI，主张二者通过合作安排锁定生成式AI聊天机器人和智能手机生态入口，排挤Grok等竞争产品。\n\n【争议焦点】\n\n苹果选择单一AI合作伙伴，是合法商业选择，还是构成具有排他效果的垄断协议。\n\n苹果是否利用App Store、iOS系统和终端入口控制能力，对OpenAI进行自我优待并压低竞争产品曝光。\n\nChatGPT通过系统级集成获得海量用户交互数据，是否会形成“数据—模型—用户规模”的封闭循环并加固市场力量。\n\n苹果高管参与OpenAI董事会观察员安排，是否引发美国《克莱顿法》第8条所关注的董事兼任问题。\n\n【分析过程】\n\n原告将案件基础定位为“平台入口＋AI模型”的排他合作。根据JURIST报道，X Corp.和xAI主张，苹果与OpenAI的合作使ChatGPT获得苹果系统层面的优先接入机会，涉及iPhone、iOS、Siri和系统智能功能等关键入口；原告据此主张该安排可能限制其他生成式AI聊天机器人获得同等分发机会。\n\n原告重点攻击“排他性安排”的竞争效果。原告认为，苹果在智能手机生态中具有入口控制能力，OpenAI在生成式AI聊天机器人市场具有较强市场地位，二者结合后可能把ChatGPT置于默认或优先位置，使Grok等竞争产品只能通过普通App或浏览器触达用户，难以获得同等系统级调用、曝光和数据积累机会。JURIST报道显示，原告依据《谢尔曼法》第1条、第2条以及德州相关反垄断规则提出主张。\n\nApp Store排名和审核机制是原告主张的重要事实基础。xAI指控苹果和OpenAI存在垄断性做法，并特别提到App Store排名问题；原告认为苹果通过排名、推荐、审核等平台规则压低Grok等竞争产品曝光，同时给予ChatGPT更有利的系统级地位。该部分对应“平台自我优待”和“歧视性分发”的反垄断问题。\n\n数据闭环是本案的核心竞争风险之一。原告认为，ChatGPT一旦通过苹果系统获得大量用户交互数据，就可能进一步提升模型能力，吸引更多用户使用，再反过来扩大数据规模，形成“用户—数据—模型能力—更多用户”的循环。这一主张的关键在于证明系统级集成是否带来竞争者难以复制的数据优势，以及该优势是否会实质性排除竞争。\n\n被告的主要抗辩集中在合作非绝对排他和市场仍有替代选择。OpenAI提交的撤诉动议材料称，苹果与OpenAI的合作并非排他安排，其他AI产品仍可通过App或浏览器被用户使用，且苹果也可能与其他生成式AI服务商合作；因此，原告关于市场封锁的指控缺乏充分事实基础。\n\n目前法院仅作出程序性处理。得州联邦法官驳回苹果和OpenAI的撤诉动议，允许案件继续推进。该处理只说明原告主张在起诉阶段具有继续审理空间，并未认定苹果或OpenAI已经构成垄断协议、垄断化或排他性滥用。后续仍需通过证据开示进一步查明合作协议内容、App Store分发规则、数据获取方式、市场份额、竞争影响和消费者损害。\n\n【法律规定适用】\n\n《谢尔曼法》（Sherman Act）第1条\n\n《谢尔曼法》（Sherman Act）第2条\n\n《克莱顿法》（Clayton Act）第8条\n\n《德州反垄断法》（Texas Free Enterprise and Antitrust Act）相关条款（概括适用）",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "美国《谢尔曼法》第1条、第2条，《克莱顿法》第8条，德州反垄断法相关条款；对应我国《反垄断法》关于滥用市场支配地位、限定交易和排除限制竞争规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "AI 助手和操作系统入口可能成为新型流量基础设施。反垄断分析需要证明市场力量、排他效果、数据与接口封锁、用户迁移成本及创新损害。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景07_案例03_3. xAI、X 平台诉苹果公司、OpenAI 排他合作反垄断诉讼.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "13ffe35769b7c2d76789918eba1540da5bee82f9c65c5cbc7b08bb25158bffc7"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

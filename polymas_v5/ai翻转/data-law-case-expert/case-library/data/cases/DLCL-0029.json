@@ -1,0 +1,40 @@
+{
+  "case_id": "DLCL-0029",
+  "title": "Epic Games/Fortnite 违反儿童隐私与默认设置保护义务案",
+  "scene_id": "scene-05",
+  "record_type": "regulatory_event",
+  "jurisdiction": "美国",
+  "case_status": "已发布",
+  "basic_facts": "2022年，FTC与 Epic Games 就 Fortnite 游戏相关儿童隐私和不当收费问题达成两项创纪录和解。FTC指控 Epic 在面向儿童的在线服务中，在未通知父母并取得可验证父母同意的情况下收集13岁以下儿童个人信息，并通过默认开启实时语音和文字聊天，使儿童和青少年面临接触陌生人、骚扰和不适当互动的风险。\n\nFTC还指控 Epic 使用“黑暗模式”等界面设计诱导玩家进行非预期购买。",
+  "dispute_focus": "游戏平台是否可以在默认状态下开启儿童和青少年的语音、文字聊天功能；对儿童用户收集个人信息时，是否必须取得可验证的父母同意；界面设计是否可能构成对未成年人的不公平或欺骗性处理。",
+  "legal_provisions": [
+    {
+      "citation_text": "美国《儿童在线隐私保护法》（COPPA）及 FTC Act 关于不公平或欺骗性行为的规定。若置于我国法语境下，可对应《个人信息保护法》第二十八条、第三十一条，《未成年人保护法》网络保护专章和《未成年人网络保护条例》关于未成年人个人信息保护、网络沉迷防治和平台义务的规定。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    },
+    {
+      "citation_text": "美国 COPPA、《联邦贸易委员会法》第5条；对应我国《个人信息保护法》第31条、《未成年人保护法》第72条、第74条、第77条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "administrative_action",
+  "outcome": "Epic同意支付2.75亿美元儿童隐私违法罚款，并支付2.45亿美元用于消费者退款。和解要求 Epic 调整儿童和青少年的默认隐私设置，默认关闭语音和文字通信等功能。",
+  "outcome_evidence_status": "source_material",
+  "legal_analysis": "本案说明未成年人保护不能只看隐私政策，还要看产品默认设置。对儿童而言，默认开启语音、文字聊天和社交曝光功能，会将个人信息保护风险转化为人身安全、网络欺凌和不当接触风险。\n\n我国游戏平台和社交娱乐产品应将未成年人高隐私默认设置作为合规起点，而非让儿童或家长自行寻找关闭入口。涉及游戏内购买、打赏和虚拟道具消费时，也应结合年龄识别、消费限额和监护人确认机制。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景05_案例02_2. Epic Games_Fortnite 违反儿童隐私与默认设置保护义务案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "b5222a9e296cf8f052f8d031cf75bcf996cee87540e902469b64899c08e12fb8"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

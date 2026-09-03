@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0016",
+  "title": "车联网移动 App 安全测评材料",
+  "scene_id": "scene-02",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "中国软件测评中心曾对车联网移动App进行安全检测，检测对象包括车控类、查询类和服务类App。测评结果显示，相关App均存在一定安全风险，检出率排名靠前的问题包括剪切板敏感信息泄露漏洞、So文件破解风险、代码残留URL信息检测、Activity组件导出风险、Broadcast Receiver组件导出风险等。\n\n车联网App不仅处理用户账号、车辆绑定关系、车辆位置、行车数据和车辆状态信息，还可能具有远程控制车辆的能力。如果App存在剪切板泄露、组件导出、通信协议破解、访问控制不足等问题，攻击者可能通过移动终端进一步攻击云平台或车辆端，导致个人信息泄露和车辆安全风险叠加。\n\n从《个人信息保护法》的角度看，车联网App运营者和汽车数据处理者应采取加密、权限控制、身份认证、日志审计、安全测试、漏洞修复等措施保障个人信息安全。对于车控类App，还应采用更高等级的身份认证和操作确认机制，防止因账号泄露、接口漏洞或通信劫持导致车辆被非法控制。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《个人信息保护法》第5条、第6条、第17条、第51条；《网络安全法》第21条、第42条；《移动互联网应用程序个人信息保护管理暂行规定（征求意见/相关监管规则）》。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "车联网 App 是车辆端、云端与用户端的连接入口。应对远程开锁、定位查询、行程记录等高风险功能设置强认证、最小权限、二次确认和异常操作告警。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景02_案例04_4. 车联网移动 App 安全测评材料.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "6307aaa635c2fa13a201445681d110722eb44facaca88de182739beb302d6be0"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

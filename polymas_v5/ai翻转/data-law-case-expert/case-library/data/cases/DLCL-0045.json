@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0045",
+  "title": "美国联网医疗成像设备安全隐患案例",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "美国",
+  "case_status": "已发布",
+  "basic_facts": "2020年3月，Palo Alto Networks旗下Unit42发布《2020年物联网威胁报告》，指出美国多达83%的联网医疗成像设备存在安全隐患，包括乳房X光造影机、MRI核磁共振成像机等。美国一家医院因乳腺X线机异常流量发现Conficker蠕虫感染医疗设备，导致设备下线、安装补丁并逐步恢复，医院主要业务停摆长达一周。\n\n医疗物联网设备安全问题具有高风险性。医疗设备一旦遭受攻击，影响的不只是数据安全，还可能影响诊疗秩序、患者生命健康和医院正常运行。同时，医疗数据本身包含大量敏感个人信息，泄露后损害更大。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "HIPAA 相关安全规则；对应我国《个人信息保护法》第28条、第51条，《网络安全法》第21条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "医疗物联网设备兼具生命健康与个人信息风险，应加强网络隔离、设备身份认证、补丁和应急预案。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例05_5. 美国联网医疗成像设备安全隐患案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "e98397f40f0389816619eca99fd4d56bcc33d2001854e409b3a463a941794b8d"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

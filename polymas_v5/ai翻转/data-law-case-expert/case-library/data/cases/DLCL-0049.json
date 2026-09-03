@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0049",
+  "title": "俄罗斯 PickPoint 快递柜遭攻击事件",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "待确认",
+  "case_status": "已发布",
+  "basic_facts": "2020 年，俄罗斯快递服务公司 PickPoint 确认，莫斯科 2732 个储物格出现柜门大开的情况，导致用户包裹暴露在失窃风险中。PickPoint 称，这是首起针对后端网关网络的攻击行为。攻击目的可能并非直接盗取包裹，而可能是炫技或表达不满，但快递柜与个人财物紧密相关，其安全风险不可忽视。\n\n快递柜本身是智能终端，后台网关一旦被突破，就可能批量控制终端设备。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "网络安全与个人信息保护规则；对应我国《网络安全法》第21条、第42条，《个人信息保护法》第51条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "快递柜涉及收件人身份、手机号、地址和取件记录。应将终端控制、云平台权限和异常批量指令纳入风控。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例09_9. 俄罗斯 PickPoint 快递柜遭攻击事件.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "2622c255099e226afe6f98f4b099d0dc47a5aaeef94544cc94f61a70626d419a"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

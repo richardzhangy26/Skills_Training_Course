@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0062",
+  "title": "“云剑”行动命案积案攻坚案例",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "待确认",
+  "case_status": "已发布",
+  "basic_facts": "在 2020 年“云剑—2020”行动中，天津吕游工作室赴粤豫会战 134 天，研判在逃人员 40 余名，破命案积案 45 起；黄岩公安视图工作室累计破命案积案 54 起，协助寻亲 156 人，并参与伪造人像检验国标制定。\n\n该案例体现人像识别、图像增强、跨镜追踪等技术在命案积案侦破中的作用。技术能够提高旧案线索发现能力，但也要求对人脸数据采集、黑名单比对、误识别风险和数据留存期限进行严格管理。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《刑事诉讼法》侦查取证规则；个人信息保护和公安机关数据安全管理规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "智慧侦查提升效率，但应坚持法定权限、必要性、关联性和程序留痕，避免泛化调取第三方信息。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例22_22. “云剑”行动命案积案攻坚案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "e18f1da387affc492b1f2db70acf7565bdccff383bcf1d9ff0196d9ff762c03c"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

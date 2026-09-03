@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0071",
+  "title": "校园霸凌故意伤害案中删除视频恢复",
+  "scene_id": "scene-09",
+  "record_type": "judicial_case",
+  "jurisdiction": "待确认",
+  "case_status": "已发布",
+  "basic_facts": "2024 年某中学女生被多人殴打并录制侮辱视频，施暴者删除手机视频后拒不承认，案件陷入僵局。办案机关扣押涉案手机，只读镜像后送检，通过手机取证工作站扫描闪存芯片，在未分配空间中恢复出已删除的 MP4 视频原文件，并计算哈希值确认未被篡改。最终视频作为核心证据，施暴者认罪，案件顺利起诉。\n\n电子证据恢复应坚持检材固定、只读镜像、哈希校验和程序留痕，以保障证据真实性和被告人质证权。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《刑事诉讼法》或《民事诉讼法》证据规则；未成年人保护相关规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "恢复视频可提升事实查明能力，但涉及未成年人隐私，应限制展示、传播和二次使用。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例31_31. 校园霸凌故意伤害案中删除视频恢复.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "c45be9a07096feb16e10b6a6e6341543f7217b46e5044dc240ba774455d25376"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0051",
+  "title": "SkyJack 无人机劫持案例",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "美国",
+  "case_status": "已发布",
+  "basic_facts": "2013 年，美国黑客萨米·卡姆卡尔在 YouTube 发布视频，展示如何通过名为 SkyJack 的技术，使一架基本款民用无人机定位并控制附近其他无人机，形成由智能手机操控的“僵尸无人机战队”。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》第21条；《数据安全法》第27条；无人机和无线电管理相关规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "无人机采集图像、位置和飞行轨迹，应加强设备绑定、控制信道加密、固件签名和禁飞区策略。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例11_11. SkyJack 无人机劫持案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "caaf3d3c4a64ab34db2adefe040d621a603d651a44fc5ad74a6e3f3557ad7f5a"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

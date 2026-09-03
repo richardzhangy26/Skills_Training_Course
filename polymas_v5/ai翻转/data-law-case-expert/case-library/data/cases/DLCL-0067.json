@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0067",
+  "title": "广东“视频云+”社会治安防控案例",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "广东“视频云+”用于社会治安防控。例如东莞 2016 年持刀抢劫案中，警方接报后半小时内依靠人脸识别和视频追踪抓获 3 名嫌疑人；火车站、地铁站等公共场所也可对在逃人员实时预警，并推送到民警手机，实现主动防控。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》《数据安全法》《个人信息保护法》；公共视频图像信息系统管理相关规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "公共视频治理应避免无限汇聚和无目的留存，重点在权限管理、用途控制、调用审批和滥用追责。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例27_27. 广东“视频云+”社会治安防控案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "caff148816244387bcad9a1c14dcde7bc9378e20b10cd363bc2b864bc085227a"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

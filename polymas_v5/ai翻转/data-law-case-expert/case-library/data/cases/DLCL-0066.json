@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0066",
+  "title": "e-CarS 涉车犯罪打击案例",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "待确认",
+  "case_status": "已发布",
+  "basic_facts": "公安部重点实验室研发 e-CarS 系统，部署后数月侦破涉车案件 100 余宗，能够在 10 亿级图片库中秒级检索，复杂查询由 10 分钟缩短至 10 秒。\n\n该案例体现车辆特征识别和海量图库检索在涉车犯罪侦查中的作用。车辆数据可能包括车牌、颜色、品牌、型号、轨迹等信息，治理上应注意车辆数据与车主个人信息之间的关联保护，防止被超目的使用。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《刑事诉讼法》；道路交通与公安数据管理规则；个人信息保护和数据安全规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "车辆轨迹分析容易牵连无关车主和同行人员，应设置关联性阈值、人工复核和日志审计。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例26_26. e-CarS 涉车犯罪打击案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "1da61babc9a7ffa7ea12d9f015cb0438e016b2eae9393f1f3bdf73c7f39a8cd7"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

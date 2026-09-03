@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0069",
+  "title": "温州特大持枪绑架案电子物证恢复",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "待确认",
+  "case_status": "已发布",
+  "basic_facts": "2011 年温州特大持枪绑架案中，办案机关恢复被删除的便利店监控视频，该视频成为唯一反映案犯体貌特征的证据，为案件侦破提供关键线索。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《刑事诉讼法》；电子数据取证、封存、校验和鉴定规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "数据恢复应确保证据链完整，包括取证主体、镜像、哈希校验、封存和鉴定意见可质证。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例29_29. 温州特大持枪绑架案电子物证恢复.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "4d3fd1a82bd32e0ad79fcee66988b4b50c366361a851b9fbe9c6a625e73b03ed"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

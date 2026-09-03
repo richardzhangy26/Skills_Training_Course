@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0009",
+  "title": "某跨国品牌个人信息违规出境案",
+  "scene_id": "scene-01",
+  "record_type": "administrative_enforcement",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "公安机关公布的行政执法典型案例显示，某跨国品牌中国公司在未通过数据出境安全评估、未订立个人信息出境标准合同、未通过个人信息保护认证的情况下，违规向境外总部传输境内用户个人信息。同时，该公司未向用户充分告知境外接收方的处理方式，未取得用户的单独同意，也未对收集的个人信息采取加密、去标识化等安全技术措施。公安机关依法对该公司作出行政处罚，并责令限期改正。\n\n该案虽然主要涉及消费者个人信息出境，但对于跨国企业处理员工个人信息具有直接警示意义。无论是用户数据还是员工数据，只要境内收集、产生的个人信息被境外总部、境外关联公司或境外系统访问、调取、存储或处理，就可能构成个人信息出境。企业不能以“集团内部管理”“统一系统部署”“总部合规审计”为由排除《个人信息保护法》的适用。\n\n从就业场景看，跨国企业使用全球HR系统时，应当先盘点出境数据的类型、数量、敏感程度、出境目的、境外接收方和保存期限，判断是否需要安全评估、标准合同、个人信息保护认证或是否适用跨境人力资源管理豁免。同时，还应向员工单独告知出境事项，并取得单独同意，避免将员工薪资、绩效、健康、金融账户等敏感信息无差别同步至境外系统。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《个人信息保护法》第13条、第17条、第29条、第38条至第40条、第51条、第55条；《数据出境安全评估办法》；个人信息出境标准合同相关规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "跨国企业使用全球 HR 系统时，应盘点员工薪酬、绩效、健康、金融账户等数据，判断是否出境、是否触发安全评估或标准合同，并进行单独告知和影响评估。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景01_案例09_9. 某跨国品牌个人信息违规出境案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "65a6bf30e4f9b8644395989bbd33e6eaa4dec1d6b00c7b087bd4de144e782bb6"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

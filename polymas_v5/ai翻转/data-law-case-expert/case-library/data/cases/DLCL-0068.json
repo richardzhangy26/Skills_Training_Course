@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0068",
+  "title": "重庆 VCS 视频侦查快速办案案例",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "待确认",
+  "case_status": "已发布",
+  "basic_facts": "重庆卢伟鹏在 50 小时监控中发现嫌疑人“拉车门”惯犯动作，串并案件后锁定并抓获潜逃 2 年的盗窃嫌疑人。VCS 便携设备可使基层民警现场快速处理 U 盘、硬盘视频，无需回局即可当场出结果。\n\n其风险在于，行为识别可能因模型误差造成误判，应在侦查中作为线索而非直接定案依据，并保障后续人工核验和证据审查。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《刑事诉讼法》；电子数据和视听资料证据规则；个人信息保护相关规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "视频侦查的效率优势不能替代证据合法性审查，应保留原始视频、检索条件和操作日志。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例28_28. 重庆 VCS 视频侦查快速办案案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "0e9912350b657002e8c3ac7858f564c0a3f95e185b3610ed2294e4c136c59524"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

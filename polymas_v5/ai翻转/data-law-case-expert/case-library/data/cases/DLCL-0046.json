@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0046",
+  "title": "福特、大众车联网安全漏洞",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "2020 年 4 月，《Which?》杂志联合 Context Information Security 发布报告称，安全研究人员可进入大众 Polo的信息娱乐系统，修改汽车牵引力控制功能，并获取车主电话、地理位置记录等个人敏感信息；大众Polo的雷达模块也可能被入侵并篡改车辆碰撞预警系统。对福特福克斯的测试还发现，研究人员可拦截胎压监测系统信息并发送虚假数据，即使轮胎没气仍显示充气正常；福特 Pass 应用还可分享车辆地理位置、行驶方向、传感器数据和驾驶特性。\n\n车联网安全同时涉及个人信息保护、财产安全和道路交通安全。车辆位置、驾驶习惯、行驶方向等信息具有高度敏感性；车辆控制系统或安全预警系统被篡改，则可能直接引发人身安全风险。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》第21条、第42条；《个人信息保护法》第51条；《汽车数据安全管理若干规定（试行）》。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "车联网安全不仅是隐私问题，也可能外溢为车辆控制安全。应对远程控制功能实施强认证和分层授权。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例06_6. 福特、大众车联网安全漏洞.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "a521b792ba8c296a128db93da9d5b8a0e072d9b2cf21c1a68f576e752bf43c4a"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

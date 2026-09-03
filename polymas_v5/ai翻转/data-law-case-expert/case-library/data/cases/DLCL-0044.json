@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0044",
+  "title": "Kr00k WiFi 芯片漏洞",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "美国",
+  "case_status": "已发布",
+  "basic_facts": "2020年2月，美国安全公司ESET研究员发现Broadcom和Cypress WiFi芯片存在严重安全漏洞。攻击者利用该漏洞后，可以截取和分析设备发送的无线网络数据包，解密周围空中传输的敏感数据。这两类WiFi芯片被广泛用于笔记本电脑、智能手机和物联网设备，包括亚马逊Echo、Kindle，苹果iPhone、iPad，谷歌Pixel，三星Galaxy，树莓派，以及小米、华硕、华为等品牌产品，保守估计全球可能有十亿台设备受影响。\n\n物联网安全风险具有供应链扩散特征。单个芯片或通信模块的漏洞，可能因其被大量设备采用而迅速扩展为全球性安全风险。治理启示在于，物联网安全不应只关注终端产品，还应覆盖芯片、通信模块、操作系统、协议栈等上游基础组件。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》第21条；《数据安全法》第27条；漏洞管理和产品安全规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "芯片级漏洞说明物联网安全责任贯穿供应链，设备商应建立漏洞情报、补丁分发和兼容性验证机制。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例04_4. Kr00k WiFi 芯片漏洞.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "6802b1b8965c0e0600c4dd898cfeb2a9989e27fb93e560de7d9069ca17f0bf43"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

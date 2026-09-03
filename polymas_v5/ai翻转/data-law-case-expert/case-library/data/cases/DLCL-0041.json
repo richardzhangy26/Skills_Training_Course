@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0041",
+  "title": "BadPower 快充设备安全漏洞案例",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "腾讯安全玄武实验室发布的 BadPower 安全问题研究报告指出，市面上大量快充终端设备存在安全问题，攻击者可以通过改写快充设备固件控制充电行为，导致被充电设备元器件烧毁，并可能造成更严重后果。\n\n主要风险：终端设备固件安全不足、设备更新机制缺失、用户难以及时发现异常、厂商安全设计责任不足。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》第21条、第42条；《数据安全法》第27条；《个人信息保护法》第51条；产品安全与漏洞管理规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "终端厂商不能只关注功能和成本，应落实安全默认、固件签名、更新验证、异常检测和漏洞响应机制。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例01_1. BadPower 快充设备安全漏洞案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "452f9892e6a75a306d1d2191a9910cef1024ef19fa1b32f99b1765e0d174c13a"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

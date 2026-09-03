@@ -1,0 +1,40 @@
+{
+  "case_id": "DLCL-0023",
+  "title": "第三方医疗服务平台逻辑漏洞导致患者信息泄露风险案",
+  "scene_id": "scene-03",
+  "record_type": "security_incident",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "第三方医疗服务平台通常在同一平台或代码框架下汇集多家医院资源，为患者提供挂号预约、体检预约、医生咨询等服务。一旦平台存在登录绕过、未授权访问、平行越权等漏洞，攻击者仅通过手机号等信息即可获取患者姓名、身份证号、就诊卡信息、挂号记录、化验检验报告单以及其他个人健康生理和医疗信息。",
+  "dispute_focus": "第三方平台为医院提供线上挂号和问诊服务时，应承担何种网络安全和个人信息保护义务；平台系统漏洞是否构成未履行安全保障义务。",
+  "legal_provisions": [
+    {
+      "citation_text": "《个人信息保护法》第九条、第五十一条、第五十五条、第五十六条、第五十七条；《网络安全法》第二十一条、第四十二条；《数据安全法》第二十七条、第二十九条；《民法典》第一千零三十八条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    },
+    {
+      "citation_text": "《个人信息保护法》第51条、第55条、第56条；《网络安全法》第21条、第42条；《数据安全法》第27条、第29条；GB/T 39725-2020《信息安全技术 健康医疗数据安全指南》。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "“平台漏洞发现后如何处置”。平台是否落实了必要的技术和组织措施。医疗服务平台处理的是高敏感度数据，应设置强身份认证、接口鉴权、越权校验、最小权限访问、敏感字段脱敏、异常访问告警和日志审计。若平台以统一代码框架服务多家医院，还应特别防止“一处漏洞、多院泄露”的系统性风险。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景03_案例04_4. 第三方医疗服务平台逻辑漏洞导致患者信息泄露风险案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "2dec20efb3c717bad2531109383a9c9dba131e093d5434980d5382ee96eb6d68"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

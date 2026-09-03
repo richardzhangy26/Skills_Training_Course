@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0053",
+  "title": "2016 年大规模 DDoS 与网络摄像头僵尸网络",
+  "scene_id": "scene-09",
+  "record_type": "security_incident",
+  "jurisdiction": "美国",
+  "case_status": "已发布",
+  "basic_facts": "2016 年 10 月，一场超大规模 DDoS 攻击整垮了大半个美国互联网。发动攻击的黑客利用了由 150 万台设备组成的僵尸网络，其中大部分设备为网络摄像头。\n\n低安全水平的物联网终端可能被批量感染并转化为攻击基础设施。单个摄像头对用户而言可能只是家用设备，但当大规模设备被恶意控制后，就可能造成互联网基础服务瘫痪。治理上应加强默认密码治理、设备出厂安全标准、漏洞补丁和僵尸网络监测。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《网络安全法》第21条、第25条、第42条；《刑法》破坏计算机信息系统相关规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "默认口令和不可更新设备会将家庭终端转化为公共网络风险，厂商应禁止通用默认密码并提供长期更新。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例13_13. 2016 年大规模 DDoS 与网络摄像头僵尸网络.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "fe1750ac52dfe0036a3cd0b96aaadec0328b925f998eedb981bf7b2e2981e349"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

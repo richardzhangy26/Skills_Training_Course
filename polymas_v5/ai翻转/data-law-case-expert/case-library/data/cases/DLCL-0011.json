@@ -1,0 +1,40 @@
+{
+  "case_id": "DLCL-0011",
+  "title": "López Ribalda and Others v. Spain 工作场所隐蔽视频监控案",
+  "scene_id": "scene-01",
+  "record_type": "security_incident",
+  "jurisdiction": "欧盟或欧洲国家",
+  "case_status": "已发布",
+  "basic_facts": "西班牙一家超市发现库存和销售额之间存在严重差异，怀疑员工盗窃，于是在店内安装可见摄像头和隐蔽摄像头。可见摄像头对准出入口，隐蔽摄像头对准收银台。相关视频显示员工存在盗窃行为，部分员工被解雇。\n\n员工认为隐蔽视频监控未事先告知，侵犯隐私权。案件最终由欧洲人权法院大审判庭审理。",
+  "dispute_focus": "用人单位在怀疑严重盗窃等不当行为时，能否在未事先告知员工的情况下短期使用隐蔽视频监控；隐蔽监控所得证据能否用于劳动处分和司法程序。",
+  "legal_provisions": [
+    {
+      "citation_text": "《欧洲人权公约》第8条；西班牙劳动和数据保护相关规则。若置于我国法语境下，可对应《个人信息保护法》第十三条、第十七条、第五十一条，《民法典》隐私权和个人信息保护规定，以及劳动规章制度合法性要求。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    },
+    {
+      "citation_text": "《欧洲人权公约》第8条；对应我国可参照《民法典》隐私权规则、《个人信息保护法》第5条、第6条、第17条、第51条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "judgment",
+  "outcome": "欧洲人权法院大审判庭认为，在该案具体事实下，隐蔽视频监控有合理怀疑基础，范围限于收银区域，持续时间有限，且用于调查严重财产损失，未违反《欧洲人权公约》第8条。",
+  "outcome_evidence_status": "source_material",
+  "legal_analysis": "该案说明，职场隐蔽监控并非绝对禁止，但适用条件非常严格。必须存在具体、严重、现实的风险或违法嫌疑，监控区域和时间应尽可能缩小，不能对员工日常行为进行长期、全方位捕捉。\n\n我国企业若因信息安全、盗窃或商业秘密泄露需要临时调查，也应坚持比例原则和证据必要性。普通考勤、绩效管理或效率提升不能成为长期隐蔽摄像、录音或屏幕监控的理由。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景01_案例11_11. López Ribalda and Others v. Spain 工作场所隐蔽视频监控案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "5452dffe80e568563f6b435f169657721970c9ffd2baf351e706d7b7c2b91d2a"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

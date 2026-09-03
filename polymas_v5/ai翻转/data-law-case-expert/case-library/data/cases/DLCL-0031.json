@@ -1,0 +1,40 @@
+{
+  "case_id": "DLCL-0031",
+  "title": "Google/YouTube 儿童定向内容持久标识符收集案",
+  "scene_id": "scene-05",
+  "record_type": "research_material",
+  "jurisdiction": "美国",
+  "case_status": "已发布",
+  "basic_facts": "2019年，FTC和纽约州总检察长指控 Google 和 YouTube 在儿童导向频道中收集儿童观看者的个人信息，尤其是用于跨网站追踪和定向广告的持久标识符，且未事先通知父母并取得父母同意。\n\nFTC指出，YouTube对外宣传其在儿童群体中的影响力，并从儿童导向频道的定向广告中获得收入。最终 Google 和 YouTube 同意支付1.7亿美元，其中1.36亿美元支付给FTC，3400万美元支付给纽约州。",
+  "dispute_focus": "平台声称自身是综合性平台时，是否可以忽视平台中大量儿童导向频道的存在；用于广告追踪的 cookie、设备标识符和其他持久标识符是否属于儿童个人信息。",
+  "legal_provisions": [
+    {
+      "citation_text": "美国COPPA及COPPA Rule。若置于我国法语境下，可对应《个人信息保护法》关于未成年人个人信息、敏感个人信息和自动化决策的规定，以及《未成年人网络保护条例》关于防止对未成年人实施商业营销和不当画像的规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    },
+    {
+      "citation_text": "美国 COPPA；对应我国《个人信息保护法》第24条、第28条、第31条，《未成年人保护法》第72条、第77条。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "judgment",
+  "outcome": "Google和YouTube同意支付1.7亿美元和解金，并建立机制使频道所有者标记儿童导向内容；同时须向频道所有者通知COPPA义务，对相关员工开展培训，并在收集儿童个人信息前提供通知并取得可验证父母同意。",
+  "outcome_evidence_status": "source_material",
+  "legal_analysis": "该案的核心在于，儿童个人信息不只包括姓名、照片和联系方式，也包括可用于持续识别和追踪儿童的持久标识符。即使平台不知道儿童真实姓名，仍可能通过设备和浏览行为对儿童进行画像和广告投放。\n\n对于我国短视频、在线教育和内容平台而言，未成年人保护应覆盖推荐算法、广告系统和第三方广告网络。平台不得以“只是技术标识符”为由降低保护标准，也不能把儿童观看数据纳入普通商业广告画像。\n\n六、五类场景与真实案例对照表\n\n为便于汇报和复习，现将五类场景及其三个真实案例作简要对照。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景05_案例04_4. Google_YouTube 儿童定向内容持久标识符收集案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "e4112d204816276604a9190a9f7a71f73bc6a896f4af7995c2d50aa21f68e61e"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

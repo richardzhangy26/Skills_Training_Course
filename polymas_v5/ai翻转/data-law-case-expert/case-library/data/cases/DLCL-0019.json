@@ -1,0 +1,40 @@
+{
+  "case_id": "DLCL-0019",
+  "title": "丰田联网汽车云环境配置错误导致车辆位置数据潜在泄露案",
+  "scene_id": "scene-02",
+  "record_type": "security_incident",
+  "jurisdiction": "日本",
+  "case_status": "已发布",
+  "basic_facts": "2023年5月，丰田汽车披露其联网服务相关云环境存在配置问题。媒体和公司公告显示，相关问题涉及 Toyota Connected 管理的云环境，部分车辆和客户数据曾因云端设置不当而存在被外部访问的风险。丰田此前还披露，日本约215万名使用 T-Connect、G-Link 等联网服务的用户可能受到影响，涉及车辆识别、车载终端信息和车辆位置相关数据。\n\n丰田表示，发现问题后已限制外部访问，并对 Toyota Connected 管理的云环境开展更广泛检查。该事件反映出联网汽车服务高度依赖云端配置和供应链运维，一旦云权限设置错误，车辆位置和终端标识可能长时间暴露。",
+  "dispute_focus": "联网汽车厂商将车辆数据集中存储在云端时，是否已采取足够的访问控制、配置审计和持续监测措施；车辆位置、终端标识等数据在未与姓名直接绑定时，是否仍可能构成可识别个人的敏感数据。",
+  "legal_provisions": [
+    {
+      "citation_text": "日本个人信息保护相关规则及企业数据安全义务。若置于我国法框架下，可对应《个人信息保护法》第五十一条、第五十五条，《数据安全法》第二十七条、第二十九条，以及《汽车数据安全管理若干规定（试行）》关于汽车数据处理者安全保护和风险报告的要求。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    },
+    {
+      "citation_text": "日本个人信息保护相关规则；对应我国《个人信息保护法》第51条、第55条，《数据安全法》第27条、第29条，《汽车数据安全管理若干规定（试行）》。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "judgment",
+  "outcome": "该事件主要体现为企业公开道歉、通知和整改，并非公开的法院判决。丰田采取了限制外部访问、检查云环境、加强内部管理等措施。",
+  "outcome_evidence_status": "source_material",
+  "legal_analysis": "该案说明，车联网个人信息保护不只发生在车辆端，也发生在云端。车辆位置和终端标识即使不直接显示车主姓名，也可能通过长期轨迹、车辆编号和其他信息组合识别到具体个人。\n\n对智能网联汽车企业而言，云环境配置管理应纳入核心合规内容。企业应开展云资产盘点、默认私有配置、访问密钥轮换、自动化配置扫描、漏洞发现和数据泄露应急演练，防止车辆数据因低级配置错误长期暴露。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景02_案例07_7. 丰田联网汽车云环境配置错误导致车辆位置数据潜在泄露案.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "365251ddcebc288d5d32b2be4980e5e824c7518cd862696bf32af4f752afb875"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

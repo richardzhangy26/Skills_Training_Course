@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0074",
+  "title": "以色列 IPS 公司数字取证几何比较案例",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "以色列",
+  "case_status": "已发布",
+  "basic_facts": "以色列 IPS 公司数字取证技术采用几何比较技术，对模糊图像或视频中的人物面部、手部等特征进行分析。通过对比模糊监控中的嫌疑人侧脸与正面照片中的额头、下巴等几何特征，确定 95% 相似度，协助警方锁定嫌疑人。\n\n图像增强和特征比对技术被应用于数字取证。其风险在于，相似度判断不应直接等同于身份确认，应结合其他证据综合认定，并关注算法误判率和专家意见的可质证性。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "司法鉴定规则；电子数据和视听资料证据规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "技术鉴定应说明方法、误差率、样本来源和专家资质，避免算法黑箱直接影响裁判。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例34_34. 以色列 IPS 公司数字取证几何比较案例.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "e6dfa680aa6771e2ee7cd299dcbdda22455257b8d891098b39d232a9e8d4a193"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

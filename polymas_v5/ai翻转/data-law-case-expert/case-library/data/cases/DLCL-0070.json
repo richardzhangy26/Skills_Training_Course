@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0070",
+  "title": "2018 年“尼泊尔跨境电诈专案”电子物证恢复",
+  "scene_id": "scene-09",
+  "record_type": "research_material",
+  "jurisdiction": "尼泊尔或跨境",
+  "case_status": "已发布",
+  "basic_facts": "2018 年“尼泊尔跨境电诈专案”中，办案机关挖掘数百台涉案设备中的 8000 多万条数据，重现“杀猪盘”诈骗手段，为案件侦破提供关键证据。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《刑事诉讼法》；跨境取证协作规则；电子数据证据规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "跨境电子证据需兼顾来源合法性、完整性、翻译/转化准确性和境外协作程序。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例30_30. 2018 年“尼泊尔跨境电诈专案”电子物证恢复.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "a5c69da2fa8b6fb5afaa0e20a74fc5ed853ab388cf856a1b9fbd03fb129697bc"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}

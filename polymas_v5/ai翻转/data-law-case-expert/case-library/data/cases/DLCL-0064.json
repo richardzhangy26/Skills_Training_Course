@@ -1,0 +1,35 @@
+{
+  "case_id": "DLCL-0064",
+  "title": "交通违法治理中的人脸与车脸识别",
+  "scene_id": "scene-09",
+  "record_type": "judicial_case",
+  "jurisdiction": "中国",
+  "case_status": "已发布",
+  "basic_facts": "全国多地使用人脸与车脸识别技术治理交通违法，例如开车打电话、不系安全带、违法鸣笛等，通过声呐与视频联动自动抓拍。郑州电动车 AI 天眼通过 272 套监控实现全覆盖，对闯红灯、不戴头盔、违法载人等行为进行抓拍，并通过短信自动推送罚单。\n\n智能识别技术在行政执法中的应用。其价值在于提高交通治理效率，但风险在于执法数据采集密度高、覆盖范围广，容易形成常态化监控。治理上应明确执法依据、数据保存期限、错误申诉机制和自动化处罚的人工复核程序。",
+  "dispute_focus": null,
+  "legal_provisions": [
+    {
+      "citation_text": "《个人信息保护法》第28条、第29条、第51条；道路交通安全管理规则；行政执法程序规则。",
+      "source_url": null,
+      "evidence_status": "材料已核对"
+    }
+  ],
+  "outcome_type": "unknown",
+  "outcome": null,
+  "outcome_evidence_status": "missing",
+  "legal_analysis": "生物识别和车辆轨迹具有敏感性。执法技术应有明确法定依据、必要范围、准确率审查和异议救济。",
+  "analysis_origin": "source_material",
+  "sources": [
+    {
+      "title": "场景09_案例24_24. 交通违法治理中的人脸与车脸识别.docx",
+      "url": null,
+      "published_at": null,
+      "retrieved_at": null,
+      "source_tier": "source_material",
+      "sha256": "7f305c6e5961cd2530279d6dce085ac430b289eb4d00449f0b5702481c3be5ee"
+    }
+  ],
+  "evidence_status": "待补证",
+  "classification_review_required": true,
+  "version": 1
+}
