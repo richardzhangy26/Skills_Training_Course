@@ -192,15 +192,13 @@ class OnlineE2ERunnerTests(unittest.TestCase):
         for backend, desired_error, stage_name, expected_code in cases:
             with self.subTest(stage=stage_name), tempfile.TemporaryDirectory() as temporary:
                 runner = self._runner(temporary, backend)
-                context = (
-                    patch("online_e2e.runner.build_desired_config", side_effect=desired_error)
-                    if desired_error is not None
-                    else patch("online_e2e.runner.build_desired_config", wraps=None)
-                )
                 if desired_error is None:
                     result = runner.run(f"run_error_{stage_name.lower()}", mode="dry-run")
                 else:
-                    with context:
+                    with patch(
+                        "online_e2e.runner.build_desired_config",
+                        side_effect=desired_error,
+                    ):
                         result = runner.run(f"run_error_{stage_name.lower()}", mode="dry-run")
 
                 stages = {stage["name"]: stage for stage in result["stages"]}
