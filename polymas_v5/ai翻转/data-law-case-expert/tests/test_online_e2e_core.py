@@ -213,6 +213,62 @@ class OnlineE2ECoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "undeclared_skill"):
             require_apply_allowed(report)
 
+    def test_normal_skill_metadata_difference_remains_applyable(self):
+        config_diff = load_config_diff()
+        report = config_diff.compare_configs(
+            expected={"skills": [{"nid": "skill-a", "name": "旧名称"}]},
+            actual={"skills": [{"nid": "skill-a", "name": "新名称"}]},
+            declared_skill_nids={"查询": "skill-a"},
+        )
+
+        self.assertTrue(report.apply_allowed)
+        self.assertIn(
+            "skills[nid=skill-a].name", {item.path for item in report.items}
+        )
+        config_diff.require_apply_allowed(report)
+
+    def test_apply_guard_has_stable_fallback_for_inconsistent_blocked_report(self):
+        config_diff = load_config_diff()
+        report = config_diff.compare_configs(
+            expected={"skills": []}, actual={"skills": []}, declared_skill_nids={}
+        )
+
+        with self.assertRaisesRegex(ValueError, "apply_blocked"):
+            config_diff.require_apply_allowed(
+                replace(report, apply_allowed=False, items=())
+            )
+
+    def test_expected_undeclared_skill_nid_blocks_apply_without_actual_skills(self):
+        config_diff = load_config_diff()
+        report = config_diff.compare_configs(
+            expected={"skills": [{"nid": "rogue-skill"}]},
+            actual={"skills": []},
+            declared_skill_nids={},
+        )
+
+        self.assertFalse(report.apply_allowed)
+        self.assertIn("undeclared_skill", [item.kind for item in report.items])
+        with self.assertRaisesRegex(ValueError, "undeclared_skill"):
+            config_diff.require_apply_allowed(report)
+
+    def test_malformed_actual_skills_response_is_contract_changed_and_blocked(self):
+        config_diff = load_config_diff()
+        cases = (
+            {"skills": {"nid": "skill-a"}},
+            {"skills": ["not-a-skill-mapping"]},
+        )
+        for actual in cases:
+            with self.subTest(actual=actual):
+                report = config_diff.compare_configs(
+                    expected={"skills": []},
+                    actual=actual,
+                    declared_skill_nids={},
+                )
+                self.assertFalse(report.apply_allowed)
+                self.assertIn("CONTRACT_CHANGED", [item.kind for item in report.items])
+                with self.assertRaisesRegex(ValueError, "CONTRACT_CHANGED"):
+                    config_diff.require_apply_allowed(report)
+
     def test_knowledge_and_difference_summaries_have_stable_digests(self):
         contracts = load_contracts()
         config_diff = load_config_diff()
@@ -313,6 +369,21 @@ class OnlineE2ECoreTests(unittest.TestCase):
 
         self.assertNotIn(authorization, redacted)
         self.assertNotIn(cookie, redacted)
+
+    def test_redaction_removes_all_values_from_plain_and_nested_cookie_headers(self):
+        safety = load_safety()
+        first = "sid=first-test-secret"
+        second = "auth=second-test-secret"
+        header = f"Cookie: {first}; {second}\nstatus=visible"
+        serialized = json.dumps({"nested": json.dumps({"Cookie": f"{first}; {second}"})})
+
+        redacted_header = safety.redact_sensitive(header)
+        redacted_serialized = safety.redact_sensitive(serialized)
+
+        for secret in (first, second):
+            self.assertNotIn(secret, redacted_header)
+            self.assertNotIn(secret, redacted_serialized)
+        self.assertIn("status=visible", redacted_header)
 
     def test_checkpoint_write_is_atomic_private_and_redacted(self):
         safety = load_safety()

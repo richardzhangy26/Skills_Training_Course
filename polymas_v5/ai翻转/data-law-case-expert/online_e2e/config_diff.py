@@ -12,6 +12,7 @@ from .contracts import ConfigDiff, ConfigSnapshot, Difference, KnowledgeSnapshot
 
 
 UNRESOLVED_NID_PREFIX = "PDS_NID_UNRESOLVED_"
+CONTRACT_CHANGED = "CONTRACT_CHANGED"
 
 
 def _jsonable(value: Any) -> Any:
@@ -94,6 +95,31 @@ def _skill_records(config: Mapping[str, Any]) -> list[tuple[int, Any, str | None
     return [(index, record, _valid_nid(record)) for index, record in enumerate(_skills(config))]
 
 
+def _skill_contract_changes(
+    config: Mapping[str, Any], *, expected: bool
+) -> list[Difference]:
+    raw_skills = config.get("skills", ())
+    if not isinstance(raw_skills, (list, tuple)):
+        return [
+            Difference(
+                "skills",
+                CONTRACT_CHANGED,
+                raw_skills if expected else None,
+                None if expected else raw_skills,
+            )
+        ]
+    return [
+        Difference(
+            f"skills[index={index}]",
+            CONTRACT_CHANGED,
+            record if expected else None,
+            None if expected else record,
+        )
+        for index, record in enumerate(raw_skills)
+        if not isinstance(record, Mapping)
+    ]
+
+
 def _field_differences(expected: Any, actual: Any, path: str = "") -> list[Difference]:
     if isinstance(expected, Mapping) and isinstance(actual, Mapping):
         items: list[Difference] = []
@@ -151,7 +177,8 @@ def _apply_blockers(
     actual_records = _skill_records(actual)
     expected_nids = {nid for _, _, nid in expected_records if nid is not None}
     declared_nids = set(declared_skill_nids.values())
-    blockers: list[Difference] = []
+    blockers = _skill_contract_changes(expected, expected=True)
+    blockers.extend(_skill_contract_changes(actual, expected=False))
 
     for index, record, nid in expected_records:
         path = f"skills[index={index}]" if nid is None else f"skills[nid={nid}]"
@@ -159,6 +186,8 @@ def _apply_blockers(
             blockers.append(Difference(path, "missing_skill_nid", record, None))
         elif nid.startswith(UNRESOLVED_NID_PREFIX):
             blockers.append(Difference(path, "unresolved_skill_nid", nid, None))
+        elif nid not in declared_nids:
+            blockers.append(Difference(path, "undeclared_skill", nid, None))
 
     for index, record, nid in actual_records:
         path = f"skills[index={index}]" if nid is None else f"skills[nid={nid}]"
@@ -187,7 +216,7 @@ def compare_configs(
         actual_snapshot.normalized,
         declared_skill_nids,
     )
-    items = blockers
+    items = list(blockers)
     items.extend(
         _field_differences(expected_snapshot.normalized, actual_snapshot.normalized)
     )
@@ -205,12 +234,16 @@ def require_apply_allowed(report: ConfigDiff) -> None:
 
     if not report.apply_allowed:
         blockers = {
+            CONTRACT_CHANGED,
             "missing_skill_nid",
             "undeclared_skill",
             "unexpected_skill_nid",
             "unresolved_skill_nid",
         }
-        reason = next(item.kind for item in report.items if item.kind in blockers)
+        reason = next(
+            (item.kind for item in report.items if item.kind in blockers),
+            "apply_blocked",
+        )
         raise ValueError(f"{reason}_blocks_apply")
 
 
