@@ -133,6 +133,97 @@ class OnlineE2ECLITests(unittest.TestCase):
                 self.assertIn("usage", payload)
                 self.assertEqual(result.stderr, "")
 
+    def test_live_precheck_client_error_still_returns_redacted_json_and_markdown_reports(self):
+        from online_e2e.cli import main
+        from online_e2e.contracts import load_target_config
+        from online_e2e.reports import ReportWriter
+        from online_e2e.run_store import DurableRunStore
+        from online_e2e.runner import ExpertE2ERunner
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+        from online_e2e.transport import ClientError
+
+        class InaccessibleLiveBackend(SyntheticRegressionBackend):
+            environment = "live"
+
+            def precheck(self, target):
+                raise ClientError(
+                    "ASSISTANT_NOT_ACCESSIBLE",
+                    "assistants",
+                    "private-user private-assistant private-cookie",
+                )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = load_target_config("data-law-case-expert", root=ROOT)
+            backend = InaccessibleLiveBackend(target)
+
+            def factory(arguments):
+                return ExpertE2ERunner(
+                    target,
+                    backend,
+                    DurableRunStore(root / "state"),
+                    ReportWriter(root / "reports"),
+                )
+
+            stdout = StringIO()
+            stderr = StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                exit_code = main(
+                    [
+                        "data-law-case-expert",
+                        "dry-run",
+                        "full",
+                        "--run-id",
+                        "run_inaccessible",
+                        "--env-file",
+                        "/unused/explicit.env",
+                    ],
+                    runner_factory=factory,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(len(stdout.getvalue().splitlines()), 1)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["status"], "BLOCKED")
+            self.assertEqual(payload["code"], "ASSISTANT_NOT_ACCESSIBLE")
+            self.assertTrue(Path(payload["report_json"]).is_file())
+            self.assertTrue(Path(payload["report_markdown"]).is_file())
+            combined = (
+                Path(payload["report_json"]).read_text(encoding="utf-8")
+                + Path(payload["report_markdown"]).read_text(encoding="utf-8")
+                + stdout.getvalue()
+                + stderr.getvalue()
+            )
+            for secret in ("private-user", "private-assistant", "private-cookie"):
+                self.assertNotIn(secret, combined)
+
+    def test_runner_store_or_report_failure_keeps_cli_stdout_single_json(self):
+        from online_e2e.cli import main
+
+        class BrokenRunner:
+            def run(self, *args, **kwargs):
+                raise OSError("private report filesystem detail")
+
+        stdout = StringIO()
+        stderr = StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = main(
+                [
+                    "data-law-case-expert",
+                    "dry-run",
+                    "full",
+                    "--run-id",
+                    "run_report_failure",
+                    "--env-file",
+                    "/unused/explicit.env",
+                ],
+                runner_factory=lambda arguments: BrokenRunner(),
+            )
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(len(stdout.getvalue().splitlines()), 1)
+        self.assertEqual(json.loads(stdout.getvalue())["code"], "INTERNAL_ERROR")
+        self.assertNotIn("private report filesystem detail", stdout.getvalue() + stderr.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

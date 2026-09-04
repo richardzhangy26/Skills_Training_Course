@@ -23,6 +23,7 @@ from .contracts import ConfirmationBinding, KnowledgeSnapshot, TargetConfig
 from .desired_config import DesiredConfigError, build_desired_config
 from .fixtures import build_teacher_docx, student_scenarios, teacher_case_ids, validate_run_id
 from .json_clone import clone_json
+from .transport import ClientError
 
 
 _STAGES = (
@@ -553,9 +554,9 @@ class ExpertE2ERunner:
         if mode not in ("dry-run", "apply"):
             raise ValueError("invalid_mode")
         with self.store.target_lock(self.target.target_id):
-            prior = self.store.read_checkpoint(run_id) if mode == "apply" else None
             payload = self._base(run_id)
             try:
+                prior = self.store.read_checkpoint(run_id) if mode == "apply" else None
                 (
                     precheck,
                     before,
@@ -565,7 +566,13 @@ class ExpertE2ERunner:
                     binding,
                     fixture_ownership,
                 ) = self._prepare(payload, prior)
-            except (BackendFailure, DesiredConfigError, OSError, ValueError) as error:
+            except (
+                BackendFailure,
+                ClientError,
+                DesiredConfigError,
+                OSError,
+                ValueError,
+            ) as error:
                 payload.update(status="BLOCKED", code=getattr(error, "code", "CONTRACT_CHANGED"))
                 return self._finish(payload)
 

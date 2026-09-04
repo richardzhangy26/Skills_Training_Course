@@ -17,6 +17,8 @@
 
 `FEpEJws9cS` 是生产中药材助教 app NID，`x3PalTZaWr` 是数据法学案例专家 NID。它们不是同一标识。`runtime_agent_nid` 仍单独保留，不能用任一现有 NID 猜测填充。
 
+显式 env 中的 AUTHORIZATION/COOKIE 必须属于能够精确读取目标 `assistant_nid` 的同一账号。Chrome 中当前登录账号与 env 凭证账号可能不同；凭证账号没有目标助教关系时，precheck 返回 `ASSISTANT_NOT_ACCESSIBLE`。正确处理方式是切回有访问权的账号并重新取得凭证，不能降级为名称包含、相似度或昵称模糊匹配。本次真实 dry-run 只读证据确认了该错误边界；报告仅保留稳定 code，不记录 userNid、Cookie、Authorization、个人身份或上游 detail。
+
 ## 已观察但不可用于当前写入的接口
 
 部署源码显示 `POST /llmOps/application/saveAssistant` 固定 `isPublish=1`，因此保存即发布，没有可供本工具使用的独立草稿保存。源码也显示知识绑定和解绑接口。此次没有执行这些写操作，且 `saveAssistant` 的模型转换、basicInfo 白名单、精确成功回执与不确定写入回读仍未完整核验；默认 `SaveProfile` 必须保持 unverified。

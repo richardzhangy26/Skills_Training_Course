@@ -67,7 +67,7 @@ python -m online_e2e data-law-case-expert dry-run full \
   --env-file /absolute/path/to/polymas.env
 ```
 
-env 文件必须由 `--env-file` 显式传入，至少包含 `AUTHORIZATION` 与 `COOKIE`。生产 transport 只接受 `https://cloudapi.polymas.com` origin，并在发送前复核最终 URL，拒绝 path 中的 scheme/netloc、反斜杠和控制字符，避免凭证被带到外域。凭证只进入内存请求头，不进入 stdout、checkpoint 或报告。CLI 的 stdout 始终恰好一个 JSON；`--help/-h` 也只输出单个 HELP JSON，诊断写 stderr。运行 checkpoint 位于 `.online-e2e-state/`，JSON/Markdown 报告位于 `reports/online-e2e/`，两者均被 gitignore 且使用共享的 0600 原子写实现。
+env 文件必须由 `--env-file` 显式传入，至少包含 `AUTHORIZATION` 与 `COOKIE`，并且必须来自能够精确看到目标 `assistant_nid` 的同一账号。浏览器 Chrome 当前账号与 env 凭证账号不同，或该账号没有目标助教关系时，会返回 `ASSISTANT_NOT_ACCESSIBLE`；应从正确账号重新取得 AUTHORIZATION/COOKIE，不能改用名称包含、相似名称或其他模糊匹配绕过。生产 transport 只接受 `https://cloudapi.polymas.com` origin，并在发送前复核最终 URL，拒绝 path 中的 scheme/netloc、反斜杠和控制字符，避免凭证被带到外域。凭证只进入内存请求头，不进入 stdout、checkpoint 或报告。CLI 的 stdout 始终恰好一个 JSON；`--help/-h` 也只输出单个 HELP JSON，诊断写 stderr。运行 checkpoint 位于 `.online-e2e-state/`，JSON/Markdown 报告位于 `reports/online-e2e/`，两者均被 gitignore 且使用共享的 0600 原子写实现。发布前的稳定 ClientError 也会生成 BLOCKED JSON/Markdown 报告；只有 store/report 自身不可用时才由 CLI 返回无报告路径的单 JSON `INTERNAL_ERROR`。
 
 只有所有 live 前置条件补证后，`dry-run` 才会把一次性确认令牌返回到 stdout。随后必须使用相同 `run_id` 和原令牌执行：
 
