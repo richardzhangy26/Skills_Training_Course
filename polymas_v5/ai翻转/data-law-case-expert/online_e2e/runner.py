@@ -7,6 +7,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+import re
 import secrets
 from typing import Any
 
@@ -36,6 +37,7 @@ _STAGES = (
     "CLEANUP",
     "PASSED",
 )
+_SAFE_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 
 
 def _nonempty_string(value):
@@ -157,6 +159,19 @@ class ExpertE2ERunner:
                 if detail is not None:
                     stage["detail"] = detail
                 return
+
+    @staticmethod
+    def _block_prewrite_failure(payload, error):
+        candidate = getattr(error, "code", "CONTRACT_CHANGED")
+        code = candidate if isinstance(candidate, str) and _SAFE_ERROR_CODE.fullmatch(candidate) else "CONTRACT_CHANGED"
+        for stage in reversed(payload["stages"]):
+            if stage["status"] == "RUNNING":
+                stage["status"] = "BLOCKED"
+                stage["detail"] = code
+                break
+        if code not in {item.get("code") for item in payload["blockers"] if isinstance(item, dict)}:
+            payload["blockers"].append({"code": code})
+        payload.update(status="BLOCKED", code=code)
 
     def _checkpoint(self, payload):
         path = self.store.write_checkpoint(payload["run_id"], payload)
@@ -573,7 +588,7 @@ class ExpertE2ERunner:
                 OSError,
                 ValueError,
             ) as error:
-                payload.update(status="BLOCKED", code=getattr(error, "code", "CONTRACT_CHANGED"))
+                self._block_prewrite_failure(payload, error)
                 return self._finish(payload)
 
             self._stage(payload, "AWAITING_CONFIRMATION", "BLOCKED")

@@ -169,6 +169,50 @@ class OnlineE2ERunnerTests(unittest.TestCase):
             self.assertEqual(applied["code"], "DEPENDENCY_UNVERIFIED")
             self.assertEqual(backend.write_count, 0)
 
+    def test_prewrite_snapshot_and_diff_errors_block_running_stage_and_add_safe_blocker(self):
+        from online_e2e.desired_config import DesiredConfigError
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+        from online_e2e.transport import ClientError
+
+        class SnapshotFailure(SyntheticRegressionBackend):
+            def snapshot(self, target):
+                raise ClientError(
+                    "SNAPSHOT_UNAVAILABLE", "snapshot", "private snapshot detail"
+                )
+
+        cases = (
+            (SnapshotFailure(self.target), None, "SNAPSHOT", "SNAPSHOT_UNAVAILABLE"),
+            (
+                SyntheticRegressionBackend(self.target),
+                DesiredConfigError("private desired diff detail"),
+                "DIFF_READY",
+                "CONTRACT_CHANGED",
+            ),
+        )
+        for backend, desired_error, stage_name, expected_code in cases:
+            with self.subTest(stage=stage_name), tempfile.TemporaryDirectory() as temporary:
+                runner = self._runner(temporary, backend)
+                context = (
+                    patch("online_e2e.runner.build_desired_config", side_effect=desired_error)
+                    if desired_error is not None
+                    else patch("online_e2e.runner.build_desired_config", wraps=None)
+                )
+                if desired_error is None:
+                    result = runner.run(f"run_error_{stage_name.lower()}", mode="dry-run")
+                else:
+                    with context:
+                        result = runner.run(f"run_error_{stage_name.lower()}", mode="dry-run")
+
+                stages = {stage["name"]: stage for stage in result["stages"]}
+                self.assertEqual(result["status"], "BLOCKED")
+                self.assertEqual(result["code"], expected_code)
+                self.assertEqual(stages[stage_name]["status"], "BLOCKED")
+                self.assertEqual(stages[stage_name]["detail"], expected_code)
+                self.assertNotIn("RUNNING", {stage["status"] for stage in result["stages"]})
+                self.assertIn(expected_code, {item["code"] for item in result["blockers"]})
+                report = Path(result["report_json"]).read_text(encoding="utf-8")
+                self.assertNotIn("private", report)
+
     def test_dry_run_blocks_existing_exact_fixture_id_without_token_or_write(self):
         from online_e2e.fixtures import teacher_case_ids
         from online_e2e.synthetic_backend import SyntheticRegressionBackend

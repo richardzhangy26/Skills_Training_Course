@@ -186,6 +186,14 @@ class OnlineE2ECLITests(unittest.TestCase):
             payload = json.loads(stdout.getvalue())
             self.assertEqual(payload["status"], "BLOCKED")
             self.assertEqual(payload["code"], "ASSISTANT_NOT_ACCESSIBLE")
+            stages = {stage["name"]: stage for stage in payload["stages"]}
+            self.assertEqual(stages["PRECHECK"]["status"], "BLOCKED")
+            self.assertEqual(stages["PRECHECK"]["detail"], "ASSISTANT_NOT_ACCESSIBLE")
+            self.assertNotIn("RUNNING", {stage["status"] for stage in payload["stages"]})
+            self.assertIn(
+                "ASSISTANT_NOT_ACCESSIBLE",
+                {blocker["code"] for blocker in payload["blockers"]},
+            )
             self.assertTrue(Path(payload["report_json"]).is_file())
             self.assertTrue(Path(payload["report_markdown"]).is_file())
             combined = (
