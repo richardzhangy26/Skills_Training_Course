@@ -404,6 +404,40 @@ class ClientTests(unittest.TestCase):
             with self.assertRaises(self.clients.ClientError):
                 select(bad, 'synthetic-assistant', '中药材 AI助教')
 
+    def test_select_assistant_classifies_inaccessible_without_name_fallback(self):
+        same_name_wrong_nid = [{
+            'friendNid': 'another-assistant', 'friendNickName': '中药材',
+            'appType': 'AUTO_SMART_ROBOT', 'appCategory': 'AI_COURSE_REPRESENTATIVE',
+            'isV5': True,
+        }]
+
+        with self.assertRaises(self.clients.ClientError) as error:
+            self.clients.select_unique_assistant(
+                same_name_wrong_nid, 'synthetic-assistant', '中药材 AI助教')
+
+        self.assertEqual(error.exception.code, 'ASSISTANT_NOT_ACCESSIBLE')
+
+    def test_select_assistant_keeps_duplicate_and_metadata_changes_as_contract_errors(self):
+        valid = {
+            'friendNid': 'synthetic-assistant', 'friendNickName': '中药材',
+            'appType': 'AUTO_SMART_ROBOT', 'appCategory': 'AI_COURSE_REPRESENTATIVE',
+            'isV5': True,
+        }
+        invalid_sets = [
+            [valid, dict(valid)],
+            [{**valid, 'friendNickName': '名称已变'}],
+            [{**valid, 'appType': 'OTHER'}],
+            [{**valid, 'appCategory': 'OTHER'}],
+            [{**valid, 'isV5': False}],
+        ]
+
+        for records in invalid_sets:
+            with self.subTest(records=records):
+                with self.assertRaises(self.clients.ClientError) as error:
+                    self.clients.select_unique_assistant(
+                        records, 'synthetic-assistant', '中药材 AI助教')
+                self.assertEqual(error.exception.code, 'CONTRACT_CHANGED')
+
     def test_resolve_expert_relationship_requires_exact_identity_and_version(self):
         teaching = self.clients.TeachingCenterClient(self.transport)
         self.transport.response_override = {'code': 200, 'data': {

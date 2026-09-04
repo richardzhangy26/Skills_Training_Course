@@ -145,8 +145,10 @@ def select_unique_assistant(records: list, assistant_nid: str, display_name: str
         if record['friendNid'] == assistant_nid:
             _identifier(record['friendNid'], 'assistants')
             matches.append(record)
-    if len(matches) != 1:
-        raise ClientError('CONTRACT_CHANGED', 'assistants', '目标不存在或不唯一')
+    if not matches:
+        raise ClientError('ASSISTANT_NOT_ACCESSIBLE', 'assistants')
+    if len(matches) > 1:
+        raise ClientError('CONTRACT_CHANGED', 'assistants', '助教 NID 重复')
     match = matches[0]
     if (match['friendNickName'] != name or match['appType'] != 'AUTO_SMART_ROBOT'
             or match['appCategory'] != 'AI_COURSE_REPRESENTATIVE' or match['isV5'] is not True):
