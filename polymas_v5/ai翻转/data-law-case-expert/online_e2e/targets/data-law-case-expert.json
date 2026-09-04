@@ -4,7 +4,11 @@
   "expert_nid": "x3PalTZaWr",
   "runtime_agent_nid": null,
   "expert_name": "数据法学案例专家",
+  "assistant_nid": "FEpEJws9cS",
   "assistant_name": "中药材 AI助教",
+  "isolated_test_assistant_nid": null,
+  "live_test_enabled": false,
+  "knowledge_base_nid": null,
   "local_assets": {
     "agent": "Agent.md",
     "query_skill": "data-law-case-query/SKILL.md",
@@ -14,7 +18,17 @@
     "manifest": "case-library/data/manifest.json"
   },
   "online_skill_nids": {
-    "data-law-case-query": "PDS_NID_UNRESOLVED_data_law_case_query",
-    "data-law-case-maintenance": "PDS_NID_UNRESOLVED_data_law_case_maintenance"
-  }
+    "search-router": "9Cxb4wxU80",
+    "polymas-teacher-knowledge-distillation": "gfvOCfStIs",
+    "data-law-case-maintenance": "hJydnbcYMz",
+    "data-law-case-query": "NTZP0kOxDh",
+    "polymas-resource-upload": "yOMrVqoUIT"
+  },
+  "expected_skill_order": [
+    "search-router",
+    "polymas-teacher-knowledge-distillation",
+    "data-law-case-maintenance",
+    "data-law-case-query",
+    "polymas-resource-upload"
+  ]
 }

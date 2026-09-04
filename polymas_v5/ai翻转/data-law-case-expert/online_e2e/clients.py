@@ -182,6 +182,8 @@ class _Client:
             options['files'] = files
         try:
             result = self._transport.request(endpoint.method, endpoint.path, **options)
+        except ClientError:
+            raise
         except Exception:
             raise ClientError('TRANSPORT_ERROR', operation) from None
         return envelope_data(result, operation)

@@ -6,8 +6,12 @@ from dataclasses import dataclass
 from enum import Enum
 import json
 from pathlib import Path
+import re
 from types import MappingProxyType
 from typing import Any, Mapping
+
+
+_TARGET_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
 
 @dataclass(frozen=True)
@@ -17,7 +21,11 @@ class TargetConfig:
     target_id: str
     expert_nid: str
     expert_name: str
+    assistant_nid: str
     assistant_name: str
+    isolated_test_assistant_nid: str | None
+    live_test_enabled: bool
+    knowledge_base_nid: str | None
     agent_path: Path
     query_skill_path: Path
     maintenance_skill_path: Path
@@ -25,6 +33,7 @@ class TargetConfig:
     knowledge_jsonl_path: Path
     manifest_path: Path
     online_skill_nids: Mapping[str, str]
+    expected_skill_order: tuple[str, ...]
     runtime_agent_nid: str | None = None
 
 
@@ -133,6 +142,8 @@ def _project_root(root: Path | None) -> Path:
 def load_target_config(target_id: str, *, root: Path | None = None) -> TargetConfig:
     """加载一个仅含公开标识和本地路径的目标配置。"""
 
+    if not isinstance(target_id, str) or not _TARGET_ID.fullmatch(target_id):
+        raise ValueError("invalid_target_id")
     project_root = _project_root(root)
     config_path = Path(__file__).with_name("targets") / f"{target_id}.json"
     data = json.loads(config_path.read_text(encoding="utf-8"))
@@ -144,7 +155,11 @@ def load_target_config(target_id: str, *, root: Path | None = None) -> TargetCon
         target_id=data["target_id"],
         expert_nid=data["expert_nid"],
         expert_name=data["expert_name"],
+        assistant_nid=data["assistant_nid"],
         assistant_name=data["assistant_name"],
+        isolated_test_assistant_nid=data.get("isolated_test_assistant_nid"),
+        live_test_enabled=data.get("live_test_enabled") is True,
+        knowledge_base_nid=data.get("knowledge_base_nid"),
         agent_path=project_root / assets["agent"],
         query_skill_path=project_root / assets["query_skill"],
         maintenance_skill_path=project_root / assets["maintenance_skill"],
@@ -152,5 +167,6 @@ def load_target_config(target_id: str, *, root: Path | None = None) -> TargetCon
         knowledge_jsonl_path=project_root / assets["knowledge_jsonl"],
         manifest_path=project_root / assets["manifest"],
         online_skill_nids=MappingProxyType(dict(data["online_skill_nids"])),
+        expected_skill_order=tuple(data["expected_skill_order"]),
         runtime_agent_nid=data.get("runtime_agent_nid"),
     )

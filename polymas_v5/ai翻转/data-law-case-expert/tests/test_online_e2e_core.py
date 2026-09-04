@@ -44,6 +44,10 @@ class OnlineE2ECoreTests(unittest.TestCase):
 
         self.assertEqual(config.target_id, "data-law-case-expert")
         self.assertEqual(config.expert_nid, "x3PalTZaWr")
+        self.assertEqual(config.assistant_nid, "FEpEJws9cS")
+        self.assertIsNone(config.isolated_test_assistant_nid)
+        self.assertFalse(config.live_test_enabled)
+        self.assertIsNone(config.knowledge_base_nid)
         self.assertTrue(hasattr(config, "runtime_agent_nid"))
         self.assertIsNone(config.runtime_agent_nid)
         self.assertEqual(config.expert_name, "数据法学案例专家")
@@ -52,9 +56,32 @@ class OnlineE2ECoreTests(unittest.TestCase):
         self.assertEqual(config.manifest_path, ROOT / "case-library" / "data" / "manifest.json")
         self.assertEqual(
             set(config.online_skill_nids),
-            {"data-law-case-query", "data-law-case-maintenance"},
+            {
+                "search-router",
+                "polymas-teacher-knowledge-distillation",
+                "data-law-case-maintenance",
+                "data-law-case-query",
+                "polymas-resource-upload",
+            },
+        )
+        self.assertEqual(
+            config.expected_skill_order,
+            (
+                "search-router",
+                "polymas-teacher-knowledge-distillation",
+                "data-law-case-maintenance",
+                "data-law-case-query",
+                "polymas-resource-upload",
+            ),
         )
         self.assertTrue(all(value for value in config.online_skill_nids.values()))
+
+    def test_target_alias_rejects_path_traversal_before_reading_config(self):
+        contracts = load_contracts()
+        for value in ("../data-law-case-expert", "two/levels", "..", "", "含中文"):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "invalid_target_id"):
+                    contracts.load_target_config(value, root=ROOT)
 
     def test_normalized_online_config_has_stable_digest_despite_key_and_skill_order(self):
         config_diff = load_config_diff()

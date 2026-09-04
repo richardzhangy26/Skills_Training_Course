@@ -37,6 +37,7 @@ _COMMON_BARE_TOKEN = re.compile(
     r"(?<![A-Za-z0-9_-])(?:sk-(?:proj-)?|ghp_|github_pat_|xox[baprs]-)"
     r"[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])"
 )
+_CONFIRMATION_TOKEN = re.compile(r"\bv1\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\b")
 _REDACTED = "[REDACTED]"
 
 
@@ -104,6 +105,7 @@ class ConfirmationTokenManager:
 
 
 def _redact_text(value: str) -> str:
+    value = _CONFIRMATION_TOKEN.sub(_REDACTED, value)
     value = _COOKIE_HEADER.sub(lambda match: f"{match.group(1)}{_REDACTED}", value)
     value = _JSON_QUOTED_CREDENTIAL.sub(
         lambda match: f"{match.group(1)}{_REDACTED}", value
