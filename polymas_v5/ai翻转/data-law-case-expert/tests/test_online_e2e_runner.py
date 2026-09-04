@@ -169,6 +169,41 @@ class OnlineE2ERunnerTests(unittest.TestCase):
             self.assertEqual(applied["code"], "DEPENDENCY_UNVERIFIED")
             self.assertEqual(backend.write_count, 0)
 
+    def test_dry_run_blocks_existing_exact_fixture_id_without_token_or_write(self):
+        from online_e2e.fixtures import teacher_case_ids
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        with tempfile.TemporaryDirectory() as temporary:
+            backend = SyntheticRegressionBackend(self.target)
+            backend.temporary_cases.add(teacher_case_ids("run_collision")[0])
+            result = self._runner(temporary, backend).run(
+                "run_collision", mode="dry-run"
+            )
+            self.assertEqual(result["status"], "BLOCKED")
+            self.assertEqual(result["code"], "FIXTURE_ID_COLLISION")
+            self.assertNotIn("confirmation_token", result)
+            self.assertIn(
+                "FIXTURE_ID_COLLISION", {item["code"] for item in result["blockers"]}
+            )
+            self.assertEqual(backend.write_count, 0)
+
+    def test_exact_fixture_id_appearing_between_dry_run_and_apply_blocks_zero_write(self):
+        from online_e2e.fixtures import teacher_case_ids
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        with tempfile.TemporaryDirectory() as temporary:
+            backend = SyntheticRegressionBackend(self.target)
+            runner = self._runner(temporary, backend)
+            dry = runner.run("run_late_collision", mode="dry-run")
+            backend.temporary_cases.add(teacher_case_ids("run_late_collision")[1])
+            result = runner.run(
+                "run_late_collision", mode="apply",
+                confirmation_token=dry["confirmation_token"],
+            )
+            self.assertEqual(result["status"], "BLOCKED")
+            self.assertEqual(result["code"], "FIXTURE_ID_COLLISION")
+            self.assertEqual(backend.write_count, 0)
+
     def test_test_failure_rolls_back_owned_config_and_knowledge(self):
         from online_e2e.synthetic_backend import SyntheticRegressionBackend
 
@@ -469,6 +504,26 @@ class OnlineE2ERunnerTests(unittest.TestCase):
             self.assertEqual(backend.temporary_cases, set())
             self.assertEqual(backend.last_cleanup_requested, ("AUTO-RUN_PARTIAL_SYNC-01",))
 
+    def test_same_prefix_non_target_case_is_never_cleaned_and_successfully_survives(self):
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        with tempfile.TemporaryDirectory() as temporary:
+            backend = SyntheticRegressionBackend(self.target)
+            extra = "AUTO-RUN_KEEP_EXTRA-99"
+            backend.temporary_cases.add(extra)
+            runner = self._runner(temporary, backend)
+            dry = runner.run("run_keep_extra", mode="dry-run")
+            result = runner.run(
+                "run_keep_extra", mode="apply",
+                confirmation_token=dry["confirmation_token"],
+            )
+            self.assertEqual(result["status"], "PASSED")
+            self.assertEqual(backend.temporary_cases, {extra})
+            self.assertEqual(
+                backend.last_cleanup_requested,
+                ("AUTO-RUN_KEEP_EXTRA-01", "AUTO-RUN_KEEP_EXTRA-02"),
+            )
+
     def test_cleanup_deleted_ids_must_exactly_equal_owned_set(self):
         from online_e2e.synthetic_backend import SyntheticRegressionBackend
 
@@ -502,27 +557,20 @@ class OnlineE2ERunnerTests(unittest.TestCase):
                 self.assertNotEqual(result["status"], "PASSED")
                 self.assertEqual(backend.temporary_cases, set())
 
-    def test_owned_teacher_case_listing_rejects_duplicate_or_wrong_prefix(self):
+    def test_exact_case_lookup_rejects_duplicate_or_unrequested_ids(self):
         from online_e2e.synthetic_backend import SyntheticRegressionBackend
 
-        class InvalidOwnedCases(SyntheticRegressionBackend):
-            def list_owned_teacher_cases(self, run_id):
-                case_id = f"AUTO-{run_id.upper()}-01"
-                return {
-                    "ownedRunId": run_id,
-                    "caseIds": [case_id, case_id, "AUTO-OTHER-RUN-01"],
-                }
+        class InvalidExactCases(SyntheticRegressionBackend):
+            def existing_case_ids(self, case_ids):
+                return {"caseIds": [case_ids[0], case_ids[0], "AUTO-OTHER-RUN-01"]}
 
         with tempfile.TemporaryDirectory() as temporary:
-            backend = InvalidOwnedCases(self.target)
+            backend = InvalidExactCases(self.target)
             runner = self._runner(temporary, backend)
-            dry = runner.run("run_invalid_owned", mode="dry-run")
-            result = runner.run(
-                "run_invalid_owned", mode="apply",
-                confirmation_token=dry["confirmation_token"],
-            )
-            self.assertEqual(result["status"], "ROLLBACK_FAILED")
-            self.assertIn("teacher_cases_not_cleaned", result["residual_state"])
+            result = runner.run("run_invalid_exact", mode="dry-run")
+            self.assertEqual(result["status"], "BLOCKED")
+            self.assertEqual(result["code"], "CONTRACT_CHANGED")
+            self.assertNotIn("confirmation_token", result)
 
     def test_live_read_only_precheck_lists_current_known_blockers_and_safe_knowledge_candidates(self):
         from online_e2e.live_backend import LiveRegressionBackend

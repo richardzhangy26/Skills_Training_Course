@@ -78,7 +78,7 @@ python -m online_e2e data-law-case-expert apply full \
   --confirmation-token '<dry-run stdout 中的令牌>'
 ```
 
-`apply` 在 target 级文件锁内重新计算本地资产摘要、线上快照、隔离助教 NID、关系版本和请求计划摘要；确认签名单独绑定知识 version 与 content digest，同版本内容变化也会使旧令牌失效。令牌和 nonce 均为一次性消费。成功只保留新专家配置，教师双案例 fixture 和知识变更必须清理并恢复。清理前先列出本 run 实际创建且符合 `AUTO-{RUN_ID}-` 前缀的案例，`deletedIds` 必须与该集合精确相等，最终再次回读为空。知识 restore 后重新读取 version+digest，PASSED 前重新读取配置 digest；配置与知识分别执行 CAS。任一项检测到第三方并发变化时停止覆盖，报告 `ROLLBACK_FAILED` 与 `config_not_restored` 或 `knowledge_not_restored` 残留状态。
+`apply` 在 target 级文件锁内重新计算本地资产摘要、线上快照、隔离助教 NID、关系版本和请求计划摘要；确认签名单独绑定知识 version 与 content digest，同版本内容变化也会使旧令牌失效。令牌和 nonce 均为一次性消费。dry-run 与 apply 都精确查询本 run 的目标 `AUTO-{RUN_ID}-01/02`，目标集合和 baseline（包括显式空集合）进入计划摘要；任一目标已存在即 `FIXTURE_ID_COLLISION`，不签发令牌或发布。成功只保留新专家配置，教师双案例 fixture 和知识变更必须清理并恢复。同步或失败后再次精确查询，`created_owned=current_exact-baseline_exact`；cleanup 只接收该差集，绝不因相同前缀删除 `-99` 等其他案例，且 `deletedIds` 必须精确相等。知识 restore 后重新读取 version+digest，PASSED 前重新读取配置 digest；配置与知识分别执行 CAS。任一项检测到第三方并发变化时停止覆盖，报告 `ROLLBACK_FAILED` 与 `config_not_restored` 或 `knowledge_not_restored` 残留状态。
 
 ### Synthetic 固定回归
 

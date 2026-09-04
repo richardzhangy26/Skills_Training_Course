@@ -9,7 +9,7 @@ from pathlib import Path
 import secrets
 from typing import Any
 
-from .backends import BackendFailure, RegressionBackend
+from .backends import BackendFailure, Blocker, PrecheckResult, RegressionBackend
 from .clients import PdsClient
 from .config_diff import compare_configs, summarize_differences
 from .contracts import ConfirmationBinding, TargetConfig
@@ -197,6 +197,30 @@ class ExpertE2ERunner:
     def _prepare(self, payload, prior):
         self._stage(payload, "PRECHECK", "RUNNING")
         precheck = self.backend.precheck(self.target)
+        target_case_ids = teacher_case_ids(payload["run_id"])
+        case_query_unverified = any(
+            blocker.code == "CASE_EXISTENCE_ENDPOINT_UNVERIFIED"
+            for blocker in precheck.blockers
+        )
+        baseline_case_ids = None
+        if not case_query_unverified:
+            baseline_case_ids = self._existing_case_ids(target_case_ids)
+            if baseline_case_ids:
+                precheck = PrecheckResult(
+                    blockers=(
+                        *precheck.blockers,
+                        Blocker(
+                            "FIXTURE_ID_COLLISION",
+                            {"caseIds": list(baseline_case_ids)},
+                        ),
+                    ),
+                    relationship_version=precheck.relationship_version,
+                    assistant_nid=precheck.assistant_nid,
+                )
+        payload["fixture_target_case_ids"] = list(target_case_ids)
+        payload["fixture_baseline_case_ids"] = (
+            list(baseline_case_ids) if baseline_case_ids is not None else None
+        )
         payload["blockers"] = [item.as_dict() for item in precheck.blockers]
         self._stage(payload, "PRECHECK", "BLOCKED" if precheck.blockers else "PASSED")
         self._checkpoint(payload)
@@ -232,6 +256,10 @@ class ExpertE2ERunner:
                     "operations": ["publish", "student-suite", "teacher-suite", "cleanup"],
                     "isolated_assistant_nid": precheck.assistant_nid,
                     "relationship_version": precheck.relationship_version,
+                    "fixture_target_case_ids": list(target_case_ids),
+                    "fixture_baseline_case_ids": (
+                        list(baseline_case_ids) if baseline_case_ids is not None else None
+                    ),
                 },
                 ensure_ascii=False,
                 sort_keys=True,
@@ -263,7 +291,16 @@ class ExpertE2ERunner:
         }
         self._stage(payload, "DIFF_READY", "PASSED" if diff.apply_allowed else "BLOCKED")
         self._checkpoint(payload)
-        return precheck, before, desired, desired_snapshot, diff, binding
+        return (
+            precheck,
+            before,
+            desired,
+            desired_snapshot,
+            diff,
+            binding,
+            target_case_ids,
+            baseline_case_ids,
+        )
 
     @staticmethod
     def _require(receipt, fields, *, code="STRUCTURED_RECEIPT_REQUIRED"):
@@ -280,32 +317,41 @@ class ExpertE2ERunner:
         except Exception:
             raise BackendFailure("BACKEND_ERROR", operation) from None
 
-    def _owned_teacher_cases(self, run_id):
+    def _existing_case_ids(self, target_case_ids):
         listing = self._require(
             self._call_receipt(
-                "list_owned_teacher_cases", self.backend.list_owned_teacher_cases, run_id
+                "existing_case_ids", self.backend.existing_case_ids, target_case_ids
             ),
-            ("ownedRunId", "caseIds"),
+            ("caseIds",),
         )
         case_ids = listing["caseIds"]
-        prefix = f"AUTO-{run_id.upper()}-"
         if (
-            listing["ownedRunId"] != run_id
-            or not isinstance(case_ids, list)
-            or any(not isinstance(case_id, str) or not case_id.startswith(prefix)
+            not isinstance(case_ids, list)
+            or any(not isinstance(case_id, str) or case_id not in target_case_ids
                    for case_id in case_ids)
             or len(case_ids) != len(set(case_ids))
         ):
-            raise BackendFailure("CLEANUP_VERIFICATION_FAILED", "teacher_cases_not_cleaned")
+            raise BackendFailure("CONTRACT_CHANGED", "existing_case_ids")
         return tuple(sorted(case_ids))
 
-    def _cleanup_teacher(self, case_ids, run_id, knowledge_snapshot, owned_knowledge):
-        owned_case_ids = self._owned_teacher_cases(run_id)
+    def _cleanup_teacher(
+        self,
+        case_ids,
+        baseline_case_ids,
+        run_id,
+        knowledge_snapshot,
+        owned_knowledge,
+    ):
+        current_exact = self._existing_case_ids(case_ids)
+        baseline = tuple(sorted(baseline_case_ids or ()))
+        if not set(baseline).issubset(current_exact):
+            raise BackendFailure("EXTERNAL_CONCURRENT_CHANGE", "teacher_cases_not_cleaned")
+        created_owned = tuple(sorted(set(current_exact) - set(baseline)))
         cleanup = self._require(
             self._call_receipt(
                 "cleanup_teacher_cases",
                 self.backend.cleanup_teacher_cases,
-                owned_case_ids,
+                created_owned,
                 run_id,
             ),
             ("cleaned", "deletedIds", "ownedRunId"),
@@ -316,9 +362,9 @@ class ExpertE2ERunner:
         if (
             not isinstance(deleted_ids, list)
             or len(deleted_ids) != len(set(deleted_ids))
-            or tuple(sorted(deleted_ids)) != owned_case_ids
-            or self._owned_teacher_cases(run_id)
-            or not self.backend.verify_cases_absent(owned_case_ids)
+            or tuple(sorted(deleted_ids)) != created_owned
+            or self._existing_case_ids(case_ids) != baseline
+            or not self.backend.verify_cases_absent(created_owned)
         ):
             raise BackendFailure("CLEANUP_VERIFICATION_FAILED", "teacher_cases_not_cleaned")
         current_knowledge = self.backend.current_knowledge_snapshot()
@@ -341,7 +387,7 @@ class ExpertE2ERunner:
             restored["restored"] is not True
             or restored["knowledgeVersion"] != knowledge_snapshot.version
             or restored["knowledgeDigest"] != knowledge_snapshot.digest
-            or not self.backend.verify_cases_absent(owned_case_ids)
+            or not self.backend.verify_cases_absent(created_owned)
         ):
             raise BackendFailure("CLEANUP_VERIFICATION_FAILED")
         try:
@@ -353,8 +399,8 @@ class ExpertE2ERunner:
         if (
             restored_current.version != knowledge_snapshot.version
             or restored_current.digest != knowledge_snapshot.digest
-            or self._owned_teacher_cases(run_id)
-            or not self.backend.verify_cases_absent(case_ids)
+            or self._existing_case_ids(case_ids) != baseline
+            or not self.backend.verify_cases_absent(created_owned)
         ):
             detail = (
                 "knowledge_not_restored"
@@ -364,7 +410,9 @@ class ExpertE2ERunner:
             )
             raise BackendFailure("CLEANUP_VERIFICATION_FAILED", detail)
 
-    def _execute_tests(self, payload, before, run_id, assistant_nid, run_state):
+    def _execute_tests(
+        self, payload, before, run_id, assistant_nid, run_state, case_ids, baseline_case_ids
+    ):
         conversations = {}
         for scenario in student_scenarios():
             receipt = self._call_receipt(
@@ -379,7 +427,6 @@ class ExpertE2ERunner:
             conversations.setdefault(scenario.continuation_group, conversation_id)
             payload["assertions"].append(receipt)
 
-        case_ids = teacher_case_ids(run_id)
         remember = getattr(self.backend, "remember_pending_cases", None)
         if remember is not None:
             remember(case_ids)
@@ -423,6 +470,13 @@ class ExpertE2ERunner:
         ):
             raise BackendFailure("READBACK_MISMATCH", "knowledge")
         run_state["owned_knowledge"] = current_knowledge
+        current_exact = self._existing_case_ids(case_ids)
+        created_owned = tuple(
+            sorted(set(current_exact) - set(baseline_case_ids or ()))
+        )
+        run_state["created_case_ids"] = created_owned
+        if created_owned != tuple(sorted(case_ids)):
+            raise BackendFailure("READBACK_MISMATCH", "teacher case creation")
         for case_id in case_ids:
             readback = self.backend.read_case(case_id)
             if not isinstance(readback, dict) or readback.get("caseId") != case_id:
@@ -432,11 +486,27 @@ class ExpertE2ERunner:
             )
         return case_ids
 
-    def _rollback(self, payload, before, owned_digest, case_ids, run_id, failure, owned_knowledge):
+    def _rollback(
+        self,
+        payload,
+        before,
+        owned_digest,
+        case_ids,
+        baseline_case_ids,
+        run_id,
+        failure,
+        owned_knowledge,
+    ):
         residual = []
         self._stage(payload, "CLEANUP", "RUNNING")
         try:
-            self._cleanup_teacher(case_ids, run_id, before.knowledge, owned_knowledge)
+            self._cleanup_teacher(
+                case_ids,
+                baseline_case_ids,
+                run_id,
+                before.knowledge,
+                owned_knowledge,
+            )
         except BackendFailure as cleanup_failure:
             if cleanup_failure.detail in ("knowledge_not_restored", "teacher_cases_not_cleaned"):
                 residual.append(cleanup_failure.detail)
@@ -495,14 +565,29 @@ class ExpertE2ERunner:
             prior = self.store.read_checkpoint(run_id) if mode == "apply" else None
             payload = self._base(run_id)
             try:
-                precheck, before, desired, desired_snapshot, diff, binding = self._prepare(payload, prior)
+                (
+                    precheck,
+                    before,
+                    desired,
+                    desired_snapshot,
+                    diff,
+                    binding,
+                    fixture_case_ids,
+                    baseline_case_ids,
+                ) = self._prepare(payload, prior)
             except (BackendFailure, DesiredConfigError, OSError, ValueError) as error:
                 payload.update(status="BLOCKED", code=getattr(error, "code", "CONTRACT_CHANGED"))
                 return self._finish(payload)
 
             self._stage(payload, "AWAITING_CONFIRMATION", "BLOCKED")
             if precheck.blockers:
-                payload.update(status="BLOCKED", code="DEPENDENCY_UNVERIFIED")
+                code = (
+                    "FIXTURE_ID_COLLISION"
+                    if any(blocker.code == "FIXTURE_ID_COLLISION"
+                           for blocker in precheck.blockers)
+                    else "DEPENDENCY_UNVERIFIED"
+                )
+                payload.update(status="BLOCKED", code=code)
                 return self._finish(payload)
             if not diff.apply_allowed:
                 payload.update(status="BLOCKED", code="CONTRACT_CHANGED")
@@ -531,16 +616,26 @@ class ExpertE2ERunner:
                 owned_digest = publication["owned_digest"]
                 self._stage(payload, "PUBLISHING", "PASSED")
                 self._stage(payload, "TESTING", "RUNNING")
-                case_ids = teacher_case_ids(run_id)
+                case_ids = fixture_case_ids
                 run_state = {"owned_knowledge": before.knowledge}
                 try:
                     case_ids = self._execute_tests(
-                        payload, before, run_id, publication["assistantId"], run_state
+                        payload,
+                        before,
+                        run_id,
+                        publication["assistantId"],
+                        run_state,
+                        fixture_case_ids,
+                        baseline_case_ids,
                     )
                     self._stage(payload, "TESTING", "PASSED")
                     self._stage(payload, "CLEANUP", "RUNNING")
                     self._cleanup_teacher(
-                        case_ids, run_id, before.knowledge, run_state["owned_knowledge"]
+                        case_ids,
+                        baseline_case_ids,
+                        run_id,
+                        before.knowledge,
+                        run_state["owned_knowledge"],
                     )
                     self._stage(payload, "CLEANUP", "PASSED")
                     try:
@@ -563,7 +658,7 @@ class ExpertE2ERunner:
                     )
                     self._stage(payload, "TESTING", "FAILED", failure.code)
                     return self._rollback(
-                        payload, before, owned_digest, case_ids, run_id,
+                        payload, before, owned_digest, case_ids, baseline_case_ids, run_id,
                         failure, run_state["owned_knowledge"],
                     )
             except Exception as error:
@@ -585,7 +680,8 @@ class ExpertE2ERunner:
                         payload,
                         before,
                         desired_snapshot.digest,
-                        teacher_case_ids(run_id),
+                        fixture_case_ids,
+                        baseline_case_ids,
                         run_id,
                         failure,
                         before.knowledge,

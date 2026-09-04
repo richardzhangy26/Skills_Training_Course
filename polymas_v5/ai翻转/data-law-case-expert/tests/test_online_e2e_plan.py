@@ -76,6 +76,20 @@ class OnlineE2EPlanTests(unittest.TestCase):
         with self.assertRaisesRegex(DesiredConfigError, "binding_source_mismatch"):
             build_desired_config(current, self.target, "new")
 
+    def test_desired_and_synthetic_share_stable_recursive_json_clone(self):
+        from online_e2e.json_clone import clone_json
+
+        source = {"nested": {"items": (1, "two", None)}}
+        cloned = clone_json(source)
+        self.assertEqual(cloned, {"nested": {"items": [1, "two", None]}})
+        self.assertIsNot(cloned, source)
+        desired_source = (ROOT / "online_e2e" / "desired_config.py").read_text(encoding="utf-8")
+        synthetic_source = (ROOT / "online_e2e" / "synthetic_backend.py").read_text(encoding="utf-8")
+        self.assertIn("from .json_clone import clone_json", desired_source)
+        self.assertIn("from .json_clone import clone_json", synthetic_source)
+        self.assertNotIn("def _clone", desired_source)
+        self.assertNotIn("def _thaw", synthetic_source)
+
     def test_desired_config_rejects_unknown_missing_or_duplicate_skill_before_mutation(self):
         from online_e2e.desired_config import DesiredConfigError, build_desired_config
 

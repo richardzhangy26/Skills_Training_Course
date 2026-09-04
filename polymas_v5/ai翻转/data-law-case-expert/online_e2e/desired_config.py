@@ -6,18 +6,11 @@ from collections.abc import Mapping
 from typing import Any
 
 from .contracts import TargetConfig
+from .json_clone import clone_json
 
 
 class DesiredConfigError(ValueError):
     """Skill 或完整配置无法无损、安全地转换。"""
-
-
-def _clone(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {str(key): _clone(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_clone(item) for item in value]
-    return value
 
 
 def build_desired_config(
@@ -29,7 +22,10 @@ def build_desired_config(
 
     if not isinstance(current_full_config, Mapping) or not isinstance(agent_content, str):
         raise DesiredConfigError("config_contract_changed")
-    desired = _clone(current_full_config)
+    try:
+        desired = clone_json(current_full_config)
+    except ValueError:
+        raise DesiredConfigError("config_contract_changed") from None
     expert_md = desired.get("expertMd")
     skills = desired.get("skillInfoList")
     if not isinstance(expert_md, dict) or not isinstance(skills, list):

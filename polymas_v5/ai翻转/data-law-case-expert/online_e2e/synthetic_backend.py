@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from copy import deepcopy
 from io import BytesIO
 from typing import Any
 
@@ -13,14 +12,7 @@ from .backends import BackendFailure, Blocker, PrecheckResult, RegressionSnapsho
 from .clients import PdsClient
 from .config_diff import snapshot_knowledge
 from .contracts import ConfigSnapshot, TargetConfig
-
-
-def _thaw(value):
-    if isinstance(value, Mapping):
-        return {str(key): _thaw(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_thaw(item) for item in value]
-    return value
+from .json_clone import clone_json
 
 
 class SyntheticRegressionBackend:
@@ -151,7 +143,7 @@ class SyntheticRegressionBackend:
         if self.fail_at == "publish":
             raise BackendFailure("SYNTHETIC_PUBLISH_FAILED")
         self.write_count += 1
-        self._full_config = deepcopy(dict(desired))
+        self._full_config = clone_json(desired)
         if self.malformed_publish_receipt:
             return {"answer": "published"}
         digest = self._config_snapshot().digest
@@ -270,14 +262,9 @@ class SyntheticRegressionBackend:
             return None
         return {"caseId": case_id, "scene": "自动化测试"}
 
-    def list_owned_teacher_cases(self, run_id: str):
-        prefix = f"AUTO-{run_id.upper()}-"
-        return {
-            "ownedRunId": run_id,
-            "caseIds": sorted(
-                case_id for case_id in self.temporary_cases if case_id.startswith(prefix)
-            ),
-        }
+    def existing_case_ids(self, case_ids: tuple[str, ...]):
+        return {"caseIds": sorted(case_id for case_id in case_ids
+                                  if case_id in self.temporary_cases)}
 
     def cleanup_teacher_cases(self, case_ids: tuple[str, ...], run_id: str):
         self.write_count += 1
@@ -312,7 +299,7 @@ class SyntheticRegressionBackend:
         self.write_count += 1
         if self.current_config_digest(self.target) != owned_digest:
             raise BackendFailure("EXTERNAL_CONCURRENT_CHANGE")
-        self._full_config = _thaw(snapshot.normalized["full_config"])
+        self._full_config = clone_json(snapshot.normalized["full_config"])
         return {"restored": self.current_config_digest(self.target) == snapshot.digest}
 
     def remember_pending_cases(self, case_ids: tuple[str, ...]) -> None:
