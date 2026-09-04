@@ -51,6 +51,8 @@ def build_desired_config(
             raise DesiredConfigError("skill_contract_changed")
         if name not in declared or declared[name] != nid:
             raise DesiredConfigError("unknown_or_mismatched_skill")
+        if item.get("bindingSource") != target.online_skill_binding_sources[name]:
+            raise DesiredConfigError("binding_source_mismatch")
         if name in by_name or nid in seen_nids:
             raise DesiredConfigError("duplicate_skill")
         by_name[name] = item

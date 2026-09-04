@@ -129,7 +129,7 @@ def _validate_confirmation_binding(manager, confirmation, *, operation, target_i
             or binding.snapshot_digest != snapshot_digest
             or binding.expected_digest != expected_digest
             or binding.diff_digest != request_digest
-            or not binding.knowledge_version or not binding.nonce
+            or not binding.knowledge_version or not binding.knowledge_digest or not binding.nonce
             or not isinstance(confirmation.token, str)):
         raise ClientError('CONFIRMATION_INVALID', operation, '确认过期、已消费或绑定不一致')
     valid = (manager.consume(confirmation.token, binding) if consume

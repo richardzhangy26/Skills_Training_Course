@@ -6,14 +6,13 @@ import base64
 import hashlib
 import hmac
 import json
-import os
 from pathlib import Path
 import re
-import tempfile
 from threading import Lock
 from typing import Any
 
 from .contracts import ConfirmationBinding
+from .private_io import write_private_bytes_atomic
 
 
 _SENSITIVE_KEY = re.compile(
@@ -46,6 +45,7 @@ def _encode_binding(binding: ConfirmationBinding) -> bytes:
         {
             "diff_digest": binding.diff_digest,
             "expected_digest": binding.expected_digest,
+            "knowledge_digest": binding.knowledge_digest,
             "knowledge_version": binding.knowledge_version,
             "nonce": binding.nonce,
             "snapshot_digest": binding.snapshot_digest,
@@ -140,28 +140,7 @@ def write_checkpoint_atomic(path: Path, payload: Any) -> Path:
     """以 0600 文件权限原子保存已脱敏的 JSON checkpoint。"""
 
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
     data = json.dumps(
         redact_sensitive(payload), ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    temporary_path = Path(temporary_name)
-    try:
-        os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(data)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary_path, path)
-        os.chmod(path, 0o600)
-        directory_descriptor = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory_descriptor)
-        finally:
-            os.close(directory_descriptor)
-        return path
-    finally:
-        if temporary_path.exists():
-            temporary_path.unlink()
+    return write_private_bytes_atomic(path, data)

@@ -76,6 +76,7 @@ class ConfirmationBinding:
     snapshot_digest: str
     expected_digest: str
     knowledge_version: str
+    knowledge_digest: str
     diff_digest: str
     nonce: str
 

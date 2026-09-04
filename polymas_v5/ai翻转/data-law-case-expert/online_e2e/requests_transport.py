@@ -57,6 +57,7 @@ class RequestsTransport:
         ):
             raise ClientError("CONTRACT_CHANGED", "transport_init", "base URL 不受信任")
         self._base_url = f"https://{parsed.hostname}/"
+        self._allowed_hosts = frozenset(allowed_hosts)
         self._headers = {"Authorization": authorization, "Cookie": cookie}
         self._timeout = timeout
         self._session = session or requests.Session()
@@ -80,12 +81,33 @@ class RequestsTransport:
         )
 
     def _response(self, method: str, path: str, *, params=None, json=None, files=None, stream=False):
-        if not isinstance(path, str) or not path.startswith("/") or path.startswith("//"):
+        if (
+            not isinstance(path, str)
+            or not path.startswith("/")
+            or path.startswith("//")
+            or any(ord(character) < 32 or ord(character) == 127 for character in path)
+            or "://" in path
+            or "\\" in path
+        ):
             raise ClientError("CONTRACT_CHANGED", "transport", "path 无效")
+        url = urljoin(self._base_url, path)
+        try:
+            parsed = urlsplit(url)
+            port = parsed.port
+        except ValueError:
+            raise ClientError("CONTRACT_CHANGED", "transport", "最终 URL 无效") from None
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname not in self._allowed_hosts
+            or port is not None
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            raise ClientError("CONTRACT_CHANGED", "transport", "最终 URL 不受信任")
         try:
             response = self._session.request(
                 method=method,
-                url=urljoin(self._base_url, path.lstrip("/")),
+                url=url,
                 headers=dict(self._headers),
                 params=params,
                 json=json,

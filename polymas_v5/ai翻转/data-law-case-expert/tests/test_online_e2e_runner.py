@@ -111,6 +111,23 @@ class OnlineE2ERunnerTests(unittest.TestCase):
             self.assertEqual(applied["code"], "CONFIRMATION_INVALID")
             self.assertEqual(backend.write_count, 0)
 
+    def test_apply_rejects_same_knowledge_version_with_changed_content_digest(self):
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        with tempfile.TemporaryDirectory() as temporary:
+            backend = SyntheticRegressionBackend(self.target)
+            runner = self._runner(temporary, backend)
+            dry = runner.run("run_knowledge_digest", mode="dry-run")
+            backend._knowledge_content = b"changed content under same knowledge version"
+            result = runner.run(
+                "run_knowledge_digest",
+                mode="apply",
+                confirmation_token=dry["confirmation_token"],
+            )
+            self.assertEqual(result["status"], "BLOCKED")
+            self.assertEqual(result["code"], "CONFIRMATION_INVALID")
+            self.assertEqual(backend.write_count, 0)
+
     def test_apply_rejects_changed_isolated_assistant_or_relationship_version_before_write(self):
         from online_e2e.synthetic_backend import SyntheticRegressionBackend
 
@@ -223,6 +240,124 @@ class OnlineE2ERunnerTests(unittest.TestCase):
             self.assertEqual(backend.agent_content, original_content)
             self.assertEqual(backend.restore_config_calls, 1)
 
+    def test_publish_that_lands_then_returns_none_is_safely_read_back_and_rolled_back(self):
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        class NonePublishBackend(SyntheticRegressionBackend):
+            def publish(self, target, desired, run_id):
+                super().publish(target, desired, run_id)
+                return None
+
+        with tempfile.TemporaryDirectory() as temporary:
+            backend = NonePublishBackend(self.target)
+            original_content = backend.agent_content
+            runner = self._runner(temporary, backend)
+            dry = runner.run("run_none_publish", mode="dry-run")
+            result = runner.run(
+                "run_none_publish", mode="apply",
+                confirmation_token=dry["confirmation_token"],
+            )
+            self.assertEqual(result["status"], "ROLLED_BACK")
+            self.assertEqual(result["code"], "STRUCTURED_RECEIPT_REQUIRED")
+            self.assertEqual(backend.agent_content, original_content)
+
+    def test_all_post_publish_backend_receipt_failures_restore_config_or_report_residual(self):
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        class FaultBackend(SyntheticRegressionBackend):
+            def __init__(self, *args, stage, raises, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.stage = stage
+                self.raises = raises
+
+            def _fault(self):
+                if self.raises:
+                    raise TypeError("private backend detail must not leak")
+                return None
+
+            def run_student(self, scenario, assistant_nid):
+                if self.stage == "student" and scenario.scenario_id == "exact-statute":
+                    return self._fault()
+                return super().run_student(scenario, assistant_nid)
+
+            def upload_teacher_fixture(self, *args, **kwargs):
+                if self.stage == "upload":
+                    return self._fault()
+                return super().upload_teacher_fixture(*args, **kwargs)
+
+            def sync_teacher_change(self, *args, **kwargs):
+                if self.stage == "sync":
+                    return self._fault()
+                return super().sync_teacher_change(*args, **kwargs)
+
+            def cleanup_teacher_cases(self, *args, **kwargs):
+                if self.stage == "cleanup":
+                    return self._fault()
+                return super().cleanup_teacher_cases(*args, **kwargs)
+
+        for stage, raises in (("student", False), ("upload", True),
+                              ("sync", False), ("cleanup", True)):
+            with self.subTest(stage=stage), tempfile.TemporaryDirectory() as temporary:
+                backend = FaultBackend(self.target, stage=stage, raises=raises)
+                original_content = backend.agent_content
+                runner = self._runner(temporary, backend)
+                dry = runner.run(f"run_fault_{stage}", mode="dry-run")
+                result = runner.run(
+                    f"run_fault_{stage}", mode="apply",
+                    confirmation_token=dry["confirmation_token"],
+                )
+                self.assertIn(result["status"], ("ROLLED_BACK", "ROLLBACK_FAILED"))
+                self.assertNotIn("private backend detail", json.dumps(result))
+                self.assertEqual(backend.agent_content, original_content)
+
+    def test_restore_knowledge_receipt_requires_independent_current_snapshot_readback(self):
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        class StaleRestoreBackend(SyntheticRegressionBackend):
+            def restore_knowledge(self, snapshot, *, owned_version, owned_digest):
+                self.write_count += 1
+                return {
+                    "restored": True,
+                    "knowledgeVersion": snapshot.version,
+                    "knowledgeDigest": snapshot.digest,
+                }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            backend = StaleRestoreBackend(self.target)
+            runner = self._runner(temporary, backend)
+            dry = runner.run("run_stale_restore", mode="dry-run")
+            result = runner.run(
+                "run_stale_restore", mode="apply",
+                confirmation_token=dry["confirmation_token"],
+            )
+            self.assertEqual(result["status"], "ROLLBACK_FAILED")
+            self.assertIn("knowledge_not_restored", result["residual_state"])
+
+    def test_external_config_change_during_cleanup_cannot_report_passed_or_be_overwritten(self):
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        class ExternalConfigDuringCleanup(SyntheticRegressionBackend):
+            def restore_knowledge(self, snapshot, *, owned_version, owned_digest):
+                receipt = super().restore_knowledge(
+                    snapshot, owned_version=owned_version, owned_digest=owned_digest
+                )
+                self._full_config["expertMd"]["customContent"] = "external config after cleanup"
+                return receipt
+
+        with tempfile.TemporaryDirectory() as temporary:
+            backend = ExternalConfigDuringCleanup(self.target)
+            runner = self._runner(temporary, backend)
+            dry = runner.run("run_external_config_cleanup", mode="dry-run")
+            result = runner.run(
+                "run_external_config_cleanup", mode="apply",
+                confirmation_token=dry["confirmation_token"],
+            )
+            self.assertEqual(result["status"], "ROLLBACK_FAILED")
+            self.assertEqual(result["code"], "EXTERNAL_CONCURRENT_CHANGE")
+            self.assertIn("config_not_restored", result["residual_state"])
+            self.assertEqual(backend.agent_content, "external config after cleanup")
+            self.assertEqual(backend.restore_config_calls, 0)
+
     def test_external_knowledge_change_stops_restore_but_config_cas_still_rolls_back(self):
         from online_e2e.synthetic_backend import SyntheticRegressionBackend
 
@@ -315,6 +450,77 @@ class OnlineE2ERunnerTests(unittest.TestCase):
                 confirmation_token=dry["confirmation_token"],
             )
 
+            self.assertEqual(result["status"], "ROLLBACK_FAILED")
+            self.assertIn("teacher_cases_not_cleaned", result["residual_state"])
+
+    def test_partial_teacher_sync_discovers_and_cleans_exact_created_subset(self):
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        with tempfile.TemporaryDirectory() as temporary:
+            backend = SyntheticRegressionBackend(self.target, partial_sync_cases=True)
+            runner = self._runner(temporary, backend)
+            dry = runner.run("run_partial_sync", mode="dry-run")
+            result = runner.run(
+                "run_partial_sync", mode="apply",
+                confirmation_token=dry["confirmation_token"],
+            )
+            self.assertEqual(result["status"], "ROLLED_BACK")
+            self.assertEqual(result["code"], "READBACK_MISMATCH")
+            self.assertEqual(backend.temporary_cases, set())
+            self.assertEqual(backend.last_cleanup_requested, ("AUTO-RUN_PARTIAL_SYNC-01",))
+
+    def test_cleanup_deleted_ids_must_exactly_equal_owned_set(self):
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        class WrongDeletedIds(SyntheticRegressionBackend):
+            def __init__(self, *args, mode, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.mode = mode
+                self.used_wrong_receipt = False
+
+            def cleanup_teacher_cases(self, case_ids, run_id):
+                receipt = super().cleanup_teacher_cases(case_ids, run_id)
+                if not self.used_wrong_receipt and case_ids:
+                    self.used_wrong_receipt = True
+                    if self.mode == "empty":
+                        receipt["deletedIds"] = []
+                    elif self.mode == "missing":
+                        receipt["deletedIds"] = receipt["deletedIds"][:-1]
+                    else:
+                        receipt["deletedIds"] = [*receipt["deletedIds"], "AUTO-OTHER-RUN-01"]
+                return receipt
+
+        for mode in ("empty", "missing", "extra"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                backend = WrongDeletedIds(self.target, mode=mode)
+                runner = self._runner(temporary, backend)
+                dry = runner.run(f"run_deleted_{mode}", mode="dry-run")
+                result = runner.run(
+                    f"run_deleted_{mode}", mode="apply",
+                    confirmation_token=dry["confirmation_token"],
+                )
+                self.assertNotEqual(result["status"], "PASSED")
+                self.assertEqual(backend.temporary_cases, set())
+
+    def test_owned_teacher_case_listing_rejects_duplicate_or_wrong_prefix(self):
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        class InvalidOwnedCases(SyntheticRegressionBackend):
+            def list_owned_teacher_cases(self, run_id):
+                case_id = f"AUTO-{run_id.upper()}-01"
+                return {
+                    "ownedRunId": run_id,
+                    "caseIds": [case_id, case_id, "AUTO-OTHER-RUN-01"],
+                }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            backend = InvalidOwnedCases(self.target)
+            runner = self._runner(temporary, backend)
+            dry = runner.run("run_invalid_owned", mode="dry-run")
+            result = runner.run(
+                "run_invalid_owned", mode="apply",
+                confirmation_token=dry["confirmation_token"],
+            )
             self.assertEqual(result["status"], "ROLLBACK_FAILED")
             self.assertIn("teacher_cases_not_cleaned", result["residual_state"])
 
@@ -439,6 +645,27 @@ class OnlineE2ERunnerTests(unittest.TestCase):
                 expected_conversation_id=previous_conversation,
             )
         self.assertEqual(previous_conversation, "synthetic-conversation")
+
+    def test_detailed_explanation_requires_facts_dispute_or_analysis_and_reflection(self):
+        from online_e2e.backends import BackendFailure
+        from online_e2e.fixtures import student_scenarios
+        from online_e2e.runner import evaluate_student_receipt
+        from online_e2e.synthetic_backend import SyntheticRegressionBackend
+
+        scenario = next(
+            item for item in student_scenarios() if item.scenario_id == "detailed-explanation"
+        )
+        backend = SyntheticRegressionBackend(self.target)
+        receipt = backend.run_student(scenario, "synthetic-isolated-assistant")
+        receipt["evidence"] = {"caseSummary": True, "followUpQuestion": True}
+        with self.assertRaises(BackendFailure) as error:
+            evaluate_student_receipt(
+                scenario,
+                receipt,
+                expected_assistant_nid="synthetic-isolated-assistant",
+                expected_conversation_id=None,
+            )
+        self.assertEqual(error.exception.code, "ASSERTION_FAILED")
 
 
 if __name__ == "__main__":

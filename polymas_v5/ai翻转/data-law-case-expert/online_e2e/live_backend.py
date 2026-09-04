@@ -98,5 +98,6 @@ class LiveRegressionBackend:
         raise BackendFailure("DEPENDENCY_UNVERIFIED", operation)
 
     publish = current_config_digest = current_knowledge_snapshot = run_student = upload_teacher_fixture = _blocked
-    confirm_teacher_change = sync_teacher_change = read_case = cleanup_teacher_cases = _blocked
+    confirm_teacher_change = sync_teacher_change = read_case = list_owned_teacher_cases = _blocked
+    cleanup_teacher_cases = _blocked
     restore_knowledge = verify_cases_absent = restore_config = _blocked

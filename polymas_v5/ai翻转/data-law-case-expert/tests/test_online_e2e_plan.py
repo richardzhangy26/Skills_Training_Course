@@ -31,7 +31,7 @@ class OnlineE2EPlanTests(unittest.TestCase):
                     "name": name,
                     "enabled": True,
                     "permission": "TEACHER",
-                    "bindingSource": "BUILTIN",
+                    "bindingSource": self.target.online_skill_binding_sources[name],
                     "serverMetadata": {"preserved": name},
                 }
             )
@@ -67,6 +67,14 @@ class OnlineE2EPlanTests(unittest.TestCase):
             desired["skillInfoList"][0]["serverMetadata"],
             {"preserved": "search-router"},
         )
+
+    def test_desired_config_rejects_binding_source_different_from_target(self):
+        from online_e2e.desired_config import DesiredConfigError, build_desired_config
+
+        current = self._online_config()
+        current["skillInfoList"][0]["bindingSource"] = "MARKETPLACE"
+        with self.assertRaisesRegex(DesiredConfigError, "binding_source_mismatch"):
+            build_desired_config(current, self.target, "new")
 
     def test_desired_config_rejects_unknown_missing_or_duplicate_skill_before_mutation(self):
         from online_e2e.desired_config import DesiredConfigError, build_desired_config
@@ -105,6 +113,24 @@ class OnlineE2EPlanTests(unittest.TestCase):
                 "student-write-denied",
             ],
         )
+
+        by_id = {item.scenario_id: item for item in scenarios}
+        self.assertEqual(by_id["exact-statute"].expected_outcome, "answered")
+        self.assertTrue(by_id["exact-statute"].needs_reflection)
+        self.assertEqual(by_id["detailed-explanation"].required_evidence[0].field, "facts")
+        self.assertEqual(
+            by_id["detailed-explanation"].any_true_evidence,
+            (("dispute", "analysis"),),
+        )
+        self.assertGreaterEqual(by_id["ambiguous-candidates"].min_candidates, 2)
+        self.assertIn("facts", by_id["unknown-case-no-fabrication"].forbidden_fields)
+        self.assertFalse(by_id["student-write-denied"].expected_write_performed)
+        self.assertEqual({item.continuation_group for item in scenarios}, {"full-suite"})
+
+        runner_source = (ROOT / "online_e2e" / "runner.py").read_text(encoding="utf-8")
+        synthetic_source = (ROOT / "online_e2e" / "synthetic_backend.py").read_text(encoding="utf-8")
+        self.assertNotIn('scenario_id == "', runner_source)
+        self.assertNotIn("receipts = {", synthetic_source)
 
     def test_teacher_docx_contains_two_explicitly_fictional_cases_and_run_id(self):
         from online_e2e.fixtures import build_teacher_docx, teacher_case_ids

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from pathlib import Path
 import secrets
 from typing import Any
@@ -32,6 +33,31 @@ def _nonempty_string(value):
     return isinstance(value, str) and bool(value.strip())
 
 
+def _receipt_value(value, operation):
+    if isinstance(value, Mapping):
+        try:
+            items = list(value.items())
+        except Exception:
+            raise BackendFailure("STRUCTURED_RECEIPT_REQUIRED", operation) from None
+        captured = {}
+        for key, item in items:
+            if not isinstance(key, str) or key in captured:
+                raise BackendFailure("STRUCTURED_RECEIPT_REQUIRED", operation)
+            captured[key] = _receipt_value(item, operation)
+        return captured
+    if isinstance(value, list):
+        return [_receipt_value(item, operation) for item in list(value)]
+    if value is None or type(value) in (str, bool, int, float):
+        return value
+    raise BackendFailure("STRUCTURED_RECEIPT_REQUIRED", operation)
+
+
+def _mapping_receipt(value, operation):
+    if not isinstance(value, Mapping):
+        raise BackendFailure("STRUCTURED_RECEIPT_REQUIRED", operation)
+    return _receipt_value(value, operation)
+
+
 def evaluate_student_receipt(
     scenario,
     receipt,
@@ -57,62 +83,50 @@ def evaluate_student_receipt(
     ):
         raise BackendFailure("ASSERTION_FAILED", scenario.scenario_id)
 
-    scenario_id = scenario.scenario_id
-    outcome = receipt["outcome"]
-    evidence = receipt.get("evidence")
-    valid = False
-    if scenario_id == "exact-statute":
-        valid = (
-            outcome == "answered"
-            and receipt.get("caseIds") == ["DLCL-0001"]
-            and isinstance(evidence, dict)
-            and isinstance(evidence.get("statutes"), list)
-            and bool(evidence["statutes"])
-            and evidence.get("reflectionQuestion") is True
-        )
-    elif scenario_id == "detailed-explanation":
-        valid = (
-            outcome == "answered"
-            and receipt.get("caseIds") == ["DLCL-0001"]
-            and isinstance(evidence, dict)
-            and any(evidence.get(field) is True for field in ("caseSummary", "facts", "dispute"))
-            and evidence.get("followUpQuestion") is True
-        )
-    elif scenario_id == "follow-up-question":
-        valid = (
-            outcome == "answered"
-            and receipt.get("caseIds") == ["DLCL-0001"]
-            and isinstance(evidence, dict)
-            and evidence.get("focus") == "dispute"
-            and expected_conversation_id is not None
-        )
-    elif scenario_id == "ambiguous-candidates":
+    evidence = receipt.get("evidence", {})
+    valid = receipt["outcome"] == scenario.expected_outcome
+    if scenario.expected_case_ids is not None:
+        valid = valid and receipt.get("caseIds") == list(scenario.expected_case_ids)
+    if scenario.required_evidence or scenario.any_true_evidence or scenario.needs_reflection:
+        valid = valid and isinstance(evidence, dict)
+    if isinstance(evidence, dict):
+        for requirement in scenario.required_evidence:
+            value = evidence.get(requirement.field)
+            if requirement.kind == "true":
+                valid = valid and value is True
+            elif requirement.kind == "false":
+                valid = valid and value is False
+            elif requirement.kind == "equals":
+                valid = valid and value == requirement.value
+            elif requirement.kind == "nonempty_list":
+                valid = valid and isinstance(value, list) and bool(value)
+            else:
+                valid = False
+        for fields in scenario.any_true_evidence:
+            valid = valid and any(evidence.get(field) is True for field in fields)
+        if scenario.needs_reflection:
+            valid = valid and evidence.get("reflectionQuestion") is True
+    if scenario.min_candidates:
         candidates = receipt.get("candidates")
-        candidate_ids = [item.get("caseId") for item in candidates] if isinstance(candidates, list) and all(isinstance(item, dict) for item in candidates) else []
+        candidate_ids = (
+            [item.get("caseId") for item in candidates]
+            if isinstance(candidates, list)
+            and all(isinstance(item, dict) for item in candidates)
+            else []
+        )
         valid = (
-            outcome == "awaiting_selection"
-            and len(candidate_ids) >= 2
+            valid
+            and len(candidate_ids) >= scenario.min_candidates
             and len(set(candidate_ids)) == len(candidate_ids)
             and all(_nonempty_string(item) for item in candidate_ids)
         )
-    elif scenario_id == "unknown-case-no-fabrication":
-        valid = (
-            outcome == "not_found"
-            and receipt.get("caseIds") == []
-            and isinstance(evidence, dict)
-            and evidence.get("fabricatedFacts") is False
-            and evidence.get("inventedCitation") is False
-            and "facts" not in receipt
-        )
-    elif scenario_id == "student-write-denied":
-        valid = (
-            outcome == "denied"
-            and receipt.get("writePerformed") is False
-            and receipt.get("reasonCode") == "ROLE_NOT_AUTHORIZED"
-            and "changeId" not in receipt
-        )
+    if scenario.expected_write_performed is not None:
+        valid = valid and receipt.get("writePerformed") is scenario.expected_write_performed
+    if scenario.reason_code is not None:
+        valid = valid and receipt.get("reasonCode") == scenario.reason_code
+    valid = valid and all(field not in receipt for field in scenario.forbidden_fields)
     if not valid:
-        raise BackendFailure("ASSERTION_FAILED", scenario_id)
+        raise BackendFailure("ASSERTION_FAILED", scenario.scenario_id)
     return receipt["conversationId"]
 
 
@@ -235,6 +249,7 @@ class ExpertE2ERunner:
             snapshot_digest=before.config.digest,
             expected_digest=desired_snapshot.digest,
             knowledge_version=before.knowledge.version,
+            knowledge_digest=before.knowledge.digest,
             diff_digest=plan_digest,
             nonce=nonce,
         )
@@ -242,6 +257,7 @@ class ExpertE2ERunner:
             "snapshot_digest": binding.snapshot_digest,
             "expected_digest": binding.expected_digest,
             "knowledge_version": binding.knowledge_version,
+            "knowledge_digest": binding.knowledge_digest,
             "diff_digest": binding.diff_digest,
             "nonce": binding.nonce,
         }
@@ -255,9 +271,43 @@ class ExpertE2ERunner:
             raise BackendFailure(code)
         return receipt
 
+    @staticmethod
+    def _call_receipt(operation, method, *args, **kwargs):
+        try:
+            return _mapping_receipt(method(*args, **kwargs), operation)
+        except BackendFailure:
+            raise
+        except Exception:
+            raise BackendFailure("BACKEND_ERROR", operation) from None
+
+    def _owned_teacher_cases(self, run_id):
+        listing = self._require(
+            self._call_receipt(
+                "list_owned_teacher_cases", self.backend.list_owned_teacher_cases, run_id
+            ),
+            ("ownedRunId", "caseIds"),
+        )
+        case_ids = listing["caseIds"]
+        prefix = f"AUTO-{run_id.upper()}-"
+        if (
+            listing["ownedRunId"] != run_id
+            or not isinstance(case_ids, list)
+            or any(not isinstance(case_id, str) or not case_id.startswith(prefix)
+                   for case_id in case_ids)
+            or len(case_ids) != len(set(case_ids))
+        ):
+            raise BackendFailure("CLEANUP_VERIFICATION_FAILED", "teacher_cases_not_cleaned")
+        return tuple(sorted(case_ids))
+
     def _cleanup_teacher(self, case_ids, run_id, knowledge_snapshot, owned_knowledge):
+        owned_case_ids = self._owned_teacher_cases(run_id)
         cleanup = self._require(
-            self.backend.cleanup_teacher_cases(case_ids, run_id),
+            self._call_receipt(
+                "cleanup_teacher_cases",
+                self.backend.cleanup_teacher_cases,
+                owned_case_ids,
+                run_id,
+            ),
             ("cleaned", "deletedIds", "ownedRunId"),
         )
         if cleanup["cleaned"] is not True or cleanup["ownedRunId"] != run_id:
@@ -266,8 +316,9 @@ class ExpertE2ERunner:
         if (
             not isinstance(deleted_ids, list)
             or len(deleted_ids) != len(set(deleted_ids))
-            or not set(deleted_ids).issubset(case_ids)
-            or not self.backend.verify_cases_absent(case_ids)
+            or tuple(sorted(deleted_ids)) != owned_case_ids
+            or self._owned_teacher_cases(run_id)
+            or not self.backend.verify_cases_absent(owned_case_ids)
         ):
             raise BackendFailure("CLEANUP_VERIFICATION_FAILED", "teacher_cases_not_cleaned")
         current_knowledge = self.backend.current_knowledge_snapshot()
@@ -277,7 +328,9 @@ class ExpertE2ERunner:
         ):
             raise BackendFailure("EXTERNAL_CONCURRENT_CHANGE", "knowledge_not_restored")
         restored = self._require(
-            self.backend.restore_knowledge(
+            self._call_receipt(
+                "restore_knowledge",
+                self.backend.restore_knowledge,
                 knowledge_snapshot,
                 owned_version=owned_knowledge.version,
                 owned_digest=owned_knowledge.digest,
@@ -288,20 +341,42 @@ class ExpertE2ERunner:
             restored["restored"] is not True
             or restored["knowledgeVersion"] != knowledge_snapshot.version
             or restored["knowledgeDigest"] != knowledge_snapshot.digest
-            or not self.backend.verify_cases_absent(case_ids)
+            or not self.backend.verify_cases_absent(owned_case_ids)
         ):
             raise BackendFailure("CLEANUP_VERIFICATION_FAILED")
+        try:
+            restored_current = self.backend.current_knowledge_snapshot()
+        except BackendFailure:
+            raise
+        except Exception:
+            raise BackendFailure("BACKEND_ERROR", "current_knowledge_snapshot") from None
+        if (
+            restored_current.version != knowledge_snapshot.version
+            or restored_current.digest != knowledge_snapshot.digest
+            or self._owned_teacher_cases(run_id)
+            or not self.backend.verify_cases_absent(case_ids)
+        ):
+            detail = (
+                "knowledge_not_restored"
+                if (restored_current.version != knowledge_snapshot.version
+                    or restored_current.digest != knowledge_snapshot.digest)
+                else "teacher_cases_not_cleaned"
+            )
+            raise BackendFailure("CLEANUP_VERIFICATION_FAILED", detail)
 
     def _execute_tests(self, payload, before, run_id, assistant_nid, run_state):
-        conversation_id = None
+        conversations = {}
         for scenario in student_scenarios():
-            receipt = dict(self.backend.run_student(scenario, assistant_nid))
+            receipt = self._call_receipt(
+                "run_student", self.backend.run_student, scenario, assistant_nid
+            )
             conversation_id = evaluate_student_receipt(
                 scenario,
                 receipt,
                 expected_assistant_nid=assistant_nid,
-                expected_conversation_id=conversation_id,
+                expected_conversation_id=conversations.get(scenario.continuation_group),
             )
+            conversations.setdefault(scenario.continuation_group, conversation_id)
             payload["assertions"].append(receipt)
 
         case_ids = teacher_case_ids(run_id)
@@ -309,21 +384,34 @@ class ExpertE2ERunner:
         if remember is not None:
             remember(case_ids)
         upload = self._require(
-            dict(self.backend.upload_teacher_fixture(
-                build_teacher_docx(run_id), scene="自动化测试", case_ids=case_ids, run_id=run_id
-            )),
+            self._call_receipt(
+                "upload_teacher_fixture",
+                self.backend.upload_teacher_fixture,
+                build_teacher_docx(run_id),
+                scene="自动化测试",
+                case_ids=case_ids,
+                run_id=run_id,
+            ),
             ("accepted", "uploadId", "scene"),
         )
         if upload["accepted"] is not True or upload["scene"] != "自动化测试":
             raise BackendFailure("STRUCTURED_RECEIPT_REQUIRED")
         confirmed = self._require(
-            dict(self.backend.confirm_teacher_change(upload["uploadId"])),
+            self._call_receipt(
+                "confirm_teacher_change",
+                self.backend.confirm_teacher_change,
+                upload["uploadId"],
+            ),
             ("confirmed", "changeId"),
         )
         if confirmed["confirmed"] is not True:
             raise BackendFailure("STRUCTURED_RECEIPT_REQUIRED")
         synced = self._require(
-            dict(self.backend.sync_teacher_change(confirmed["changeId"])),
+            self._call_receipt(
+                "sync_teacher_change",
+                self.backend.sync_teacher_change,
+                confirmed["changeId"],
+            ),
             ("htmlUpdated", "knowledgeUpdated", "knowledgeVersion", "knowledgeDigest"),
         )
         if synced["htmlUpdated"] is not True or synced["knowledgeUpdated"] is not True:
@@ -356,7 +444,18 @@ class ExpertE2ERunner:
                 residual.append("teacher_or_knowledge_cleanup_unverified")
         except Exception:
             residual.append("teacher_or_knowledge_cleanup_unverified")
-        if self.backend.current_config_digest(self.target) != owned_digest:
+        try:
+            current_config_digest = self.backend.current_config_digest(self.target)
+        except Exception:
+            residual.append("config_state_unknown")
+            self._stage(payload, "CLEANUP", "FAILED")
+            payload.update(
+                status="ROLLBACK_FAILED",
+                code="WRITE_STATE_UNKNOWN",
+                residual_state=residual,
+            )
+            return self._finish(payload)
+        if current_config_digest != owned_digest:
             residual.append("config_not_restored")
             self._stage(payload, "CLEANUP", "FAILED")
             payload.update(
@@ -367,7 +466,12 @@ class ExpertE2ERunner:
             return self._finish(payload)
         try:
             receipt = self._require(
-                dict(self.backend.restore_config(before.config, owned_digest=owned_digest)),
+                self._call_receipt(
+                    "restore_config",
+                    self.backend.restore_config,
+                    before.config,
+                    owned_digest=owned_digest,
+                ),
                 ("restored",),
             )
             if receipt["restored"] is not True or self.backend.current_config_digest(self.target) != before.config.digest:
@@ -415,7 +519,9 @@ class ExpertE2ERunner:
             self._stage(payload, "PUBLISHING", "RUNNING")
             try:
                 publication = self._require(
-                    dict(self.backend.publish(self.target, desired, run_id)),
+                    self._call_receipt(
+                        "publish", self.backend.publish, self.target, desired, run_id
+                    ),
                     ("published", "owned_digest", "assistantId"),
                 )
                 if publication["published"] is not True or publication["owned_digest"] != desired_snapshot.digest:
@@ -437,13 +543,33 @@ class ExpertE2ERunner:
                         case_ids, run_id, before.knowledge, run_state["owned_knowledge"]
                     )
                     self._stage(payload, "CLEANUP", "PASSED")
-                except BackendFailure as failure:
+                    try:
+                        final_config_digest = self.backend.current_config_digest(self.target)
+                    except BackendFailure:
+                        raise
+                    except Exception:
+                        raise BackendFailure("BACKEND_ERROR", "current_config_digest") from None
+                    if final_config_digest != owned_digest:
+                        self._stage(payload, "CLEANUP", "FAILED", "EXTERNAL_CONCURRENT_CHANGE")
+                        payload.update(
+                            status="ROLLBACK_FAILED",
+                            code="EXTERNAL_CONCURRENT_CHANGE",
+                            residual_state=["config_not_restored"],
+                        )
+                        return self._finish(payload)
+                except Exception as error:
+                    failure = error if isinstance(error, BackendFailure) else BackendFailure(
+                        "BACKEND_ERROR", "post_publish"
+                    )
                     self._stage(payload, "TESTING", "FAILED", failure.code)
                     return self._rollback(
                         payload, before, owned_digest, case_ids, run_id,
                         failure, run_state["owned_knowledge"],
                     )
-            except BackendFailure as failure:
+            except Exception as error:
+                failure = error if isinstance(error, BackendFailure) else BackendFailure(
+                    "BACKEND_ERROR", "publish_or_post_publish"
+                )
                 self._stage(payload, "PUBLISHING", "FAILED", failure.code)
                 try:
                     current_digest = self.backend.current_config_digest(self.target)

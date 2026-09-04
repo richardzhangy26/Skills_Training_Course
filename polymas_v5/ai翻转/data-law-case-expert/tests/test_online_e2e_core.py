@@ -359,6 +359,7 @@ class OnlineE2ECoreTests(unittest.TestCase):
             snapshot_digest="snapshot-digest",
             expected_digest="expected-digest",
             knowledge_version="77-v1",
+            knowledge_digest="knowledge-digest",
             diff_digest="diff-digest",
             nonce="session-nonce-0001",
         )
@@ -370,6 +371,7 @@ class OnlineE2ECoreTests(unittest.TestCase):
             "snapshot_digest",
             "expected_digest",
             "knowledge_version",
+            "knowledge_digest",
             "diff_digest",
             "nonce",
         ):

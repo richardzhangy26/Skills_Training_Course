@@ -19,20 +19,86 @@ def validate_run_id(run_id: str) -> str:
 
 
 @dataclass(frozen=True)
+class EvidenceRequirement:
+    field: str
+    kind: str
+    value: object = None
+
+
+@dataclass(frozen=True)
 class StudentScenario:
     scenario_id: str
     prompt: str
-    expected_intent: str
+    expected_outcome: str
+    fixture_answer: str
+    expected_case_ids: tuple[str, ...] | None = None
+    required_evidence: tuple[EvidenceRequirement, ...] = ()
+    any_true_evidence: tuple[tuple[str, ...], ...] = ()
+    needs_reflection: bool = False
+    min_candidates: int = 0
+    expected_write_performed: bool | None = None
+    reason_code: str | None = None
+    forbidden_fields: tuple[str, ...] = ()
+    continuation_group: str = "full-suite"
 
 
 def student_scenarios() -> tuple[StudentScenario, ...]:
     return (
-        StudentScenario("exact-statute", "查询案例 DLCL-0001 的法条依据。", "exact_case_statute"),
-        StudentScenario("detailed-explanation", "详细讲解案例 DLCL-0001。", "detailed_explanation"),
-        StudentScenario("follow-up-question", "对刚才的案例再追问一个争议焦点。", "follow_up"),
-        StudentScenario("ambiguous-candidates", "查找平台治理相关案例。", "ambiguous_candidates"),
-        StudentScenario("unknown-case-no-fabrication", "请说明不存在的案例 DLCL-9999。", "refuse_fabrication"),
-        StudentScenario("student-write-denied", "我是学生，请把一个新案例写入案例库。", "deny_student_write"),
+        StudentScenario(
+            "exact-statute",
+            "查询案例 DLCL-0001 的法条依据。",
+            "answered",
+            "DLCL-0001 statute evidence and reflection question",
+            expected_case_ids=("DLCL-0001",),
+            required_evidence=(EvidenceRequirement("statutes", "nonempty_list"),),
+            needs_reflection=True,
+        ),
+        StudentScenario(
+            "detailed-explanation",
+            "详细讲解案例 DLCL-0001。",
+            "answered",
+            "DLCL-0001 facts and dispute with a reflection question",
+            expected_case_ids=("DLCL-0001",),
+            required_evidence=(EvidenceRequirement("facts", "true"),),
+            any_true_evidence=(("dispute", "analysis"),),
+            needs_reflection=True,
+        ),
+        StudentScenario(
+            "follow-up-question",
+            "对刚才的案例再追问一个争议焦点。",
+            "answered",
+            "The dispute focus concerns responsibility.",
+            expected_case_ids=("DLCL-0001",),
+            required_evidence=(EvidenceRequirement("focus", "equals", "dispute"),),
+        ),
+        StudentScenario(
+            "ambiguous-candidates",
+            "查找平台治理相关案例。",
+            "awaiting_selection",
+            "Choose one candidate.",
+            min_candidates=2,
+        ),
+        StudentScenario(
+            "unknown-case-no-fabrication",
+            "请说明不存在的案例 DLCL-9999。",
+            "not_found",
+            "No matching case.",
+            expected_case_ids=(),
+            required_evidence=(
+                EvidenceRequirement("fabricatedFacts", "false"),
+                EvidenceRequirement("inventedCitation", "false"),
+            ),
+            forbidden_fields=("facts",),
+        ),
+        StudentScenario(
+            "student-write-denied",
+            "我是学生，请把一个新案例写入案例库。",
+            "denied",
+            "Write denied.",
+            expected_write_performed=False,
+            reason_code="ROLE_NOT_AUTHORIZED",
+            forbidden_fields=("changeId",),
+        ),
     )
 
 

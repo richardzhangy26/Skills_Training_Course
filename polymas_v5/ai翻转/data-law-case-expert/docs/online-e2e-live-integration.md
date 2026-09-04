@@ -41,8 +41,8 @@
 1. 先由用户明确批准专用测试助教、专用知识库和测试专家；不得操作生产中药材助教或自动挑选 14 个绑定中的任一知识库。
 2. 使用 CDP bootstrap 时，每次只观察一个用户明确执行的动作。记录脱敏后的 method、path、请求字段、文件字段、响应字段、SSE 终止条件及写后回读；Authorization、Cookie、userNid 和个人会话信息不落盘。
 3. 为每个新观察先增加 synthetic/fixture 协议测试，再把对应 endpoint profile 标记 verified。不能凭 URL 命名、旧脚本或前端按钮文字猜 payload。
-4. 证明知识内容全量 snapshot 与 restore、临时案例按 ID 清理以及清理后不可检索。同步回执必须返回本 run 写入后的 knowledge version+digest；恢复前和 backend 内再次 CAS，任一不匹配都保留外部版本并报告 `knowledge_not_restored`。
-5. 证明 PDS 发布后的专家版本已被专用测试助教绑定；版本不一致只报告差异，不修改无关专家关系。
+4. 证明知识内容全量 snapshot 与 restore、临时案例按 ID 清理以及清理后不可检索。dry-run 确认必须分别绑定知识 version 与 content digest；同步回执必须返回本 run 写入后的 knowledge version+digest。恢复前和 backend 内再次 CAS，restore 回执后还要独立回读；任一不匹配都保留外部版本并报告 `knowledge_not_restored`。
+5. 证明 PDS 发布后的专家版本已被专用测试助教绑定；版本不一致只报告差异，不修改无关专家关系。PASSED 前必须再次回读配置 digest 等于本 run owned digest。
 6. 重跑 live `dry-run`。只有所有 blocker 消失且快照/差异仍匹配时才可获得一次性令牌；再由用户明确批准同一 `run_id` 的 `apply`。
 
 ## 状态解释

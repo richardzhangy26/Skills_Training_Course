@@ -55,9 +55,18 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
             snapshot_digest="before",
             expected_digest="after",
             knowledge_version="knowledge-v1",
+            knowledge_digest="knowledge-digest-v1",
             diff_digest="plan-digest",
             nonce="nonce-001",
         )
+
+    def test_safety_store_and_reports_share_one_private_atomic_io_implementation(self):
+        from online_e2e import private_io, reports, run_store, safety
+
+        self.assertIs(safety.write_private_bytes_atomic, private_io.write_private_bytes_atomic)
+        self.assertIs(run_store.write_private_bytes_atomic, private_io.write_private_bytes_atomic)
+        self.assertIs(run_store.write_private_json_atomic, private_io.write_private_json_atomic)
+        self.assertIs(reports.write_private_bytes_atomic, private_io.write_private_bytes_atomic)
 
     def test_durable_store_creates_private_key_and_consumes_token_across_instances(self):
         from online_e2e.run_store import DurableRunStore
@@ -88,7 +97,7 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
                 "from online_e2e.contracts import ConfirmationBinding;"
                 "from online_e2e.run_store import DurableRunStore;"
                 "import pathlib,sys;"
-                "b=ConfirmationBinding('data-law-case-expert','before','after','knowledge-v1','plan-digest','nonce-001');"
+                "b=ConfirmationBinding('data-law-case-expert','before','after','knowledge-v1','knowledge-digest-v1','plan-digest','nonce-001');"
                 "print(DurableRunStore(pathlib.Path(sys.argv[1])).confirmations.consume(sys.argv[2],b))"
             )
             environment = dict(os.environ)
@@ -112,12 +121,13 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
 
     def test_concurrent_first_store_initialization_never_reads_partial_key(self):
         import online_e2e.run_store as run_store
+        import online_e2e.private_io as private_io
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "state"
             entered = threading.Event()
             release = threading.Event()
-            original_fdopen = run_store.os.fdopen
+            original_fdopen = private_io.os.fdopen
             calls = 0
             calls_lock = threading.Lock()
             errors = []
@@ -138,7 +148,7 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
                 except Exception as error:
                     errors.append(error)
 
-            with patch.object(run_store.os, "fdopen", side_effect=delayed_first_fdopen):
+            with patch.object(private_io.os, "fdopen", side_effect=delayed_first_fdopen):
                 first = threading.Thread(target=create_store)
                 second = threading.Thread(target=create_store)
                 first.start()
@@ -253,6 +263,30 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
                     RequestsTransport.from_env_file(env_file, session=session)
                 self.assertEqual(error.exception.code, "CONTRACT_CHANGED")
                 self.assertEqual(session.calls, [])
+
+    def test_requests_transport_revalidates_final_url_and_rejects_path_scheme_bypass(self):
+        from online_e2e.requests_transport import RequestsTransport
+        from online_e2e.transport import ClientError
+
+        session = FakeSession()
+        transport = RequestsTransport(
+            base_url="https://cloudapi.polymas.com",
+            authorization="Bearer private",
+            cookie="private",
+            session=session,
+        )
+        for path in (
+            "/https://evil.example",
+            "/http://evil.example",
+            "/\x00https://evil.example",
+            "/\nhttps://evil.example",
+            "/\\evil.example",
+        ):
+            with self.subTest(path=path):
+                with self.assertRaises(ClientError) as error:
+                    transport.request("GET", path)
+                self.assertEqual(error.exception.code, "CONTRACT_CHANGED")
+        self.assertEqual(session.calls, [])
 
     def test_pds_client_preserves_transport_auth_classification(self):
         from online_e2e.clients import PdsClient

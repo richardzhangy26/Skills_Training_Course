@@ -9,48 +9,13 @@ import json
 import os
 from pathlib import Path
 import secrets
-import tempfile
 from typing import Any, Iterator
 
 from .contracts import ConfirmationBinding
 from .fixtures import validate_run_id
+from .private_io import write_private_bytes_atomic, write_private_json_atomic
 from .safety import ConfirmationTokenManager
 from .safety import redact_sensitive
-
-
-def _fsync_directory(path: Path) -> None:
-    descriptor = os.open(path, os.O_RDONLY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
-
-
-def write_private_bytes_atomic(path: Path, data: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    temporary = Path(temporary_name)
-    try:
-        os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(data)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, path)
-        os.chmod(path, 0o600)
-        _fsync_directory(path.parent)
-    finally:
-        if temporary.exists():
-            temporary.unlink()
-
-
-def _private_atomic_json(path: Path, value: Any) -> None:
-    data = json.dumps(
-        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    ).encode("utf-8")
-    write_private_bytes_atomic(path, data)
 
 
 def _without_confirmation_tokens(value: Any) -> Any:
@@ -112,7 +77,7 @@ class DurableConfirmations:
                     "nonce_sha256": nonce_digest,
                 }
             )
-            _private_atomic_json(self._ledger_path, ledger)
+            write_private_json_atomic(self._ledger_path, ledger)
             return True
         finally:
             fcntl.flock(descriptor, fcntl.LOCK_UN)
@@ -152,6 +117,7 @@ class DurableRunStore:
         safe_target = validate_run_id(target_id)
         path = self.root / "locks" / f"{safe_target}.lock"
         path.parent.mkdir(parents=True, exist_ok=True)
+        os.chmod(path.parent, 0o700)
         descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
         try:
             os.fchmod(descriptor, 0o600)
@@ -164,7 +130,7 @@ class DurableRunStore:
     def write_checkpoint(self, run_id: str, payload: Any) -> Path:
         safe_run_id = validate_run_id(run_id)
         path = self.root / "runs" / f"{safe_run_id}.json"
-        _private_atomic_json(path, _without_confirmation_tokens(payload))
+        write_private_json_atomic(path, _without_confirmation_tokens(payload))
         return path
 
     def read_checkpoint(self, run_id: str) -> dict[str, Any] | None:

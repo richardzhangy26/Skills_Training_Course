@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Mapping
+from dataclasses import replace
 import importlib
 import json
 from pathlib import Path
@@ -102,7 +103,8 @@ class ClientTests(unittest.TestCase):
 
     def confirmation(self, before, desired, request_digest='synthetic-diff'):
         binding = ConfirmationBinding('synthetic-page', before.digest, desired.digest,
-                                      'synthetic-knowledge-v1', request_digest, 'synthetic-nonce')
+                                      'synthetic-knowledge-v1', 'synthetic-knowledge-digest',
+                                      request_digest, 'synthetic-nonce')
         return self.clients.WriteConfirmation(self.manager.issue(binding), binding)
 
     def save_confirmation(self, before, desired, config=None, operation='save_and_publish'):
@@ -239,7 +241,7 @@ class ClientTests(unittest.TestCase):
 
     def test_bool_or_forged_confirmation_never_writes(self):
         for invalid in (True, object(), self.clients.WriteConfirmation('forged',
-                ConfirmationBinding('synthetic-page', 'a', 'b', 'c', 'd', 'e'))):
+                ConfirmationBinding('synthetic-page', 'a', 'b', 'c', 'knowledge-digest', 'd', 'e'))):
             with self.assertRaises(self.clients.ClientError):
                 self.client.save_and_publish('synthetic-page', synthetic_config(), confirmation=invalid)
         self.assertFalse(any(c[1].endswith('/saveAssistant') for c in self.transport.calls))
@@ -252,6 +254,20 @@ class ClientTests(unittest.TestCase):
         with self.assertRaises(self.clients.ClientError) as error:
             self.client.save_and_publish('synthetic-page', desired, confirmation=confirm)
         self.assertEqual(error.exception.code, 'CONFIRMATION_INVALID')
+
+    def test_clients_reject_empty_knowledge_digest_before_write(self):
+        before = self.client.snapshot('synthetic-page')
+        desired = synthetic_config()
+        expected = self.client.snapshot_from_config('synthetic-page', desired, [])
+        valid = self.save_confirmation(before, expected, config=desired)
+        binding = replace(valid.binding, knowledge_digest='')
+        invalid = self.clients.WriteConfirmation(self.manager.issue(binding), binding)
+
+        calls = len(self.transport.calls)
+        with self.assertRaises(self.clients.ClientError) as error:
+            self.client.save_and_publish('synthetic-page', desired, confirmation=invalid)
+        self.assertEqual(error.exception.code, 'CONFIRMATION_INVALID')
+        self.assertEqual(len(self.transport.calls), calls + 3)
 
     def test_write_timeout_reads_back_and_never_retries(self):
         before = self.client.snapshot('synthetic-page')
@@ -327,7 +343,8 @@ class ClientTests(unittest.TestCase):
             confirmation_manager=self.manager, target_id='synthetic-page', snapshot_digest='synthetic-baseline')
         payload = {'assistantNid': 'synthetic-assistant'}
         digest = self.clients.teaching_request_digest('create_session', payload)
-        binding = ConfirmationBinding('synthetic-page', 'synthetic-baseline', digest, 'v1', digest, 'nonce')
+        binding = ConfirmationBinding('synthetic-page', 'synthetic-baseline', digest, 'v1',
+                                      'knowledge-digest', digest, 'nonce')
         confirmation = self.clients.WriteConfirmation(self.manager.issue(binding), binding)
         self.assertEqual(teaching.create_session(payload, confirmation=confirmation)['sessionId'], 'synthetic-session')
         with self.assertRaises(self.clients.ClientError):
@@ -360,7 +377,7 @@ class ClientTests(unittest.TestCase):
             confirmation_manager=self.manager, target_id='synthetic-page', snapshot_digest='baseline')
         payload = {'message': '合成测试'}
         binding = ConfirmationBinding('synthetic-page', 'baseline',
-            self.clients.teaching_request_digest('send_message', payload), 'v1',
+            self.clients.teaching_request_digest('send_message', payload), 'v1', 'knowledge-digest',
             self.clients.teaching_request_digest('send_message', payload), 'nonce')
         confirmation = self.clients.WriteConfirmation(self.manager.issue(binding), binding)
         def broken_stream(*args, **kwargs):
@@ -459,7 +476,7 @@ class ClientTests(unittest.TestCase):
         teaching = self.clients.TeachingCenterClient(self.transport, profile=profile,
             confirmation_manager=self.manager, target_id='synthetic-page', snapshot_digest='baseline')
         binding = ConfirmationBinding('synthetic-page', 'baseline',
-            self.clients.teaching_request_digest('create_session', {}), 'v1',
+            self.clients.teaching_request_digest('create_session', {}), 'v1', 'knowledge-digest',
             self.clients.teaching_request_digest('create_session', {}), 'nonce')
         self.transport.response_override = {'code': 200, 'data': {}}
         with self.assertRaises(self.clients.ClientError) as error:
@@ -473,7 +490,7 @@ class ClientTests(unittest.TestCase):
         teaching = self.clients.TeachingCenterClient(self.transport, profile=profile,
             confirmation_manager=self.manager, target_id='synthetic-page', snapshot_digest='baseline')
         digest = self.clients.teaching_request_digest('create_session', {})
-        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1',
+        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1', 'knowledge-digest',
                                       'digest-from-another-operation', 'nonce')
         with self.assertRaises(self.clients.ClientError) as error:
             teaching.create_session({}, confirmation=self.clients.WriteConfirmation(
@@ -513,7 +530,8 @@ class ClientTests(unittest.TestCase):
             self.transport, profile=profile, confirmation_manager=self.manager,
             target_id='synthetic-page', snapshot_digest='baseline')
         digest = self.clients.teaching_request_digest('create_session', {'message': 'approved'})
-        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1', digest, 'nonce')
+        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1',
+                                      'knowledge-digest', digest, 'nonce')
 
         result = teaching.create_session(
             StatefulMapping(),
@@ -547,7 +565,8 @@ class ClientTests(unittest.TestCase):
             self.transport, profile=profile, confirmation_manager=self.manager,
             target_id='synthetic-page', snapshot_digest='baseline')
         digest = self.clients.teaching_request_digest('send_message', {'message': 'approved'})
-        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1', digest, 'nonce')
+        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1',
+                                      'knowledge-digest', digest, 'nonce')
 
         list(teaching.send_message(
             StatefulMapping(),
@@ -578,7 +597,8 @@ class ClientTests(unittest.TestCase):
         approved_files = {'file': ('approved.txt', b'approved-bytes', 'text/plain')}
         digest = self.clients.teaching_request_digest(
             'upload_file', {'folder': 'synthetic'}, files=approved_files)
-        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1', digest, 'nonce')
+        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1',
+                                      'knowledge-digest', digest, 'nonce')
 
         teaching.upload_file(
             {'folder': 'synthetic'}, files=files,

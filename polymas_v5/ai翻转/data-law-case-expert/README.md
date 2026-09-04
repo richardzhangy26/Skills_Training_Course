@@ -67,7 +67,7 @@ python -m online_e2e data-law-case-expert dry-run full \
   --env-file /absolute/path/to/polymas.env
 ```
 
-env 文件必须由 `--env-file` 显式传入，至少包含 `AUTHORIZATION` 与 `COOKIE`。凭证只进入内存请求头，不进入 stdout、checkpoint 或报告。CLI 的 stdout 始终恰好一个 JSON；诊断写 stderr。运行 checkpoint 位于 `.online-e2e-state/`，JSON/Markdown 报告位于 `reports/online-e2e/`，两者均被 gitignore。
+env 文件必须由 `--env-file` 显式传入，至少包含 `AUTHORIZATION` 与 `COOKIE`。生产 transport 只接受 `https://cloudapi.polymas.com` origin，并在发送前复核最终 URL，拒绝 path 中的 scheme/netloc、反斜杠和控制字符，避免凭证被带到外域。凭证只进入内存请求头，不进入 stdout、checkpoint 或报告。CLI 的 stdout 始终恰好一个 JSON；`--help/-h` 也只输出单个 HELP JSON，诊断写 stderr。运行 checkpoint 位于 `.online-e2e-state/`，JSON/Markdown 报告位于 `reports/online-e2e/`，两者均被 gitignore 且使用共享的 0600 原子写实现。
 
 只有所有 live 前置条件补证后，`dry-run` 才会把一次性确认令牌返回到 stdout。随后必须使用相同 `run_id` 和原令牌执行：
 
@@ -78,11 +78,11 @@ python -m online_e2e data-law-case-expert apply full \
   --confirmation-token '<dry-run stdout 中的令牌>'
 ```
 
-`apply` 在 target 级文件锁内重新计算本地资产摘要、线上快照、隔离助教 NID、关系版本和请求计划摘要；内容、身份、关系或版本变化会使旧令牌失效。令牌和 nonce 均为一次性消费。成功只保留新专家配置，教师双案例 fixture 和知识变更必须清理并恢复。配置与知识分别执行 version/digest CAS；任一项检测到第三方并发变化时停止覆盖，报告 `ROLLBACK_FAILED` 与 `config_not_restored` 或 `knowledge_not_restored` 残留状态。
+`apply` 在 target 级文件锁内重新计算本地资产摘要、线上快照、隔离助教 NID、关系版本和请求计划摘要；确认签名单独绑定知识 version 与 content digest，同版本内容变化也会使旧令牌失效。令牌和 nonce 均为一次性消费。成功只保留新专家配置，教师双案例 fixture 和知识变更必须清理并恢复。清理前先列出本 run 实际创建且符合 `AUTO-{RUN_ID}-` 前缀的案例，`deletedIds` 必须与该集合精确相等，最终再次回读为空。知识 restore 后重新读取 version+digest，PASSED 前重新读取配置 digest；配置与知识分别执行 CAS。任一项检测到第三方并发变化时停止覆盖，报告 `ROLLBACK_FAILED` 与 `config_not_restored` 或 `knowledge_not_restored` 残留状态。
 
 ### Synthetic 固定回归
 
-`SyntheticRegressionBackend` 只用于离线证明完整状态机，不是 live 平台或 CDP 录制。固定学生套件覆盖精确案例法条、详细讲解、同 conversation 连续追问、模糊候选、未知案例拒绝补造和学生写入拒绝；runner 独立检查 outcome、案例/法条/候选/拒绝证据，不信任 backend 自报 `passed=true`。教师套件生成两个明确标注 `FICTIONAL TEST CASES / NO REAL PII` 的 DOCX 案例，backend 实际解析 DOCX 并核对 run_id、两个 exact case ID 和 scene，通过结构化上传、确认、同步和按 ID 回读后清理；自然语言“成功”不能替代写入回执或回读。
+`SyntheticRegressionBackend` 只用于离线证明完整状态机，不是 live 平台或 CDP 录制。固定学生套件覆盖精确案例法条、详细讲解、同 conversation 连续追问、模糊候选、未知案例拒绝补造和学生写入拒绝；runner 独立检查 outcome、案例/法条/候选/拒绝证据，不信任 backend 自报 `passed=true`。详细讲解必须同时具有基本案情、争议焦点或分析、反思思考题三类结构化证据。教师套件生成两个明确标注 `FICTIONAL TEST CASES / NO REAL PII` 的 DOCX 案例，backend 实际解析 DOCX 并核对 run_id、两个 exact case ID 和 scene，通过结构化上传、确认、同步和按 ID 回读后清理；自然语言“成功”不能替代写入回执或独立回读。发布可能落地后的 None、非 Mapping、状态化读取异常或 TypeError 都会先做安全回读，再按 owned/before/other 分支回滚或报告残留。
 
 ```bash
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/test_online_e2e_runner.py

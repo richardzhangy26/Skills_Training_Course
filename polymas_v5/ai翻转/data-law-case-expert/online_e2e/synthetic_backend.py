@@ -39,6 +39,7 @@ class SyntheticRegressionBackend:
         corrupt_student: str | None = None,
         publish_assistant_id: str = "synthetic-isolated-assistant",
         fake_cleanup_receipt: bool = False,
+        partial_sync_cases: bool = False,
     ):
         self.target = target
         self.blockers = blockers
@@ -50,12 +51,14 @@ class SyntheticRegressionBackend:
         self.corrupt_student = corrupt_student
         self.publish_assistant_id = publish_assistant_id
         self.fake_cleanup_receipt = fake_cleanup_receipt
+        self.partial_sync_cases = partial_sync_cases
         self.precheck_assistant_id = "synthetic-isolated-assistant"
         self.relationship_version = "synthetic-v1"
         self.write_count = 0
         self.restore_config_calls = 0
         self.student_calls: list[str] = []
         self.temporary_cases: set[str] = set()
+        self.last_cleanup_requested: tuple[str, ...] = ()
         self.knowledge_version = "knowledge-v1"
         self.knowledge_cas_checks = 0
         self._knowledge_reads_after_sync = 0
@@ -173,36 +176,37 @@ class SyntheticRegressionBackend:
             "messageId": f"synthetic-message-{scenario.scenario_id}",
             "planId": f"synthetic-plan-{scenario.scenario_id}",
             "traceId": f"synthetic-trace-{scenario.scenario_id}",
+            "outcome": scenario.expected_outcome,
+            "answer": scenario.fixture_answer,
         }
-        receipts = {
-            "exact-statute": {
-                "outcome": "answered", "answer": "DLCL-0001 statute evidence and reflection question",
-                "caseIds": ["DLCL-0001"],
-                "evidence": {"statutes": ["synthetic-statute"], "reflectionQuestion": True},
-            },
-            "detailed-explanation": {
-                "outcome": "answered", "answer": "DLCL-0001 facts and dispute with a follow-up question",
-                "caseIds": ["DLCL-0001"],
-                "evidence": {"caseSummary": True, "dispute": True, "followUpQuestion": True},
-            },
-            "follow-up-question": {
-                "outcome": "answered", "answer": "The dispute focus concerns responsibility.",
-                "caseIds": ["DLCL-0001"], "evidence": {"focus": "dispute"},
-            },
-            "ambiguous-candidates": {
-                "outcome": "awaiting_selection", "answer": "Choose one candidate.",
-                "candidates": [{"caseId": "DLCL-0001"}, {"caseId": "DLCL-0002"}],
-            },
-            "unknown-case-no-fabrication": {
-                "outcome": "not_found", "answer": "No matching case.", "caseIds": [],
-                "evidence": {"fabricatedFacts": False, "inventedCitation": False},
-            },
-            "student-write-denied": {
-                "outcome": "denied", "answer": "Write denied.", "writePerformed": False,
-                "reasonCode": "ROLE_NOT_AUTHORIZED",
-            },
-        }
-        receipt = {**common, **receipts[scenario.scenario_id]}
+        receipt = dict(common)
+        if scenario.expected_case_ids is not None:
+            receipt["caseIds"] = list(scenario.expected_case_ids)
+        evidence = {}
+        for requirement in scenario.required_evidence:
+            if requirement.kind == "true":
+                evidence[requirement.field] = True
+            elif requirement.kind == "false":
+                evidence[requirement.field] = False
+            elif requirement.kind == "equals":
+                evidence[requirement.field] = requirement.value
+            elif requirement.kind == "nonempty_list":
+                evidence[requirement.field] = [f"synthetic-{requirement.field}"]
+        for fields in scenario.any_true_evidence:
+            evidence[fields[0]] = True
+        if scenario.needs_reflection:
+            evidence["reflectionQuestion"] = True
+        if evidence:
+            receipt["evidence"] = evidence
+        if scenario.min_candidates:
+            receipt["candidates"] = [
+                {"caseId": f"DLCL-{index:04d}"}
+                for index in range(1, scenario.min_candidates + 1)
+            ]
+        if scenario.expected_write_performed is not None:
+            receipt["writePerformed"] = scenario.expected_write_performed
+        if scenario.reason_code is not None:
+            receipt["reasonCode"] = scenario.reason_code
         if self.corrupt_student == scenario.scenario_id:
             receipt["outcome"] = "answered"
             receipt["candidates"] = []
@@ -247,9 +251,8 @@ class SyntheticRegressionBackend:
         self.write_count += 1
         if self.fail_at == "teacher:sync":
             raise BackendFailure("SYNTHETIC_SYNC_FAILED")
-        self.temporary_cases.update(
-            item for item in getattr(self, "_pending_case_ids", ())
-        )
+        pending = tuple(getattr(self, "_pending_case_ids", ()))
+        self.temporary_cases.update(pending[:1] if self.partial_sync_cases else pending)
         self.knowledge_version = "knowledge-temporary"
         self._knowledge_content = b"synthetic temporary knowledge"
         self._knowledge_synced = True
@@ -267,8 +270,18 @@ class SyntheticRegressionBackend:
             return None
         return {"caseId": case_id, "scene": "自动化测试"}
 
+    def list_owned_teacher_cases(self, run_id: str):
+        prefix = f"AUTO-{run_id.upper()}-"
+        return {
+            "ownedRunId": run_id,
+            "caseIds": sorted(
+                case_id for case_id in self.temporary_cases if case_id.startswith(prefix)
+            ),
+        }
+
     def cleanup_teacher_cases(self, case_ids: tuple[str, ...], run_id: str):
         self.write_count += 1
+        self.last_cleanup_requested = tuple(case_ids)
         if self.fail_at == "cleanup:cases":
             raise BackendFailure("SYNTHETIC_CLEANUP_FAILED")
         deleted = [case_id for case_id in case_ids if case_id in self.temporary_cases]

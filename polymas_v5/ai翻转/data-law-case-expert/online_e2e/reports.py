@@ -9,7 +9,7 @@ import re
 from typing import Any, Mapping
 
 from .fixtures import validate_run_id
-from .run_store import write_private_bytes_atomic
+from .private_io import write_private_bytes_atomic
 from .safety import redact_sensitive
 
 
