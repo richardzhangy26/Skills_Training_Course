@@ -642,6 +642,19 @@ class SSETests(unittest.TestCase):
         for secret in ('synthetic-from', 'synthetic-to', 'synthetic-sender', 'synthetic-receiver'):
             self.assertNotIn(secret, repr(events))
 
+    def test_sse_redacts_direct_directional_identity_but_preserves_display_name(self):
+        raw = (b'data: {"sender":"private-sender","RECEIVER":"private-receiver",'
+               b'"senderId":"private-sender-id","receiverNid":"private-receiver-nid",'
+               b'"FromStudentID":"private-from-student","toUser":"private-to-user",'
+               b'"senderDisplayName":"Visible Teacher"}\n\ndata: [DONE]\n\n')
+
+        rendered = repr(list(self.sse.parse_sse([raw])))
+
+        for secret in ('private-sender', 'private-receiver', 'private-sender-id',
+                       'private-receiver-nid', 'private-from-student', 'private-to-user'):
+            self.assertNotIn(secret, rendered)
+        self.assertIn('Visible Teacher', rendered)
+
 
 if __name__ == '__main__':
     unittest.main()

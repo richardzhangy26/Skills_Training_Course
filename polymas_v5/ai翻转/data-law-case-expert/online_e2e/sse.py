@@ -13,7 +13,8 @@ from .transport import ClientError
 
 
 _PERSON_IDENTITY_KEY = re.compile(
-    r'(?i)^(?:from|to|sender|receiver)?(?:user|student)(?:nid|id)$'
+    r'(?i)^(?:user(?:nid|id)|student(?:nid|id)|'
+    r'(?:from|to|sender|receiver)(?:|id|nid|user|student|userid|usernid|studentid|studentnid))$'
 )
 
 
