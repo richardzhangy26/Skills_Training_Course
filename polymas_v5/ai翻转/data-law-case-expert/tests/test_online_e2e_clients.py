@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 import importlib
 import json
 from pathlib import Path
@@ -50,7 +51,8 @@ class SyntheticTransport:
         self.write_response_override = None
 
     def request(self, method, path, *, params=None, json=None, files=None):
-        self.calls.append((method, path, copy.deepcopy(params), copy.deepcopy(json)))
+        self.calls.append((method, path, copy.deepcopy(params), copy.deepcopy(json),
+                           copy.deepcopy(files)))
         if self.response_override is not None:
             return self.response_override
         if path.endswith('/preview'):
@@ -81,7 +83,7 @@ class SyntheticTransport:
         return {'code': 200, 'msg': 'ok', 'data': data}
 
     def stream(self, method, path, *, json):
-        self.calls.append((method, path, None, json))
+        self.calls.append((method, path, None, copy.deepcopy(json), None))
         yield b'data: {"sessionId":"synthetic-session","text":"hello"}\n\n'
         yield b'data: [DONE]\n\n'
 
@@ -458,6 +460,116 @@ class ClientTests(unittest.TestCase):
         self.assertNotEqual(first, second)
         with self.assertRaises(self.clients.ClientError):
             digest('upload_file', {}, files={'file': object()})
+
+    def test_stateful_mapping_is_captured_once_before_confirmation_and_send(self):
+        profiles = module('profiles')
+
+        class StatefulMapping(Mapping):
+            def __init__(self):
+                self.reads = 0
+
+            def __iter__(self):
+                return iter(('message',))
+
+            def __len__(self):
+                return 1
+
+            def __getitem__(self, key):
+                self.reads += 1
+                return 'approved' if self.reads == 1 else 'changed-after-approval'
+
+        endpoint = profiles.Endpoint('POST', '/synthetic/session', True, 'synthetic',
+                                     ('message',), ('sessionId',))
+        profile = profiles.EndpointProfile({'create_session': endpoint})
+        teaching = self.clients.TeachingCenterClient(
+            self.transport, profile=profile, confirmation_manager=self.manager,
+            target_id='synthetic-page', snapshot_digest='baseline')
+        digest = self.clients.teaching_request_digest('create_session', {'message': 'approved'})
+        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1', digest, 'nonce')
+
+        result = teaching.create_session(
+            StatefulMapping(),
+            confirmation=self.clients.WriteConfirmation(self.manager.issue(binding), binding),
+        )
+
+        self.assertEqual(result['sessionId'], 'synthetic-session')
+        self.assertEqual(self.transport.calls[-1][3], {'message': 'approved'})
+
+    def test_send_message_uses_same_single_captured_payload_for_digest_and_stream(self):
+        profiles = module('profiles')
+
+        class StatefulMapping(Mapping):
+            def __init__(self):
+                self.value = 'approved'
+
+            def __iter__(self):
+                return iter(('message',))
+
+            def __len__(self):
+                return 1
+
+            def __getitem__(self, key):
+                result = self.value
+                self.value = 'changed-after-approval'
+                return result
+
+        profile = profiles.EndpointProfile({'send_message': profiles.Endpoint(
+            'POST', '/synthetic/send', True, 'synthetic', ('message',))})
+        teaching = self.clients.TeachingCenterClient(
+            self.transport, profile=profile, confirmation_manager=self.manager,
+            target_id='synthetic-page', snapshot_digest='baseline')
+        digest = self.clients.teaching_request_digest('send_message', {'message': 'approved'})
+        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1', digest, 'nonce')
+
+        list(teaching.send_message(
+            StatefulMapping(),
+            confirmation=self.clients.WriteConfirmation(self.manager.issue(binding), binding),
+        ))
+
+        self.assertEqual(self.transport.calls[-1][3], {'message': 'approved'})
+
+    def test_upload_copies_mutable_file_mapping_before_confirmation_side_effect(self):
+        profiles = module('profiles')
+        profile = profiles.EndpointProfile({'upload_file': profiles.Endpoint(
+            'POST', '/synthetic/upload', True, 'synthetic', ('folder',), ('sessionId',))})
+        content = bytearray(b'approved-bytes')
+        files = {'file': ('approved.txt', content, 'text/plain')}
+        manager = ConfirmationTokenManager(secret=b'mutable-file-manager')
+        original_consume = manager.consume
+
+        def mutate_source_after_confirmation(token, binding):
+            valid = original_consume(token, binding)
+            content[:] = b'changed-bytes'
+            files['file'] = ('changed.txt', bytearray(b'changed-again'), 'application/octet-stream')
+            return valid
+
+        manager.consume = mutate_source_after_confirmation
+        teaching = self.clients.TeachingCenterClient(
+            self.transport, profile=profile, confirmation_manager=manager,
+            target_id='synthetic-page', snapshot_digest='baseline')
+        approved_files = {'file': ('approved.txt', b'approved-bytes', 'text/plain')}
+        digest = self.clients.teaching_request_digest(
+            'upload_file', {'folder': 'synthetic'}, files=approved_files)
+        binding = ConfirmationBinding('synthetic-page', 'baseline', digest, 'v1', digest, 'nonce')
+
+        teaching.upload_file(
+            {'folder': 'synthetic'}, files=files,
+            confirmation=self.clients.WriteConfirmation(manager.issue(binding), binding),
+        )
+
+        self.assertEqual(self.transport.calls[-1][4], approved_files)
+
+    def test_non_json_payload_and_non_finite_numbers_fail_before_transport(self):
+        profiles = module('profiles')
+        profile = profiles.EndpointProfile({'create_session': profiles.Endpoint(
+            'POST', '/synthetic/session', True, 'synthetic', ('value',), ('sessionId',))})
+        teaching = self.clients.TeachingCenterClient(self.transport, profile=profile)
+        for value in ({1: 'non-string-key'}, {'value': float('nan')},
+                      {'value': float('inf')}, {'value': object()}):
+            with self.assertRaises(self.clients.ClientError) as error:
+                teaching.create_session(value, confirmation=None)
+            self.assertEqual(error.exception.code, 'CONTRACT_CHANGED')
+        self.assertEqual(self.transport.calls, [])
 
     def test_missing_teacher_role_is_not_granted_by_display_name(self):
         validate = self.clients.require_role

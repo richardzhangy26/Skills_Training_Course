@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 import hashlib
 import json
+import math
 from typing import Any
 
 from .config_diff import snapshot_config
@@ -41,19 +42,71 @@ class WriteConfirmation:
     binding: ConfirmationBinding
 
 
-def teaching_request_digest(operation: str, payload: Mapping, *, files=None) -> str:
-    """请求语义摘要；文件用名称、MIME、内容哈希绑定，不保存文件内容。"""
+def _capture_json(value, operation, path='$'):
+    """将一个 JSON 值深拷贝为客户端拥有的稳定快照。"""
+    if isinstance(value, Mapping):
+        try:
+            items = list(value.items())
+        except Exception:
+            raise ClientError('CONTRACT_CHANGED', operation, f'{path} 无法稳定读取') from None
+        captured = {}
+        for key, item in items:
+            if type(key) is not str or key in captured:
+                raise ClientError('CONTRACT_CHANGED', operation, f'{path} 必须使用唯一字符串键')
+            captured[key] = _capture_json(item, operation, f'{path}.{key}')
+        return captured
+    if type(value) is list:
+        return [_capture_json(item, operation, f'{path}[{index}]')
+                for index, item in enumerate(list(value))]
+    if value is None or type(value) in (str, bool, int):
+        return value
+    if type(value) is float and math.isfinite(value):
+        return value
+    raise ClientError('CONTRACT_CHANGED', operation, f'{path} 不是稳定 JSON 值')
+
+
+def _capture_json_mapping(payload, operation):
+    captured = _capture_json(payload, operation)
+    if not isinstance(captured, dict):
+        raise ClientError('CONTRACT_CHANGED', operation, '请求 payload 必须是 JSON 对象')
+    return captured
+
+
+def _capture_files(files, operation):
+    if files is None:
+        return None
+    if not isinstance(files, Mapping):
+        raise ClientError('CONTRACT_CHANGED', operation, '文件参数类型无效')
+    try:
+        items = list(files.items())
+    except Exception:
+        raise ClientError('CONTRACT_CHANGED', operation, '文件参数无法稳定读取') from None
+    captured = {}
+    for field, item in items:
+        if type(field) is not str or field in captured:
+            raise ClientError('CONTRACT_CHANGED', operation, '文件字段必须是唯一字符串')
+        if (type(item) is not tuple or len(item) != 3
+                or type(item[0]) is not str
+                or not isinstance(item[1], (bytes, bytearray, memoryview))
+                or type(item[2]) is not str):
+            raise ClientError('CONTRACT_CHANGED', operation, '文件须包含名称、字节内容与 MIME')
+        captured[field] = (item[0], bytes(item[1]), item[2])
+    return captured
+
+
+def _teaching_digest_from_capture(operation, payload, files):
     file_digests = {}
     if files is not None:
-        if not isinstance(files, Mapping):
-            raise ClientError('CONTRACT_CHANGED', operation, '文件参数类型无效')
         for field, item in files.items():
-            if (not isinstance(item, tuple) or len(item) != 3
-                    or not isinstance(item[0], str) or not isinstance(item[1], bytes)
-                    or not isinstance(item[2], str)):
-                raise ClientError('CONTRACT_CHANGED', operation, '文件须包含名称、字节内容与 MIME')
             file_digests[field] = {'name': item[0], 'sha256': hashlib.sha256(item[1]).hexdigest(), 'mime': item[2]}
     return snapshot_config({'operation': operation, 'payload': payload, 'files': file_digests}).digest
+
+
+def teaching_request_digest(operation: str, payload: Mapping, *, files=None) -> str:
+    """请求语义摘要；先捕获输入，文件内容只纳入 SHA-256。"""
+    captured_payload = _capture_json_mapping(payload, operation)
+    captured_files = _capture_files(files, operation)
+    return _teaching_digest_from_capture(operation, captured_payload, captured_files)
 
 
 def pds_request_digest(operation: str, exact_body: Mapping) -> str:
@@ -394,7 +447,7 @@ class TeachingCenterClient(_Client):
         self._snapshot_digest = snapshot_digest
 
     def _authorize(self, operation, payload, confirmation, *, files=None):
-        digest = teaching_request_digest(operation, payload, files=files)
+        digest = _teaching_digest_from_capture(operation, payload, files)
         _validate_confirmation_binding(
             self._confirmation_manager, confirmation, operation=operation,
             target_id=self._target_id, snapshot_digest=self._snapshot_digest,
@@ -403,12 +456,14 @@ class TeachingCenterClient(_Client):
 
     def _operation(self, operation, payload, *, files=None, confirmation=None, write=False):
         endpoint = self._profile.get(operation)
-        if not isinstance(payload, Mapping) or set(payload) != set(endpoint.request_fields):
+        captured_payload = _capture_json_mapping(payload, operation)
+        captured_files = _capture_files(files, operation)
+        if set(captured_payload) != set(endpoint.request_fields):
             raise ClientError('CONTRACT_CHANGED', operation, '请求字段不匹配已验证契约')
         if write:
-            self._authorize(operation, payload, confirmation, files=files)
+            self._authorize(operation, captured_payload, confirmation, files=captured_files)
         try:
-            data = self._call(operation, dict(payload), files=files)
+            data = self._call(operation, captured_payload, files=captured_files)
             records = data if endpoint.response_list else [data]
             if not isinstance(records, list):
                 raise ClientError('CONTRACT_CHANGED', operation, '列表响应类型变化')
@@ -458,9 +513,9 @@ class TeachingCenterClient(_Client):
 
     def send_message(self, payload, *, confirmation=None):
         endpoint = self._profile.get('send_message')
-        if not isinstance(payload, Mapping) or set(payload) != set(endpoint.request_fields):
+        captured = _capture_json_mapping(payload, 'send_message')
+        if set(captured) != set(endpoint.request_fields):
             raise ClientError('CONTRACT_CHANGED', 'send_message', '请求字段不匹配已验证契约')
-        captured = _plain(payload)
         self._authorize('send_message', captured, confirmation)
 
         def events():
