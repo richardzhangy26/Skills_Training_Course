@@ -24,7 +24,7 @@ class LiveRegressionBackend:
             {"userNid": user["userNid"], "terminalType": "PC", "roleTypeForPC": "PC_TEACHER"}
         )
         select_unique_assistant(assistants, target.assistant_nid, target.assistant_name)
-        relationship = self.teaching.resolve_relationship(
+        production_relationship = self.teaching.resolve_relationship(
             {"agentNid": target.assistant_nid}, expert_nid=target.expert_nid
         )
         bindings = self.pds.knowledge_bindings(target.expert_nid)
@@ -32,11 +32,24 @@ class LiveRegressionBackend:
         blockers = []
         if not target.live_test_enabled:
             blockers.append(Blocker("LIVE_TEST_DISABLED"))
+        isolated_relationship = None
         if (
             target.isolated_test_assistant_nid is None
+            or target.isolated_test_assistant_name is None
             or target.isolated_test_assistant_nid == target.assistant_nid
         ):
             blockers.append(Blocker("TEST_ISOLATION_UNAVAILABLE"))
+        else:
+            select_unique_assistant(
+                assistants,
+                target.isolated_test_assistant_nid,
+                target.isolated_test_assistant_name,
+            )
+            isolated_relationship = self.teaching.resolve_relationship(
+                {"agentNid": target.isolated_test_assistant_nid},
+                expert_nid=target.expert_nid,
+                expected_version=production_relationship["version"],
+            )
         blockers.append(Blocker("STUDENT_TRANSPORT_UNVERIFIED"))
         blockers.extend(
             Blocker(code)
@@ -64,8 +77,8 @@ class LiveRegressionBackend:
             blockers.append(Blocker("KNOWLEDGE_TARGET_AMBIGUOUS", {"candidates": candidates}))
         return PrecheckResult(
             blockers=tuple(blockers),
-            relationship_version=relationship["version"],
-            assistant_nid=relationship["assistant_nid"],
+            relationship_version=(isolated_relationship or production_relationship)["version"],
+            assistant_nid=(isolated_relationship or {}).get("assistant_nid"),
         )
 
     def snapshot(self, target):
@@ -84,6 +97,6 @@ class LiveRegressionBackend:
     def _blocked(self, operation):
         raise BackendFailure("DEPENDENCY_UNVERIFIED", operation)
 
-    publish = current_config_digest = run_student = upload_teacher_fixture = _blocked
+    publish = current_config_digest = current_knowledge_snapshot = run_student = upload_teacher_fixture = _blocked
     confirm_teacher_change = sync_teacher_change = read_case = cleanup_teacher_cases = _blocked
     restore_knowledge = verify_cases_absent = restore_config = _blocked

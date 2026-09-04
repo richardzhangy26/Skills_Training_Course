@@ -30,7 +30,7 @@ class JSONArgumentParser(argparse.ArgumentParser):
 
 
 def _parser():
-    parser = JSONArgumentParser(prog="python -m online_e2e", add_help=True)
+    parser = JSONArgumentParser(prog="python -m online_e2e", add_help=False)
     parser.add_argument("target_alias")
     parser.add_argument("mode", choices=("dry-run", "apply"))
     parser.add_argument("suite", choices=("full",))
@@ -73,8 +73,23 @@ def build_runner(arguments):
 
 
 def main(argv=None, *, runner_factory=build_runner) -> int:
+    arguments_list = list(sys.argv[1:] if argv is None else argv)
+    if "--help" in arguments_list or "-h" in arguments_list:
+        payload = {
+            "status": "HELP",
+            "code": "HELP",
+            "usage": (
+                "python -m online_e2e TARGET_ALIAS dry-run|apply full "
+                "[--run-id RUN_ID] --env-file PATH [--confirmation-token TOKEN]"
+            ),
+        }
+        sys.stdout.write(
+            json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            + "\n"
+        )
+        return 0
     try:
-        arguments = _parser().parse_args(argv)
+        arguments = _parser().parse_args(arguments_list)
         run_id = arguments.run_id or _new_run_id()
         validate_run_id(run_id)
         runner = runner_factory(arguments)

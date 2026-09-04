@@ -46,6 +46,7 @@ class OnlineE2ECoreTests(unittest.TestCase):
         self.assertEqual(config.expert_nid, "x3PalTZaWr")
         self.assertEqual(config.assistant_nid, "FEpEJws9cS")
         self.assertIsNone(config.isolated_test_assistant_nid)
+        self.assertIsNone(config.isolated_test_assistant_name)
         self.assertFalse(config.live_test_enabled)
         self.assertIsNone(config.knowledge_base_nid)
         self.assertTrue(hasattr(config, "runtime_agent_nid"))
@@ -75,6 +76,37 @@ class OnlineE2ECoreTests(unittest.TestCase):
             ),
         )
         self.assertTrue(all(value for value in config.online_skill_nids.values()))
+        self.assertEqual(set(config.online_skill_binding_sources), set(config.online_skill_nids))
+        self.assertEqual(
+            config.online_skill_binding_sources["polymas-teacher-knowledge-distillation"],
+            "MARKETPLACE",
+        )
+
+    def test_target_skill_nid_source_and_order_keys_must_match(self):
+        contracts = load_contracts()
+        import unittest.mock
+
+        invalid = {
+            "target_id": "data-law-case-expert",
+            "expert_nid": "x",
+            "expert_name": "x",
+            "assistant_nid": "a",
+            "assistant_name": "a",
+            "isolated_test_assistant_nid": None,
+            "isolated_test_assistant_name": None,
+            "live_test_enabled": False,
+            "knowledge_base_nid": None,
+            "local_assets": {
+                "agent": "Agent.md", "query_skill": "q", "maintenance_skill": "m",
+                "html": "h", "knowledge_jsonl": "k", "manifest": "x",
+            },
+            "online_skill_nids": {"one": "nid-1"},
+            "online_skill_binding_sources": {"two": "BUILTIN"},
+            "expected_skill_order": ["one"],
+        }
+        with unittest.mock.patch.object(Path, "read_text", return_value=json.dumps(invalid)):
+            with self.assertRaisesRegex(ValueError, "skill_mapping_mismatch"):
+                contracts.load_target_config("data-law-case-expert", root=ROOT)
 
     def test_target_alias_rejects_path_traversal_before_reading_config(self):
         contracts = load_contracts()

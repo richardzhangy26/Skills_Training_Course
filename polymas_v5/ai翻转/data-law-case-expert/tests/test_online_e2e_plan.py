@@ -136,7 +136,11 @@ class OnlineE2EPlanTests(unittest.TestCase):
                     build_teacher_docx(value)
 
     def test_teacher_fixture_renders_to_page_png_with_bundled_document_runtime(self):
-        from online_e2e.fixtures import render_teacher_fixture_for_qa
+        from online_e2e.fixtures import (
+            assert_rendered_pages_visible,
+            render_teacher_fixture_for_qa,
+        )
+        from PIL import Image
 
         python = Path(
             "/Users/zhangyichi/.cache/codex-runtimes/"
@@ -158,6 +162,12 @@ class OnlineE2EPlanTests(unittest.TestCase):
             self.assertTrue(docx_path.is_file())
             self.assertGreaterEqual(len(pages), 1)
             self.assertTrue(all(page.is_file() and page.stat().st_size > 0 for page in pages))
+            assert_rendered_pages_visible(pages)
+
+            blank = Path(temporary) / "blank.png"
+            Image.new("RGB", (800, 1000), "white").save(blank)
+            with self.assertRaisesRegex(RuntimeError, "blank_rendered_page"):
+                assert_rendered_pages_visible((blank,))
 
 
 if __name__ == "__main__":

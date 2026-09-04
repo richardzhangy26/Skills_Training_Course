@@ -113,6 +113,26 @@ class OnlineE2ECLITests(unittest.TestCase):
         self.assertNotIn(str(missing), result.stdout)
         self.assertIn("AUTH_REQUIRED", result.stderr)
 
+    def test_help_is_one_json_document_on_stdout_with_zero_exit(self):
+        environment = dict(os.environ)
+        environment["PYTHONPATH"] = str(ROOT)
+        for flag in ("--help", "-h"):
+            with self.subTest(flag=flag):
+                result = subprocess.run(
+                    [sys.executable, "-m", "online_e2e", flag],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    env=environment,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0)
+                self.assertEqual(len(result.stdout.splitlines()), 1)
+                payload = json.loads(result.stdout)
+                self.assertEqual(payload["code"], "HELP")
+                self.assertIn("usage", payload)
+                self.assertEqual(result.stderr, "")
+
 
 if __name__ == "__main__":
     unittest.main()

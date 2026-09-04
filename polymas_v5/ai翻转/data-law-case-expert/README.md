@@ -78,11 +78,11 @@ python -m online_e2e data-law-case-expert apply full \
   --confirmation-token '<dry-run stdout 中的令牌>'
 ```
 
-`apply` 在 target 级文件锁内重新计算本地资产摘要、线上快照和请求计划摘要；内容、关系或版本变化会使旧令牌失效。令牌和 nonce 均为一次性消费。成功只保留新专家配置，教师双案例 fixture 和知识变更必须清理并恢复；检测到第三方并发配置变化时停止覆盖并报告 `ROLLBACK_FAILED` 与残留状态。
+`apply` 在 target 级文件锁内重新计算本地资产摘要、线上快照、隔离助教 NID、关系版本和请求计划摘要；内容、身份、关系或版本变化会使旧令牌失效。令牌和 nonce 均为一次性消费。成功只保留新专家配置，教师双案例 fixture 和知识变更必须清理并恢复。配置与知识分别执行 version/digest CAS；任一项检测到第三方并发变化时停止覆盖，报告 `ROLLBACK_FAILED` 与 `config_not_restored` 或 `knowledge_not_restored` 残留状态。
 
 ### Synthetic 固定回归
 
-`SyntheticRegressionBackend` 只用于离线证明完整状态机，不是 live 平台或 CDP 录制。固定学生套件覆盖精确案例法条、详细讲解、连续追问、模糊候选、未知案例拒绝补造和学生写入拒绝。教师套件生成两个明确标注 `FICTIONAL TEST CASES / NO REAL PII` 的 DOCX 案例，通过结构化上传、确认、同步和按 ID 回读后清理；自然语言“成功”不能替代写入回执或回读。
+`SyntheticRegressionBackend` 只用于离线证明完整状态机，不是 live 平台或 CDP 录制。固定学生套件覆盖精确案例法条、详细讲解、同 conversation 连续追问、模糊候选、未知案例拒绝补造和学生写入拒绝；runner 独立检查 outcome、案例/法条/候选/拒绝证据，不信任 backend 自报 `passed=true`。教师套件生成两个明确标注 `FICTIONAL TEST CASES / NO REAL PII` 的 DOCX 案例，backend 实际解析 DOCX 并核对 run_id、两个 exact case ID 和 scene，通过结构化上传、确认、同步和按 ID 回读后清理；自然语言“成功”不能替代写入回执或回读。
 
 ```bash
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/test_online_e2e_runner.py

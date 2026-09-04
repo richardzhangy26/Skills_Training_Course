@@ -26,7 +26,7 @@
 | blocker | 原因 | 解除条件 |
 |---|---|---|
 | `LIVE_TEST_DISABLED` | 目标配置显式 `live_test_enabled=false` | 用户批准测试范围后再改为 true |
-| `TEST_ISOLATION_UNAVAILABLE` | `isolated_test_assistant_nid=null`，生产助教不能充当隔离测试助教 | 用户明确指定专用测试助教，且 NID 不等于 `FEpEJws9cS` |
+| `TEST_ISOLATION_UNAVAILABLE` | `isolated_test_assistant_nid=null` 且 `isolated_test_assistant_name=null`，生产助教不能充当隔离测试助教 | 用户明确指定专用测试助教的 exact NID 与显示名，且 NID 不等于 `FEpEJws9cS`；核对其绑定同一专家版本 |
 | `KNOWLEDGE_TARGET_AMBIGUOUS` | 专家有 14 个绑定，本地没有权威 `knowledge_base_nid` | 用户指定唯一知识库并核对 name/type/resourceCount 与内容来源 |
 | `STUDENT_TRANSPORT_UNVERIFIED` | 当前终端是 `PC_TEACHER`；roleList 同时出现 student 不代表学生认证上下文 | 获取独立可信学生 transport 并验证权威角色 |
 | `SAVE_ENDPOINT_UNVERIFIED` | 保存 payload 转换与写后回读未实证 | 在专用测试专家采集一次完整请求和回读 |
@@ -41,7 +41,7 @@
 1. 先由用户明确批准专用测试助教、专用知识库和测试专家；不得操作生产中药材助教或自动挑选 14 个绑定中的任一知识库。
 2. 使用 CDP bootstrap 时，每次只观察一个用户明确执行的动作。记录脱敏后的 method、path、请求字段、文件字段、响应字段、SSE 终止条件及写后回读；Authorization、Cookie、userNid 和个人会话信息不落盘。
 3. 为每个新观察先增加 synthetic/fixture 协议测试，再把对应 endpoint profile 标记 verified。不能凭 URL 命名、旧脚本或前端按钮文字猜 payload。
-4. 证明知识内容全量 snapshot 与 restore、临时案例按 ID 清理以及清理后不可检索。恢复必须使用本次 run 的内容快照，不得拿旧快照覆盖外部新版本。
+4. 证明知识内容全量 snapshot 与 restore、临时案例按 ID 清理以及清理后不可检索。同步回执必须返回本 run 写入后的 knowledge version+digest；恢复前和 backend 内再次 CAS，任一不匹配都保留外部版本并报告 `knowledge_not_restored`。
 5. 证明 PDS 发布后的专家版本已被专用测试助教绑定；版本不一致只报告差异，不修改无关专家关系。
 6. 重跑 live `dry-run`。只有所有 blocker 消失且快照/差异仍匹配时才可获得一次性令牌；再由用户明确批准同一 `run_id` 的 `apply`。
 

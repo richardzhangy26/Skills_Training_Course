@@ -197,4 +197,26 @@ def render_teacher_fixture_for_qa(
     pages = tuple(sorted(render_dir.glob("page-*.png")))
     if result.returncode != 0 or not pages:
         raise RuntimeError("docx_render_failed")
+    assert_rendered_pages_visible(pages)
     return docx_path, pages
+
+
+def assert_rendered_pages_visible(pages: tuple[Path, ...]) -> None:
+    """拒绝只有空白画布的伪成功 render。"""
+
+    from PIL import Image
+
+    if not pages:
+        raise RuntimeError("blank_rendered_page")
+    for page in pages:
+        with Image.open(page) as image:
+            grayscale = image.convert("L")
+            width, height = grayscale.size
+            content = grayscale.crop(
+                (max(0, width // 20), max(0, height // 20),
+                 width - max(0, width // 20), height - max(0, height // 20))
+            )
+            nonwhite = sum(1 for pixel in content.getdata() if pixel < 245)
+            threshold = max(1000, int(content.width * content.height * 0.002))
+            if nonwhite < threshold:
+                raise RuntimeError("blank_rendered_page")

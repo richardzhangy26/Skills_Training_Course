@@ -24,6 +24,7 @@ class TargetConfig:
     assistant_nid: str
     assistant_name: str
     isolated_test_assistant_nid: str | None
+    isolated_test_assistant_name: str | None
     live_test_enabled: bool
     knowledge_base_nid: str | None
     agent_path: Path
@@ -33,6 +34,7 @@ class TargetConfig:
     knowledge_jsonl_path: Path
     manifest_path: Path
     online_skill_nids: Mapping[str, str]
+    online_skill_binding_sources: Mapping[str, str]
     expected_skill_order: tuple[str, ...]
     runtime_agent_nid: str | None = None
 
@@ -151,6 +153,17 @@ def load_target_config(target_id: str, *, root: Path | None = None) -> TargetCon
         raise ValueError("target_id_mismatch")
 
     assets = data["local_assets"]
+    skill_nids = dict(data["online_skill_nids"])
+    binding_sources = dict(data["online_skill_binding_sources"])
+    skill_order = tuple(data["expected_skill_order"])
+    if (
+        set(skill_nids) != set(binding_sources)
+        or set(skill_nids) != set(skill_order)
+        or len(skill_order) != len(set(skill_order))
+        or any(not isinstance(value, str) or not value for value in skill_nids.values())
+        or any(value not in ("BUILTIN", "MARKETPLACE") for value in binding_sources.values())
+    ):
+        raise ValueError("skill_mapping_mismatch")
     return TargetConfig(
         target_id=data["target_id"],
         expert_nid=data["expert_nid"],
@@ -158,6 +171,7 @@ def load_target_config(target_id: str, *, root: Path | None = None) -> TargetCon
         assistant_nid=data["assistant_nid"],
         assistant_name=data["assistant_name"],
         isolated_test_assistant_nid=data.get("isolated_test_assistant_nid"),
+        isolated_test_assistant_name=data.get("isolated_test_assistant_name"),
         live_test_enabled=data.get("live_test_enabled") is True,
         knowledge_base_nid=data.get("knowledge_base_nid"),
         agent_path=project_root / assets["agent"],
@@ -166,7 +180,8 @@ def load_target_config(target_id: str, *, root: Path | None = None) -> TargetCon
         html_path=project_root / assets["html"],
         knowledge_jsonl_path=project_root / assets["knowledge_jsonl"],
         manifest_path=project_root / assets["manifest"],
-        online_skill_nids=MappingProxyType(dict(data["online_skill_nids"])),
-        expected_skill_order=tuple(data["expected_skill_order"]),
+        online_skill_nids=MappingProxyType(skill_nids),
+        online_skill_binding_sources=MappingProxyType(binding_sources),
+        expected_skill_order=skill_order,
         runtime_agent_nid=data.get("runtime_agent_nid"),
     )

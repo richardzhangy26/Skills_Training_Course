@@ -7,6 +7,7 @@
   "assistant_nid": "FEpEJws9cS",
   "assistant_name": "中药材 AI助教",
   "isolated_test_assistant_nid": null,
+  "isolated_test_assistant_name": null,
   "live_test_enabled": false,
   "knowledge_base_nid": null,
   "local_assets": {
@@ -23,6 +24,13 @@
     "data-law-case-maintenance": "hJydnbcYMz",
     "data-law-case-query": "NTZP0kOxDh",
     "polymas-resource-upload": "yOMrVqoUIT"
+  },
+  "online_skill_binding_sources": {
+    "search-router": "BUILTIN",
+    "polymas-teacher-knowledge-distillation": "MARKETPLACE",
+    "data-law-case-maintenance": "BUILTIN",
+    "data-law-case-query": "BUILTIN",
+    "polymas-resource-upload": "BUILTIN"
   },
   "expected_skill_order": [
     "search-router",

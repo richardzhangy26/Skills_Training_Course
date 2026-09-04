@@ -18,7 +18,15 @@ from .safety import ConfirmationTokenManager
 from .safety import redact_sensitive
 
 
-def _private_atomic_json(path: Path, value: Any) -> None:
+def _fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def write_private_bytes_atomic(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
         dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
@@ -26,15 +34,23 @@ def _private_atomic_json(path: Path, value: Any) -> None:
     temporary = Path(temporary_name)
     try:
         os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            json.dump(value, stream, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
         os.chmod(path, 0o600)
+        _fsync_directory(path.parent)
     finally:
         if temporary.exists():
             temporary.unlink()
+
+
+def _private_atomic_json(path: Path, value: Any) -> None:
+    data = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    write_private_bytes_atomic(path, data)
 
 
 def _without_confirmation_tokens(value: Any) -> Any:
@@ -111,17 +127,18 @@ class DurableRunStore:
         self.root.mkdir(parents=True, exist_ok=True)
         os.chmod(self.root, 0o700)
         key_path = self.root / "confirmation.key"
+        lock_path = self.root / "confirmation-key.lock"
+        lock_descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
         try:
-            descriptor = os.open(key_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except FileExistsError:
-            pass
-        else:
-            with os.fdopen(descriptor, "wb") as stream:
-                stream.write(secrets.token_bytes(32))
-                stream.flush()
-                os.fsync(stream.fileno())
-        os.chmod(key_path, 0o600)
-        key = key_path.read_bytes()
+            os.fchmod(lock_descriptor, 0o600)
+            fcntl.flock(lock_descriptor, fcntl.LOCK_EX)
+            if not key_path.exists():
+                write_private_bytes_atomic(key_path, secrets.token_bytes(32))
+            os.chmod(key_path, 0o600)
+            key = key_path.read_bytes()
+        finally:
+            fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
+            os.close(lock_descriptor)
         if len(key) != 32:
             raise ValueError("invalid_confirmation_key")
         self.confirmations = DurableConfirmations(

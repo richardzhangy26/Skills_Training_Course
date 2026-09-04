@@ -9,6 +9,7 @@ import re
 from typing import Any, Mapping
 
 from .fixtures import validate_run_id
+from .run_store import write_private_bytes_atomic
 from .safety import redact_sensitive
 
 
@@ -55,7 +56,6 @@ class ReportWriter:
         json_path = self.root / f"{run_id}.json"
         markdown_path = self.root / f"{run_id}.md"
         json_text = json.dumps(safe, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-        json_path.write_text(json_text, encoding="utf-8")
         environment = safe.get("environment", "unknown")
         status = safe.get("status", "unknown")
         markdown = (
@@ -66,5 +66,6 @@ class ReportWriter:
             "```json\n"
             f"{json_text}```\n"
         )
-        markdown_path.write_text(markdown, encoding="utf-8")
+        write_private_bytes_atomic(json_path, json_text.encode("utf-8"))
+        write_private_bytes_atomic(markdown_path, markdown.encode("utf-8"))
         return ReportPaths(json=json_path, markdown=markdown_path)

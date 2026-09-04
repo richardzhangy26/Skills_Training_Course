@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import requests
 
@@ -36,10 +36,27 @@ class RequestsTransport:
         cookie: str,
         timeout: float = 20.0,
         session: Any = None,
+        allowed_hosts: tuple[str, ...] = ("cloudapi.polymas.com",),
     ):
         if not authorization or not cookie:
             raise ClientError("AUTH_REQUIRED", "transport_init")
-        self._base_url = base_url.rstrip("/") + "/"
+        try:
+            parsed = urlsplit(base_url)
+            port = parsed.port
+        except (TypeError, ValueError):
+            raise ClientError("CONTRACT_CHANGED", "transport_init", "base URL 无效") from None
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname not in set(allowed_hosts)
+            or port is not None
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in ("", "/")
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ClientError("CONTRACT_CHANGED", "transport_init", "base URL 不受信任")
+        self._base_url = f"https://{parsed.hostname}/"
         self._headers = {"Authorization": authorization, "Cookie": cookie}
         self._timeout = timeout
         self._session = session or requests.Session()

@@ -6,7 +6,10 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,6 +110,49 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
             self.assertEqual(first.stdout.strip(), "True")
             self.assertEqual(second.stdout.strip(), "False")
 
+    def test_concurrent_first_store_initialization_never_reads_partial_key(self):
+        import online_e2e.run_store as run_store
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "state"
+            entered = threading.Event()
+            release = threading.Event()
+            original_fdopen = run_store.os.fdopen
+            calls = 0
+            calls_lock = threading.Lock()
+            errors = []
+
+            def delayed_first_fdopen(*args, **kwargs):
+                nonlocal calls
+                with calls_lock:
+                    calls += 1
+                    is_first = calls == 1
+                if is_first:
+                    entered.set()
+                    release.wait(timeout=5)
+                return original_fdopen(*args, **kwargs)
+
+            def create_store():
+                try:
+                    run_store.DurableRunStore(root)
+                except Exception as error:
+                    errors.append(error)
+
+            with patch.object(run_store.os, "fdopen", side_effect=delayed_first_fdopen):
+                first = threading.Thread(target=create_store)
+                second = threading.Thread(target=create_store)
+                first.start()
+                self.assertTrue(entered.wait(timeout=2))
+                second.start()
+                time.sleep(0.05)
+                self.assertTrue(second.is_alive(), "第二个初始化必须等待 key 锁")
+                release.set()
+                first.join(timeout=5)
+                second.join(timeout=5)
+
+            self.assertEqual(errors, [])
+            self.assertEqual((root / "confirmation.key").stat().st_size, 32)
+
     def test_store_checkpoint_is_atomic_and_omits_token_and_rejects_path_traversal(self):
         from online_e2e.run_store import DurableRunStore
 
@@ -161,6 +207,7 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
                     authorization="Bearer private",
                     cookie="private",
                     session=session,
+                    allowed_hosts=("example.invalid",),
                 )
                 with self.assertRaises(ClientError) as error:
                     transport.request("GET", "/read")
@@ -174,11 +221,38 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
             authorization="Bearer private",
             cookie="private",
             session=FakeSession(response),
+            allowed_hosts=("example.invalid",),
         )
         with self.assertRaises(ClientError) as error:
             transport.request("GET", "/read")
         self.assertEqual(error.exception.code, "CONTRACT_CHANGED")
         self.assertNotIn("secret body", str(error.exception))
+
+    def test_requests_transport_rejects_malicious_base_url_before_request(self):
+        from online_e2e.requests_transport import RequestsTransport
+        from online_e2e.transport import ClientError
+
+        malicious = (
+            "http://cloudapi.polymas.com",
+            "https://cloudapi.polymas.com:444",
+            "https://user@cloudapi.polymas.com",
+            "https://cloudapi.polymas.com/path",
+            "https://cloudapi.polymas.com?token=leak",
+            "https://evil.example",
+        )
+        for base_url in malicious:
+            with self.subTest(base_url=base_url), tempfile.TemporaryDirectory() as temporary:
+                session = FakeSession()
+                env_file = Path(temporary) / "credentials.env"
+                env_file.write_text(
+                    "AUTHORIZATION=Bearer private\nCOOKIE=private\n"
+                    f"POLYMAS_BASE_URL={base_url}\n",
+                    encoding="utf-8",
+                )
+                with self.assertRaises(ClientError) as error:
+                    RequestsTransport.from_env_file(env_file, session=session)
+                self.assertEqual(error.exception.code, "CONTRACT_CHANGED")
+                self.assertEqual(session.calls, [])
 
     def test_pds_client_preserves_transport_auth_classification(self):
         from online_e2e.clients import PdsClient
@@ -229,6 +303,9 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
                 "PASSED",
             ):
                 self.assertIn(visible, combined)
+            self.assertEqual(paths.json.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(paths.markdown.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(list(Path(temporary).glob(".*.tmp")), [])
 
     def test_confirmation_token_hidden_in_plain_text_is_removed_from_report_and_checkpoint(self):
         from online_e2e.reports import ReportWriter
