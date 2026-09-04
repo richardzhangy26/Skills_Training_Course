@@ -458,12 +458,20 @@ class TeachingCenterClient(_Client):
         endpoint = self._profile.get(operation)
         captured_payload = _capture_json_mapping(payload, operation)
         captured_files = _capture_files(files, operation)
+        return self._operation_from_capture(
+            operation, endpoint, captured_payload, files=captured_files,
+            confirmation=confirmation, write=write,
+        )
+
+    def _operation_from_capture(self, operation, endpoint, captured_payload, *,
+                                files=None, confirmation=None, write=False):
+        """只处理客户端独占快照，不再读取调用方输入。"""
         if set(captured_payload) != set(endpoint.request_fields):
             raise ClientError('CONTRACT_CHANGED', operation, '请求字段不匹配已验证契约')
         if write:
-            self._authorize(operation, captured_payload, confirmation, files=captured_files)
+            self._authorize(operation, captured_payload, confirmation, files=files)
         try:
-            data = self._call(operation, captured_payload, files=captured_files)
+            data = self._call(operation, captured_payload, files=files)
             records = data if endpoint.response_list else [data]
             if not isinstance(records, list):
                 raise ClientError('CONTRACT_CHANGED', operation, '列表响应类型变化')
@@ -488,9 +496,13 @@ class TeachingCenterClient(_Client):
 
     def resolve_relationship(self, payload, *, expert_nid: str, expected_version: str | None = None):
         _identifier(expert_nid, 'resolve_relationship')
-        data = self._operation('resolve_relationship', payload)
+        operation = 'resolve_relationship'
+        endpoint = self._profile.get(operation)
+        captured_payload = _capture_json_mapping(payload, operation)
+        data = self._operation_from_capture(operation, endpoint, captured_payload)
         _require_fields(data['basicInfo'], ('nid', 'appName'), 'resolve_relationship')
-        if data['basicInfo']['nid'] != payload['agentNid'] or not isinstance(data['subAgentVOS'], list):
+        assistant_nid = captured_payload['agentNid']
+        if data['basicInfo']['nid'] != assistant_nid or not isinstance(data['subAgentVOS'], list):
             raise ClientError('CONTRACT_CHANGED', 'resolve_relationship', '助教目标不一致')
         matches = []
         for record in data['subAgentVOS']:
@@ -502,7 +514,7 @@ class TeachingCenterClient(_Client):
         version = matches[0]['version']
         if expected_version is not None and version != expected_version:
             raise ClientError('BOUND_VERSION_MISMATCH', 'resolve_relationship')
-        return {'assistant_nid': payload['agentNid'], 'expert_nid': expert_nid,
+        return {'assistant_nid': assistant_nid, 'expert_nid': expert_nid,
                 'expert_name': matches[0]['name'], 'version': version}
 
     def create_session(self, payload, *, confirmation=None):

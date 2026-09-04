@@ -401,6 +401,34 @@ class ClientTests(unittest.TestCase):
                                            expert_nid='synthetic-page', expected_version='7')
         self.assertEqual(error.exception.code, 'BOUND_VERSION_MISMATCH')
 
+    def test_resolve_relationship_uses_request_snapshot_for_response_identity(self):
+        class StatefulAssistant(Mapping):
+            def __init__(self):
+                self.reads = 0
+
+            def __iter__(self):
+                return iter(('agentNid',))
+
+            def __len__(self):
+                return 1
+
+            def __getitem__(self, key):
+                self.reads += 1
+                return 'assistant-A' if self.reads == 1 else 'assistant-B'
+
+        teaching = self.clients.TeachingCenterClient(self.transport)
+        self.transport.response_override = {'code': 200, 'data': {
+            'basicInfo': {'nid': 'assistant-B', 'appName': '合成助教 B'},
+            'subAgentVOS': [{'agentNid': 'synthetic-page', 'name': '合成专家',
+                             'enabled': True, 'version': '6'}]}}
+
+        with self.assertRaises(self.clients.ClientError) as error:
+            teaching.resolve_relationship(
+                StatefulAssistant(), expert_nid='synthetic-page', expected_version='6')
+
+        self.assertEqual(error.exception.code, 'CONTRACT_CHANGED')
+        self.assertEqual(self.transport.calls[-1][2], {'agentNid': 'assistant-A'})
+
     def test_confirmation_cannot_be_reused_after_actual_write(self):
         before = self.client.snapshot('synthetic-page')
         desired = synthetic_config()
