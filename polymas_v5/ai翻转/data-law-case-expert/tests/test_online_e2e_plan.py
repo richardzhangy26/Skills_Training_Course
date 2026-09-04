@@ -89,6 +89,39 @@ class OnlineE2EPlanTests(unittest.TestCase):
         self.assertIn("from .json_clone import clone_json", synthetic_source)
         self.assertNotIn("def _clone", desired_source)
         self.assertNotIn("def _thaw", synthetic_source)
+        clients_source = (ROOT / "online_e2e" / "clients.py").read_text(encoding="utf-8")
+        runner_source = (ROOT / "online_e2e" / "runner.py").read_text(encoding="utf-8")
+        self.assertIn("clone_json(value, allow_tuple=False)", clients_source)
+        self.assertIn("clone_json(value, allow_tuple=False)", runner_source)
+        self.assertNotIn("def _receipt_value", runner_source)
+
+    def test_fixture_ownership_is_frozen_and_encapsulates_exact_set_operations(self):
+        from dataclasses import FrozenInstanceError
+        from online_e2e.backends import FixtureOwnership
+
+        target = ("AUTO-RUN-01", "AUTO-RUN-02")
+        empty = FixtureOwnership("run", target, ())
+        self.assertFalse(empty.collision)
+        self.assertEqual(empty.created_from(target), target)
+        self.assertEqual(empty.cleanup_case_ids(target), target)
+        self.assertTrue(empty.is_restored(()))
+        self.assertEqual(
+            empty.as_dict(),
+            {
+                "run_id": "run",
+                "target_case_ids": ["AUTO-RUN-01", "AUTO-RUN-02"],
+                "baseline_case_ids": [],
+            },
+        )
+        collision = FixtureOwnership("run", target, ("AUTO-RUN-01",))
+        self.assertTrue(collision.collision)
+        with self.assertRaises(FrozenInstanceError):
+            empty.run_id = "changed"
+
+        runner_source = (ROOT / "online_e2e" / "runner.py").read_text(encoding="utf-8")
+        self.assertNotIn("baseline_case_ids", runner_source)
+        self.assertNotIn("fixture_case_ids", runner_source)
+        self.assertNotIn('run_state["', runner_source)
 
     def test_desired_config_rejects_unknown_missing_or_duplicate_skill_before_mutation(self):
         from online_e2e.desired_config import DesiredConfigError, build_desired_config

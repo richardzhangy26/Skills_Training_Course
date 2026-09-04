@@ -5,11 +5,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 import hashlib
 import json
-import math
 from typing import Any
 
 from .config_diff import snapshot_config
 from .contracts import ConfigSnapshot, ConfirmationBinding
+from .json_clone import clone_json
 from .profiles import EndpointProfile, PDS_PROFILE, TEACHING_PROFILE, SaveProfile
 from .safety import ConfirmationTokenManager, redact_sensitive
 from .sse import parse_sse, safe_event_data
@@ -17,11 +17,10 @@ from .transport import ClientError, Transport, envelope_data
 
 
 def _plain(value):
-    if isinstance(value, Mapping):
-        return {k: _plain(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_plain(v) for v in value]
-    return value
+    try:
+        return clone_json(value)
+    except ValueError:
+        raise ClientError('CONTRACT_CHANGED', 'json_clone', '不是稳定 JSON 值') from None
 
 
 def _require_fields(value, fields, operation):
@@ -44,25 +43,10 @@ class WriteConfirmation:
 
 def _capture_json(value, operation, path='$'):
     """将一个 JSON 值深拷贝为客户端拥有的稳定快照。"""
-    if isinstance(value, Mapping):
-        try:
-            items = list(value.items())
-        except Exception:
-            raise ClientError('CONTRACT_CHANGED', operation, f'{path} 无法稳定读取') from None
-        captured = {}
-        for key, item in items:
-            if type(key) is not str or key in captured:
-                raise ClientError('CONTRACT_CHANGED', operation, f'{path} 必须使用唯一字符串键')
-            captured[key] = _capture_json(item, operation, f'{path}.{key}')
-        return captured
-    if type(value) is list:
-        return [_capture_json(item, operation, f'{path}[{index}]')
-                for index, item in enumerate(list(value))]
-    if value is None or type(value) in (str, bool, int):
-        return value
-    if type(value) is float and math.isfinite(value):
-        return value
-    raise ClientError('CONTRACT_CHANGED', operation, f'{path} 不是稳定 JSON 值')
+    try:
+        return clone_json(value, allow_tuple=False)
+    except ValueError:
+        raise ClientError('CONTRACT_CHANGED', operation, f'{path} 不是稳定 JSON 值') from None
 
 
 def _capture_json_mapping(payload, operation):

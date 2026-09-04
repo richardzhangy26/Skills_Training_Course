@@ -33,6 +33,69 @@ class RegressionSnapshot:
     knowledge: KnowledgeSnapshot
 
 
+@dataclass(frozen=True)
+class FixtureOwnership:
+    run_id: str
+    target_case_ids: tuple[str, ...]
+    baseline_case_ids: tuple[str, ...] | None
+
+    def __post_init__(self):
+        if (
+            not isinstance(self.run_id, str)
+            or not self.run_id
+            or type(self.target_case_ids) is not tuple
+            or len(self.target_case_ids) != 2
+            or len(set(self.target_case_ids)) != 2
+            or any(not isinstance(case_id, str) or not case_id for case_id in self.target_case_ids)
+        ):
+            raise ValueError("invalid_fixture_targets")
+        if self.baseline_case_ids is not None:
+            if (
+                type(self.baseline_case_ids) is not tuple
+                or len(self.baseline_case_ids) != len(set(self.baseline_case_ids))
+                or not set(self.baseline_case_ids).issubset(self.target_case_ids)
+            ):
+                raise ValueError("invalid_fixture_baseline")
+
+    @property
+    def collision(self) -> bool:
+        return bool(self.baseline_case_ids)
+
+    def _current(self, current_case_ids) -> tuple[str, ...]:
+        current = tuple(current_case_ids)
+        if (
+            len(current) != len(set(current))
+            or not set(current).issubset(self.target_case_ids)
+        ):
+            raise ValueError("invalid_fixture_current")
+        return tuple(sorted(current))
+
+    def created_from(self, current_case_ids) -> tuple[str, ...]:
+        if self.baseline_case_ids is None:
+            raise ValueError("fixture_baseline_unverified")
+        current = self._current(current_case_ids)
+        if not set(self.baseline_case_ids).issubset(current):
+            raise ValueError("fixture_baseline_changed")
+        return tuple(sorted(set(current) - set(self.baseline_case_ids)))
+
+    def cleanup_case_ids(self, current_case_ids) -> tuple[str, ...]:
+        return self.created_from(current_case_ids)
+
+    def is_restored(self, current_case_ids) -> bool:
+        if self.baseline_case_ids is None:
+            return False
+        return self._current(current_case_ids) == tuple(sorted(self.baseline_case_ids))
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "run_id": self.run_id,
+            "target_case_ids": list(self.target_case_ids),
+            "baseline_case_ids": (
+                list(self.baseline_case_ids) if self.baseline_case_ids is not None else None
+            ),
+        }
+
+
 class BackendFailure(RuntimeError):
     def __init__(self, code: str, detail: str = ""):
         self.code = code
