@@ -56,6 +56,35 @@ def teaching_request_digest(operation: str, payload: Mapping, *, files=None) -> 
     return snapshot_config({'operation': operation, 'payload': payload, 'files': file_digests}).digest
 
 
+def pds_request_digest(operation: str, exact_body: Mapping) -> str:
+    """绑定 PDS 操作名与将发送的完整请求体；不保留请求内容。"""
+    if not isinstance(exact_body, Mapping):
+        raise ClientError('CONTRACT_CHANGED', operation, '请求体类型无效')
+    return snapshot_config({'operation': operation, 'body': exact_body}).digest
+
+
+def _validate_confirmation_binding(manager, confirmation, *, operation, target_id,
+                                   snapshot_digest, expected_digest, request_digest,
+                                   consume: bool = True):
+    """PDS 与教学中心共用的签名绑定校验。"""
+    if (manager is None or not target_id or not snapshot_digest
+            or type(confirmation) is not WriteConfirmation
+            or type(confirmation.binding) is not ConfirmationBinding):
+        raise ClientError('CONFIRMATION_INVALID', operation, '确认上下文类型无效')
+    binding = confirmation.binding
+    if (binding.target_id != target_id
+            or binding.snapshot_digest != snapshot_digest
+            or binding.expected_digest != expected_digest
+            or binding.diff_digest != request_digest
+            or not binding.knowledge_version or not binding.nonce
+            or not isinstance(confirmation.token, str)):
+        raise ClientError('CONFIRMATION_INVALID', operation, '确认过期、已消费或绑定不一致')
+    valid = (manager.consume(confirmation.token, binding) if consume
+             else manager.verify(confirmation.token, binding))
+    if not valid:
+        raise ClientError('CONFIRMATION_INVALID', operation, '确认过期、已消费或绑定不一致')
+
+
 def require_role(user: Mapping, role_code: str) -> bool:
     _require_fields(user, ('roleList',), 'current_user')
     if not isinstance(user['roleList'], list):
@@ -67,21 +96,25 @@ def require_role(user: Mapping, role_code: str) -> bool:
     return True
 
 
-def select_unique_assistant(records: list, display_name: str) -> dict:
+def select_unique_assistant(records: list, assistant_nid: str, display_name: str) -> dict:
     """只允许确定的 UI 后缀归一化，不使用包含/模糊匹配。"""
     if not isinstance(records, list):
         raise ClientError('CONTRACT_CHANGED', 'assistants', '列表类型变化')
+    _identifier(assistant_nid, 'assistants')
     name = display_name.removesuffix(' AI助教')
     matches = []
     for record in records:
         _require_fields(record, ('friendNid', 'friendNickName', 'appType', 'appCategory', 'isV5'), 'assistants')
-        if (record['friendNickName'] == name and record['appType'] == 'AUTO_SMART_ROBOT'
-                and record['appCategory'] == 'AI_COURSE_REPRESENTATIVE' and record['isV5'] is True):
+        if record['friendNid'] == assistant_nid:
             _identifier(record['friendNid'], 'assistants')
             matches.append(record)
     if len(matches) != 1:
         raise ClientError('CONTRACT_CHANGED', 'assistants', '目标不存在或不唯一')
-    return matches[0]
+    match = matches[0]
+    if (match['friendNickName'] != name or match['appType'] != 'AUTO_SMART_ROBOT'
+            or match['appCategory'] != 'AI_COURSE_REPRESENTATIVE' or match['isV5'] is not True):
+        raise ClientError('CONTRACT_CHANGED', 'assistants', '目标属性与已验证助教不一致')
+    return match
 
 
 class _Client:
@@ -141,6 +174,8 @@ class PdsClient(_Client):
         for skill in data['skillInfoList']:
             _require_fields(skill, ('skillNid', 'name', 'enabled', 'version', 'bindingSource'), 'full_config')
             nids.append(_identifier(skill['skillNid'], 'full_config'))
+            if 'nid' in skill and skill['nid'] != skill['skillNid']:
+                raise ClientError('CONTRACT_CHANGED', 'full_config', 'Skill nid 与 skillNid 冲突')
             if not isinstance(skill['enabled'], bool):
                 raise ClientError('CONTRACT_CHANGED', 'full_config', 'Skill 启用状态类型变化')
         if len(set(nids)) != len(nids):
@@ -180,7 +215,7 @@ class PdsClient(_Client):
         if (redacted != config or redact_sensitive(bindings) != bindings
                 or 'userNid' in json.dumps([config, bindings], ensure_ascii=False)):
             raise ClientError('CONTRACT_CHANGED', 'snapshot', '配置混入敏感字段')
-        skills = [{'nid': skill['skillNid'], **skill} for skill in config['skillInfoList']]
+        skills = [{**skill, 'nid': skill['skillNid']} for skill in config['skillInfoList']]
         source = config['expertMd'] if config['expertMd'] is not None else config['agentMd']
         return snapshot_config({
             'page_nid': page_nid, 'runtime_agent_nid': config['basicInfo']['nid'],
@@ -191,17 +226,14 @@ class PdsClient(_Client):
             'full_config': config,
         })
 
-    def _authorize(self, page_nid, before, expected, confirmation):
-        if type(confirmation) is not WriteConfirmation or type(confirmation.binding) is not ConfirmationBinding:
-            raise ClientError('CONFIRMATION_INVALID', 'write', '确认上下文类型无效')
-        binding = confirmation.binding
-        if (binding.target_id != (self._target_id or page_nid)
-                or binding.snapshot_digest != before.digest
-                or binding.expected_digest != expected.digest
-                or not binding.knowledge_version or not binding.diff_digest or not binding.nonce
-                or not isinstance(confirmation.token, str)
-                or not self._confirmation_manager.consume(confirmation.token, binding)):
-            raise ClientError('CONFIRMATION_INVALID', 'write', '确认过期、已消费或绑定不一致')
+    def _authorize(self, operation, page_nid, before, expected, request_digest,
+                   confirmation, *, consume=True):
+        _validate_confirmation_binding(
+            self._confirmation_manager, confirmation, operation=operation,
+            target_id=self._target_id or page_nid, snapshot_digest=before.digest,
+            expected_digest=expected.digest, request_digest=request_digest,
+            consume=consume,
+        )
 
     def _build_save_body(self, page_nid, config):
         profile = self._save_profile
@@ -238,12 +270,39 @@ class PdsClient(_Client):
         body['agentSettingConfig'] = settings
         return body
 
-    def _write_readback(self, operation, page_nid, body, expected):
-        self._profile.get(operation)
+    def save_and_publish_request_digest(self, page_nid: str,
+                                        desired_full_config: Mapping) -> str:
+        desired = _plain(desired_full_config)
+        self._validate_config(page_nid, desired)
+        return pds_request_digest(
+            'save_and_publish', self._build_save_body(page_nid, desired)
+        )
+
+    def knowledge_binding_request_digest(self, page_nid: str, knowledge_nid: str,
+                                         knowledge_type: str, *, bind: bool = True) -> str:
+        _identifier(page_nid, 'knowledge_binding_request_digest')
+        _identifier(knowledge_nid, 'knowledge_binding_request_digest')
+        _identifier(knowledge_type, 'knowledge_binding_request_digest')
+        operation = 'bind_knowledge' if bind else 'unbind_knowledge'
+        body = {'agentNid': page_nid, 'knowledgeBaseNid': knowledge_nid,
+                'knowledgeType': knowledge_type}
+        return pds_request_digest(operation, body)
+
+    def restore_request_digest(self, page_nid: str, snapshot: ConfigSnapshot) -> str:
+        if type(snapshot) is not ConfigSnapshot or snapshot.normalized.get('page_nid') != page_nid:
+            raise ClientError('CONTRACT_CHANGED', 'restore', '恢复目标不一致')
+        body = self._build_save_body(page_nid, _plain(snapshot.normalized['full_config']))
+        return pds_request_digest('restore', body)
+
+    def _write_readback(self, operation, page_nid, body, expected, *, endpoint_operation=None):
+        endpoint_operation = endpoint_operation or operation
+        self._profile.get(endpoint_operation)
         uncertain = False
         try:
-            self._call(operation, body)
-        except ClientError:
+            self._call(endpoint_operation, body)
+        except ClientError as error:
+            if error.code not in ('TRANSPORT_ERROR', 'CONTRACT_CHANGED'):
+                raise
             uncertain = True
         try:
             actual = self.snapshot(page_nid)
@@ -264,7 +323,12 @@ class PdsClient(_Client):
         self._profile.get('save_and_publish')
         before = self.snapshot(page_nid)
         expected = self.snapshot_from_config(page_nid, desired, before.normalized['knowledge_bindings'])
-        self._authorize(page_nid, before, expected, confirmation)
+        request_digest = pds_request_digest('save_and_publish', body)
+        if expected.digest == before.digest:
+            self._authorize('save_and_publish', page_nid, before, expected,
+                            request_digest, confirmation, consume=False)
+            return before
+        self._authorize('save_and_publish', page_nid, before, expected, request_digest, confirmation)
         return self._write_readback('save_and_publish', page_nid, body, expected)
 
     def bind_knowledge(self, page_nid: str, knowledge_nid: str, knowledge_type: str, *,
@@ -287,10 +351,14 @@ class PdsClient(_Client):
         expected = self.snapshot_from_config(page_nid, before.normalized['full_config'], bindings)
         operation = 'bind_knowledge' if bind else 'unbind_knowledge'
         self._profile.get(operation)
-        self._authorize(page_nid, before, expected, confirmation)
+        body = {'agentNid': page_nid, **key}
+        request_digest = pds_request_digest(operation, body)
         if expected.digest == before.digest:
+            self._authorize(operation, page_nid, before, expected, request_digest,
+                            confirmation, consume=False)
             return before
-        return self._write_readback(operation, page_nid, {'agentNid': page_nid, **key}, expected)
+        self._authorize(operation, page_nid, before, expected, request_digest, confirmation)
+        return self._write_readback(operation, page_nid, body, expected)
 
     def restore(self, page_nid: str, snapshot: ConfigSnapshot, *,
                 confirmation: WriteConfirmation) -> ConfigSnapshot:
@@ -299,7 +367,21 @@ class PdsClient(_Client):
         current = self.snapshot(page_nid)
         if current.normalized['knowledge_bindings'] != snapshot.normalized['knowledge_bindings']:
             raise ClientError('DEPENDENCY_UNVERIFIED', 'restore', '知识绑定恢复需独立确认；不支持内容级恢复')
-        return self.save_and_publish(page_nid, snapshot.normalized['full_config'], confirmation=confirmation)
+        desired = _plain(snapshot.normalized['full_config'])
+        self._validate_config(page_nid, desired)
+        if desired['basicInfo']['isPublish'] != 1:
+            raise ClientError('CONTRACT_CHANGED', 'restore', '平台只支持保存并发布')
+        body = self._build_save_body(page_nid, desired)
+        self._profile.get('save_and_publish')
+        request_digest = pds_request_digest('restore', body)
+        if current.digest == snapshot.digest:
+            self._authorize('restore', page_nid, current, snapshot, request_digest,
+                            confirmation, consume=False)
+            return current
+        self._authorize('restore', page_nid, current, snapshot, request_digest, confirmation)
+        return self._write_readback(
+            'restore', page_nid, body, snapshot, endpoint_operation='save_and_publish'
+        )
 
 
 class TeachingCenterClient(_Client):
@@ -312,17 +394,12 @@ class TeachingCenterClient(_Client):
         self._snapshot_digest = snapshot_digest
 
     def _authorize(self, operation, payload, confirmation, *, files=None):
-        if (self._confirmation_manager is None or not self._target_id or not self._snapshot_digest
-                or type(confirmation) is not WriteConfirmation
-                or type(confirmation.binding) is not ConfirmationBinding):
-            raise ClientError('CONFIRMATION_INVALID', operation)
-        binding = confirmation.binding
-        if (binding.target_id != self._target_id or binding.snapshot_digest != self._snapshot_digest
-                or binding.expected_digest != teaching_request_digest(operation, payload, files=files)
-                or not binding.knowledge_version or not binding.diff_digest or not binding.nonce
-                or not isinstance(confirmation.token, str)
-                or not self._confirmation_manager.consume(confirmation.token, binding)):
-            raise ClientError('CONFIRMATION_INVALID', operation, '绑定不一致或已经消费')
+        digest = teaching_request_digest(operation, payload, files=files)
+        _validate_confirmation_binding(
+            self._confirmation_manager, confirmation, operation=operation,
+            target_id=self._target_id, snapshot_digest=self._snapshot_digest,
+            expected_digest=digest, request_digest=digest,
+        )
 
     def _operation(self, operation, payload, *, files=None, confirmation=None, write=False):
         endpoint = self._profile.get(operation)

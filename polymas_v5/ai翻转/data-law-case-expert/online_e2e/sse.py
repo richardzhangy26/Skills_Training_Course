@@ -5,10 +5,16 @@ import codecs
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 import json
+import re
 from typing import Any
 
 from .safety import redact_sensitive
 from .transport import ClientError
+
+
+_PERSON_IDENTITY_KEY = re.compile(
+    r'(?i)^(?:from|to|sender|receiver)?(?:user|student)(?:nid|id)$'
+)
 
 
 def safe_event_data(value: Any) -> Any:
@@ -17,7 +23,8 @@ def safe_event_data(value: Any) -> Any:
         ids = {'sessionId', 'messageId', 'planId', 'traceId', 'session_id', 'message_id', 'plan_id', 'trace_id'}
         result = {}
         for key, item in value.items():
-            if key in {'userNid', 'userId', 'studentId', 'user_nid', 'user_id', 'student_id'}:
+            compact_key = key.replace('_', '').replace('-', '')
+            if _PERSON_IDENTITY_KEY.fullmatch(compact_key):
                 result[key] = '[REDACTED]'
             elif key in ids:
                 result[key] = redact_sensitive(item)

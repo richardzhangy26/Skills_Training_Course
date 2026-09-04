@@ -29,8 +29,9 @@ class Transport(Protocol):
 def envelope_data(value: Any, operation: str) -> Any:
     if not isinstance(value, dict) or 'code' not in value:
         raise ClientError('CONTRACT_CHANGED', operation, '响应信封缺失')
-    if value['code'] != 200:
-        code = 'AUTH_REQUIRED' if value['code'] in (401, 403) else 'UPSTREAM_REJECTED'
+    response_code = str(value['code'])
+    if response_code != '200':
+        code = 'AUTH_REQUIRED' if response_code in ('401', '403') else 'UPSTREAM_REJECTED'
         raise ClientError(code, operation)
     if 'data' not in value:
         raise ClientError('CONTRACT_CHANGED', operation, '响应缺少 data')
