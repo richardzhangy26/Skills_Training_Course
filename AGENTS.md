@@ -16,6 +16,7 @@ AI教育平台自动化测试系统（能力训练工作流测试）。模拟学
 | 并发压力测试 | `auto_script_train_5characters.py` | 5角色并行 |
 | 语音训练测试 | `auto_audio_train.py` | WebSocket+TTS实时 |
 | 从Markdown构建任务 | `skill_training_build/create_task_from_markdown.py` | 自动生成节点+流程 |
+| 导入能力训练 Pro | `skill_training_pro/deploy_pro_from_markdown.py` | Pro任务、成员、技能、卡片、评分项 |
 | 作业批改 | `homework_review/homework_reviewer_v2.py` | 上传→解析→评分 |
 | 对话质量评测 | `python -m evaluation` | 5维度规则+LLM混合评测 |
 | 查看API基类 | `workflow_tester_base.py` | 所有脚本继承自此 |
@@ -83,13 +84,13 @@ python -m evaluation -t doc.docx -D ./logs/ -O ./reports/ --workers 3
 3. **并发测试**: 5角色脚本输入`1,3,5`可同时跑S1/S3/S5
 4. **Skills工作流**: 引用文档`@路径/任务.md` → 自动生成基础配置/评价标准/剧本/对话流程
 5. **评测维度**: 目标达成度/流程遵循度(规则) + 交互体验性/幻觉与边界/教学策略(LLM)
-6. **所有中文**: 开发交流/思考/任务清单必须使用中文
 
 ---
 
 ## CHILD AGENTS.md
 
 - [skill_training_build/AGENTS.md](./skill_training_build/AGENTS.md) - Markdown→平台构建
+- [skill_training_pro/AGENTS.md](./skill_training_pro/AGENTS.md) - 能力训练 Pro 导入与回查
 - [homework_review/AGENTS.md](./homework_review/AGENTS.md) - 作业批改
 - [evaluation/AGENTS.md](./evaluation/AGENTS.md) - 对话质量评测
 - [.claude/skills/AGENTS.md](./.claude/skills/AGENTS.md) - Claude Code技能系统

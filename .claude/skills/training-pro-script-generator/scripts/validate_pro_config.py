@@ -167,7 +167,7 @@ def validate_text(text: str) -> list[str]:
     script_prompts = re.findall(r"<script_prompt>(.*?)</script_prompt>", text, re.DOTALL)
     for script_prompt in script_prompts:
         for mention in re.findall(r"@([^\s，。；、：:（）()]+)", script_prompt):
-            if mention not in member_names:
+            if mention != "用户" and mention not in member_names:
                 errors.append(f"引用了未定义成员 @{mention}")
 
     return errors

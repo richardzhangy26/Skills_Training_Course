@@ -305,12 +305,15 @@ POST /ai-platform/ability-train/tasks/create
   "voiceUrl": null,
   "openSubtitle": null,
   "openVideo": null,
-  "communicateMethod": "SELF",
+  "communicateMethod": 3,
   "entranceVoiceType": null,
   "entranceVoiceSpeed": null,
   "entranceVoiceNid": null
 }
 ```
+
+当前前端使用数值枚举：`VOICE=1`、`TEXT=2`、`SELF=3`。旧版字符串
+`"SELF"` 在 2026-09-08 实测会返回业务 `code=500`，创建器必须发送数值。
 
 前端把成功响应 `data` 当作新任务 ID。
 
@@ -327,6 +330,11 @@ POST /ai-platform/ability-train/tasks/edit
   "trainTaskId": "${TASK_ID}"
 }
 ```
+
+2026-09-08 实测当前 Pro 编辑接口的 `trainTaskCover` 写入值是图片 URL
+字符串；传普通能力训练使用的 `{fileId, fileUrl}` 对象会返回业务
+`code=500`。资源上传仍应保存 `fileId` 用于资源缓存，但调用
+`tasks/edit` 时只发送 `fileUrl`。
 
 设置初始步骤也是调用此接口更新 `firstStepId`，不是创建一条流程边。
 

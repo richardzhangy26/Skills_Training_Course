@@ -127,6 +127,16 @@ def test_unknown_member_reference_fails() -> None:
     assert any("引用了未定义成员 @王老师" in error for error in errors)
 
 
+def test_user_reference_is_allowed_without_global_member() -> None:
+    validator = load_validator()
+    text = valid_config().replace(
+        "提出临床需求并等待用户回答",
+        "提出临床需求并等待@用户 回答",
+    )
+
+    assert validator.validate_text(text) == []
+
+
 def test_legacy_jump_directive_fails() -> None:
     validator = load_validator()
     text = valid_config().replace(

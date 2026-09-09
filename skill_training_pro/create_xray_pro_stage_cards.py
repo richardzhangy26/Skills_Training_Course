@@ -17,6 +17,7 @@ import os
 import re
 import uuid
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -61,6 +62,23 @@ DEFAULT_ASSET_MANIFEST = Path(__file__).with_name("xray_pro_stage_assets.json")
 DEFAULT_TERM = 20271
 REQUIRED_ROLE_NAMES = ("陈工", "林医生", "老周")
 POSITION_GAP = 300
+
+
+def _parse_position(value: Any, default: int) -> Decimal:
+    raw = default if value in (None, "") else value
+    try:
+        result = Decimal(str(raw))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(f"卡片位置不是有效数字：{raw!r}") from exc
+    if not result.is_finite():
+        raise ValueError(f"卡片位置不是有限数字：{raw!r}")
+    return result
+
+
+def _format_position(value: Decimal) -> str:
+    if value == value.to_integral_value():
+        return str(int(value))
+    return format(value.normalize(), "f")
 
 
 @dataclass(frozen=True)
@@ -126,6 +144,11 @@ def parse_stage_cards(config_path: Path) -> list[StageCard]:
 
 def inject_role_tags(prompt: str, role_ids: Mapping[str, str]) -> str:
     result = replace_role_mentions(prompt, role_ids)
+    result = re.sub(
+        r"@用户(?![A-Za-z0-9_]|助理|团队|工作室)",
+        "<role>user</role>",
+        result,
+    )
     result = re.sub(
         r"达成结束条件后，跳转到【[^】]+】阶段",
         "达成结束条件后，结束本阶段",
@@ -193,13 +216,13 @@ def build_step_payload(
         }
     )
 
-    try:
-        first_x = int(reference_step.get("positionX") or 570)
-        first_y = int(reference_step.get("positionY") or 100)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("参考卡片位置不是整数") from exc
-    payload["positionX"] = str(first_x)
-    payload["positionY"] = str(first_y + (stage.number - 1) * POSITION_GAP)
+    position_source = existing_step or reference_step
+    position_x = _parse_position(position_source.get("positionX"), 570)
+    position_y = _parse_position(position_source.get("positionY"), 100)
+    if existing_step is None:
+        position_y += Decimal((stage.number - 1) * POSITION_GAP)
+    payload["positionX"] = _format_position(position_x)
+    payload["positionY"] = _format_position(position_y)
 
     payload["isSkipStep"] = int(stage.skippable)
     payload["timeLimit"] = -1

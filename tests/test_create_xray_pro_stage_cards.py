@@ -46,6 +46,19 @@ def test_inject_role_tags_replaces_members_adds_user_and_removes_jump_wording() 
     assert "<role>role-zhou</role>" in result
 
 
+def test_inject_role_tags_replaces_explicit_user_mention() -> None:
+    prompt = (
+        "【阶段触发条件】\n满足条件。\n\n【背景设定】\n"
+        "@陈工 提问并等待@用户 回答，随后由@用户 完成选择。"
+    )
+
+    result = cards.inject_role_tags(prompt, {"陈工": "role-chen"})
+
+    assert "@用户" not in result
+    assert result.count("<role>user</role>") == 2
+    assert "<role>role-chen</role>" in result
+
+
 def test_build_step_payload_clones_reference_and_overrides_stage_fields() -> None:
     reference = {
         "nid": "stage-1",
@@ -115,6 +128,53 @@ def test_build_step_payload_clones_reference_and_overrides_stage_fields() -> Non
     assert payload["extConfig"]["bgMediaId"] == "file-2"
     assert payload["extConfig"]["flowUseAside"] is None
     assert reference == original
+
+
+def test_build_step_payload_accepts_decimal_reference_positions() -> None:
+    reference = {
+        "positionX": "557.0628173733919",
+        "positionY": "211.5",
+        "extConfig": {},
+    }
+    stage = cards.StageCard(
+        2, "阶段二", "描述", "用户角色", "用户", "职责", "model", False, "提示词", "背景"
+    )
+
+    payload = cards.build_step_payload(
+        reference,
+        stage,
+        task_id="task-1",
+        role_ids={},
+        background={"fileId": "file-2", "fileUrl": "https://img/2.png"},
+        existing_step=None,
+    )
+
+    assert payload["positionX"] == "557.0628173733919"
+    assert payload["positionY"] == "511.5"
+
+
+def test_build_step_payload_preserves_existing_decimal_position() -> None:
+    existing = {
+        "nid": "stage-2",
+        "positionX": "557.0628173733919",
+        "positionY": "511.5",
+        "extConfig": {},
+    }
+    stage = cards.StageCard(
+        2, "阶段二", "描述", "用户角色", "用户", "职责", "model", False, "提示词", "背景"
+    )
+
+    payload = cards.build_step_payload(
+        existing,
+        stage,
+        task_id="task-1",
+        role_ids={},
+        background={"fileId": "file-2", "fileUrl": "https://img/2.png"},
+        existing_step=existing,
+    )
+
+    assert payload["positionX"] == "557.0628173733919"
+    assert payload["positionY"] == "511.5"
 
 
 def test_assign_existing_steps_reuses_unnamed_placeholder() -> None:

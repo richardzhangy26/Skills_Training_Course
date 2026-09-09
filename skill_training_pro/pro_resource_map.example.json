@@ -1,0 +1,42 @@
+{
+  "members": {
+    "需要消歧的成员名": {
+      "customDigitalHuman": "<CUSTOM_DIGITAL_HUMAN_ID>",
+      "voiceNid": "<VOICE_ID>",
+      "voiceType": "<VOICE_TYPE>",
+      "avatarNid": "<AVATAR_ID>"
+    }
+  },
+  "stageBackgrounds": {
+    "阶段一精确名称": {
+      "fileId": "<FILE_ID>",
+      "fileUrl": "https://example.invalid/stage-1.png"
+    },
+    "2": {
+      "path": "/absolute/path/to/stage-2.png"
+    }
+  },
+  "cover": {
+    "fileId": "<COVER_FILE_ID>",
+    "fileUrl": "https://example.invalid/cover.png"
+  },
+  "entranceVoice": {
+    "voiceNid": "<VOICE_ID>",
+    "voiceType": "<VOICE_TYPE>",
+    "speed": 1
+  },
+  "scoreItems": [
+    {
+      "name": "案例分析能力",
+      "score": 45,
+      "description": "评价用户对案例事实、矛盾、原因和策略的分析表现。",
+      "requirement": "只依据用户在训练中的实际分析内容评分，并区分独立完成与提示后完成。"
+    },
+    {
+      "name": "实战互动能力",
+      "score": 55,
+      "description": "评价用户在模拟沟通中的实际应对表现。",
+      "requirement": "只依据用户面向模拟角色的实际表达和互动结果评分，不把理论计划当作已经实施。"
+    }
+  ]
+}
