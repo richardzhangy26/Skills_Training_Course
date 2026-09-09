@@ -13,7 +13,7 @@ from .json_clone import clone_json
 from .profiles import EndpointProfile, PDS_PROFILE, TEACHING_PROFILE, SaveProfile
 from .safety import ConfirmationTokenManager, redact_sensitive
 from .sse import parse_sse, safe_event_data
-from .transport import ClientError, Transport, envelope_data
+from .transport import ClientError, Transport, UNCERTAIN_WRITE_ERRORS, envelope_data
 
 
 def _plain(value):
@@ -342,7 +342,7 @@ class PdsClient(_Client):
         try:
             self._call(endpoint_operation, body)
         except ClientError as error:
-            if error.code not in ('TRANSPORT_ERROR', 'CONTRACT_CHANGED'):
+            if error.code not in UNCERTAIN_WRITE_ERRORS:
                 raise
             uncertain = True
         try:
@@ -466,7 +466,7 @@ class TeachingCenterClient(_Client):
             for record in records:
                 _require_fields(record, endpoint.response_fields, operation)
         except ClientError as error:
-            if write and error.code in ('TRANSPORT_ERROR', 'CONTRACT_CHANGED'):
+            if write and error.code in UNCERTAIN_WRITE_ERRORS:
                 raise ClientError('WRITE_STATE_UNKNOWN', operation, '禁止自动重试') from None
             raise
         result = safe_event_data(data)

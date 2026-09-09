@@ -18,6 +18,7 @@ from .requests_transport import RequestsTransport
 from .run_store import DurableRunStore
 from .runner import ExpertE2ERunner
 from .transport import ClientError
+from .safety import sanitize_json
 
 
 class CLIUsageError(ValueError):
@@ -111,6 +112,13 @@ def main(argv=None, *, runner_factory=build_runner) -> int:
     except Exception:
         payload = {"status": "BLOCKED", "code": "INTERNAL_ERROR"}
         exit_code = 1
+    token = payload.get("confirmation_token") if (
+        exit_code == 0 and arguments.mode == "dry-run"
+        and payload.get("code") == "AWAITING_CONFIRMATION"
+    ) else None
+    payload = sanitize_json(payload)
+    if isinstance(token, str):
+        payload["confirmation_token"] = token
     sys.stdout.write(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
     if exit_code:
         sys.stderr.write(f"online_e2e: {payload['code']}\n")

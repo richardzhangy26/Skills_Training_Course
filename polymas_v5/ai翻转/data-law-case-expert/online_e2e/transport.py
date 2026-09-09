@@ -5,6 +5,9 @@ from collections.abc import Iterable, Mapping
 from typing import Any, Protocol
 
 
+UNCERTAIN_WRITE_ERRORS = frozenset({"TRANSPORT_TIMEOUT", "TRANSPORT_ERROR", "CONTRACT_CHANGED"})
+
+
 class ClientError(RuntimeError):
     """不包含服务端原文、请求体或凭证的稳定错误。"""
 

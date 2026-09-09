@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from io import BytesIO
+import json
 from typing import Any
 
 from docx import Document
@@ -50,6 +51,7 @@ class SyntheticRegressionBackend:
         self.restore_config_calls = 0
         self.student_calls: list[str] = []
         self.temporary_cases: set[str] = set()
+        self._case_owners: dict[str, tuple[str, str]] = {}
         self.last_cleanup_requested: tuple[str, ...] = ()
         self.knowledge_version = "knowledge-v1"
         self.knowledge_cas_checks = 0
@@ -111,17 +113,13 @@ class SyntheticRegressionBackend:
     def snapshot(self, target: TargetConfig) -> RegressionSnapshot:
         return RegressionSnapshot(
             config=self._config_snapshot(),
-            knowledge=snapshot_knowledge(
-                self.knowledge_version,
-                self._knowledge_content,
-                source="synthetic-content-snapshot",
-            ),
+            knowledge=self._knowledge_snapshot(),
         )
 
     def _knowledge_snapshot(self):
         return snapshot_knowledge(
             self.knowledge_version,
-            self._knowledge_content,
+            self._knowledge_content + b"\n" + json.dumps(sorted(self.temporary_cases)).encode("utf-8"),
             source="synthetic-content-snapshot",
         )
 
@@ -231,6 +229,7 @@ class SyntheticRegressionBackend:
             return {"answer": "上传成功"}
         if self.fail_at == "teacher:upload":
             raise BackendFailure("SYNTHETIC_UPLOAD_FAILED")
+        self._upload_run_id = run_id
         return {"accepted": True, "uploadId": f"upload-{run_id}", "scene": scene}
 
     def confirm_teacher_change(self, upload_id: str):
@@ -244,7 +243,11 @@ class SyntheticRegressionBackend:
         if self.fail_at == "teacher:sync":
             raise BackendFailure("SYNTHETIC_SYNC_FAILED")
         pending = tuple(getattr(self, "_pending_case_ids", ()))
-        self.temporary_cases.update(pending[:1] if self.partial_sync_cases else pending)
+        created = pending[:1] if self.partial_sync_cases else pending
+        for case_id in created:
+            if case_id not in self.temporary_cases:
+                self._case_owners[case_id] = (self._upload_run_id, change_id)
+        self.temporary_cases.update(created)
         self.knowledge_version = "knowledge-temporary"
         self._knowledge_content = b"synthetic temporary knowledge"
         self._knowledge_synced = True
@@ -266,7 +269,18 @@ class SyntheticRegressionBackend:
         return {"caseIds": sorted(case_id for case_id in case_ids
                                   if case_id in self.temporary_cases)}
 
-    def cleanup_teacher_cases(self, case_ids: tuple[str, ...], run_id: str):
+    def case_ownership(self, case_ids, *, run_id, change_id):
+        return {"caseIds": sorted(case_id for case_id in case_ids
+                                  if self._case_owners.get(case_id) == (run_id, change_id)),
+                "runId": run_id, "changeId": change_id}
+
+    def cleanup_teacher_cases(self, case_ids: tuple[str, ...], run_id: str, *,
+                              owned_version: str, owned_digest: str, change_id: str):
+        current = self._knowledge_snapshot()
+        if current.version != owned_version or current.digest != owned_digest:
+            raise BackendFailure("EXTERNAL_CONCURRENT_CHANGE", "knowledge_not_restored")
+        if self.case_ownership(case_ids, run_id=run_id, change_id=change_id)["caseIds"] != list(case_ids):
+            raise BackendFailure("CASE_OWNERSHIP_UNVERIFIED")
         self.write_count += 1
         self.last_cleanup_requested = tuple(case_ids)
         if self.fail_at == "cleanup:cases":
@@ -274,7 +288,11 @@ class SyntheticRegressionBackend:
         deleted = [case_id for case_id in case_ids if case_id in self.temporary_cases]
         if not self.fake_cleanup_receipt:
             self.temporary_cases.difference_update(deleted)
-        return {"cleaned": True, "deletedIds": deleted, "ownedRunId": run_id}
+            for case_id in deleted:
+                self._case_owners.pop(case_id, None)
+        after = self._knowledge_snapshot()
+        return {"cleaned": True, "deletedIds": deleted, "ownedRunId": run_id,
+                "knowledgeVersion": after.version, "knowledgeDigest": after.digest}
 
     def restore_knowledge(self, snapshot, *, owned_version: str, owned_digest: str):
         self.write_count += 1
@@ -286,8 +304,7 @@ class SyntheticRegressionBackend:
         self.knowledge_version = snapshot.version
         self._knowledge_content = b"synthetic baseline knowledge"
         self._knowledge_synced = False
-        actual = snapshot_knowledge(self.knowledge_version, self._knowledge_content,
-                                    source="synthetic-content-snapshot")
+        actual = self._knowledge_snapshot()
         return {"restored": actual.digest == snapshot.digest,
                 "knowledgeVersion": actual.version, "knowledgeDigest": actual.digest}
 

@@ -1,0 +1,13 @@
+{
+  "skill_nid": "NTZP0kOxDh",
+  "skill_version_id": "2uparPjgqv",
+  "user_name": "张一驰",
+  "local_skill_dir": "/Users/zhangyichi/工作/能力训练/.worktrees/polymas-expert-e2e/polymas_v5/ai翻转/data-law-case-expert/data-law-case-query",
+  "remote_skill_root": "data-law-case-query",
+  "files": [
+    "SKILL.md",
+    "references/retrieval-contract.md",
+    "scripts/search_cases.py"
+  ],
+  "backup_root": "/Users/zhangyichi/工作/能力训练/.worktrees/polymas-expert-e2e/polymas_v5/ai翻转/data-law-case-expert/.online-e2e-state/skill-draft-backups/query"
+}

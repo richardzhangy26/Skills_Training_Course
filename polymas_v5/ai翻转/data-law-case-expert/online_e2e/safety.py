@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+from collections.abc import Mapping
 import hashlib
 import hmac
 import json
@@ -38,6 +39,14 @@ _COMMON_BARE_TOKEN = re.compile(
 )
 _CONFIRMATION_TOKEN = re.compile(r"\bv1\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\b")
 _REDACTED = "[REDACTED]"
+_IDENTITY_LABEL = r"(?:[a-z][a-z0-9_-]*)?(?:user|student)[_-]?(?:n?id|identifier|name)"
+_PERSONAL_LABEL = _IDENTITY_LABEL + r"|authorization|cookie|jwt|(?:access[_-]?|refresh[_-]?|confirmation[_-]?)?token|session[_-]?(?:cookie|secret)|secret|password|credential|api[_-]?key"
+_PRIVATE_TEXT = re.compile(
+    rf"(?i)(\b(?:{_PERSONAL_LABEL})[\"']?\s*[:=]\s*[\"']?)(?:bearer\s+)?[^\s,;\"']+"
+)
+_BUSINESS_IDS = {f"{name}{suffix}" for name in
+                 ("assistant", "conversation", "session", "message", "plan", "trace")
+                 for suffix in ("id", "nid")}
 
 
 def _encode_binding(binding: ConfirmationBinding) -> bytes:
@@ -105,6 +114,7 @@ class ConfirmationTokenManager:
 
 
 def _redact_text(value: str) -> str:
+    value = _PRIVATE_TEXT.sub(lambda match: match.group(1) + _REDACTED, value)
     value = _CONFIRMATION_TOKEN.sub(_REDACTED, value)
     value = _COOKIE_HEADER.sub(lambda match: f"{match.group(1)}{_REDACTED}", value)
     value = _JSON_QUOTED_CREDENTIAL.sub(
@@ -120,7 +130,7 @@ def _redact_text(value: str) -> str:
 def redact_sensitive(value: Any) -> Any:
     """递归脱敏适合进入日志、报告和 checkpoint 的值。"""
 
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         return {
             str(key): (
                 _REDACTED
@@ -134,6 +144,34 @@ def redact_sensitive(value: Any) -> Any:
     if isinstance(value, str):
         return _redact_text(value)
     return value
+
+
+def sanitize_json(value: Any) -> Any:
+    """公开结果、报告与持久状态的同一稳定 JSON 边界；确认令牌只能随后单独附加。"""
+    if isinstance(value, Mapping):
+        result = {}
+        for key, item in sorted(value.items(), key=lambda pair: str(pair[0])):
+            key = str(key)
+            normalized = re.sub(r"[^a-z0-9]", "", key.lower())
+            if re.search(r"token|secret|password|credential", normalized):
+                continue
+            private = (
+                normalized not in _BUSINESS_IDS
+                and (re.search(r"authorization|cookie|jwt|apikey", normalized)
+                     or normalized in ("user", "student")
+                     or re.search(r"(?:user|student)(?:nid|id|identifier|name)$", normalized))
+            )
+            result[key] = _REDACTED if private else sanitize_json(item)
+        return result
+    if isinstance(value, (list, tuple)):
+        return [sanitize_json(item) for item in value]
+    if isinstance(value, (set, frozenset)):
+        return sorted((sanitize_json(item) for item in value), key=lambda item: json.dumps(item, sort_keys=True))
+    if isinstance(value, str):
+        return _redact_text(value)
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    raise ValueError("unsupported_public_json_value")
 
 
 def write_checkpoint_atomic(path: Path, payload: Any) -> Path:

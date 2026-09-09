@@ -4,6 +4,7 @@ from copy import deepcopy
 from io import BytesIO
 from pathlib import Path
 import sys
+import os
 import tempfile
 import unittest
 from zipfile import ZipFile
@@ -215,16 +216,13 @@ class OnlineE2EPlanTests(unittest.TestCase):
         )
         from PIL import Image
 
-        python = Path(
-            "/Users/zhangyichi/.cache/codex-runtimes/"
-            "codex-primary-runtime/dependencies/python/bin/python3"
-        )
-        renderer = Path(
-            "/Users/zhangyichi/.codex/plugins/cache/openai-primary-runtime/"
-            "documents/26.903.11726/skills/documents/render_docx.py"
-        )
-        self.assertTrue(python.is_file())
-        self.assertTrue(renderer.is_file())
+        python_value = os.environ.get("POLYMAS_QA_PYTHON")
+        renderer_value = os.environ.get("POLYMAS_DOCX_RENDERER")
+        if not python_value or not renderer_value:
+            self.skipTest("DOCX 视觉验收需显式注入 POLYMAS_QA_PYTHON 和 POLYMAS_DOCX_RENDERER；结构测试仍执行")
+        python, renderer = Path(python_value), Path(renderer_value)
+        self.assertTrue(python.is_file(), "POLYMAS_QA_PYTHON 不存在")
+        self.assertTrue(renderer.is_file(), "POLYMAS_DOCX_RENDERER 不存在")
         with tempfile.TemporaryDirectory() as temporary:
             docx_path, pages = render_teacher_fixture_for_qa(
                 "run_render_001",

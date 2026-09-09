@@ -2,6 +2,12 @@
 
 本目录是一个 Polymas V5 本地原型：以 77 个结构化案例为唯一主数据，生成离线 HTML 和专家知识包，并提供学生查询与教师维护两个职责隔离的 Skill。
 
+## 教师个人助教专家团验收
+
+已配置好的 AI 助教可通过 `test_expert_team.py` 或 `python -m team_acceptance run` 执行教师侧测试：读取配置、发送只读用例、判定 SSE 终态、独立回读历史并输出 Markdown/JSON 报告。无需重新发布专家。参数、示例配置、已验证协议及使用边界见 [专家团验收说明](team_acceptance/README.md)。该入口的真实对话结果与下文旧发布/回滚框架的 synthetic 结果分别报告。
+
+2026-09-05 已实跑法学测试助教与数据法学案例专家两条用例：两条均完成发送和回读，业务断言一条通过、一条未通过。精确案例查询失败涉及知识源与检索依赖不可用，不能据此宣称专家全部功能验收通过。
+
 ## 目录
 
 ```text
@@ -78,7 +84,11 @@ python -m online_e2e data-law-case-expert apply full \
   --confirmation-token '<dry-run stdout 中的令牌>'
 ```
 
-`apply` 在 target 级文件锁内重新计算本地资产摘要、线上快照、隔离助教 NID、关系版本和请求计划摘要；确认签名单独绑定知识 version 与 content digest，同版本内容变化也会使旧令牌失效。令牌和 nonce 均为一次性消费。dry-run 与 apply 都精确查询本 run 的目标 `AUTO-{RUN_ID}-01/02`，目标集合和 baseline（包括显式空集合）进入计划摘要；任一目标已存在即 `FIXTURE_ID_COLLISION`，不签发令牌或发布。成功只保留新专家配置，教师双案例 fixture 和知识变更必须清理并恢复。同步或失败后再次精确查询，`created_owned=current_exact-baseline_exact`；cleanup 只接收该差集，绝不因相同前缀删除 `-99` 等其他案例，且 `deletedIds` 必须精确相等。知识 restore 后重新读取 version+digest，PASSED 前重新读取配置 digest；配置与知识分别执行 CAS。任一项检测到第三方并发变化时停止覆盖，报告 `ROLLBACK_FAILED` 与 `config_not_restored` 或 `knowledge_not_restored` 残留状态。
+`apply` 在 target 级文件锁内重新计算本地资产摘要、线上快照、隔离助教 NID、关系版本和请求计划摘要；确认签名单独绑定知识 version 与 content digest，同版本内容变化也会使旧令牌失效。令牌和 nonce 均为一次性消费。dry-run 与 apply 都精确查询本 run 的目标 `AUTO-{RUN_ID}-01/02`，目标集合和 baseline（包括显式空集合）进入计划摘要；任一目标已存在即 `FIXTURE_ID_COLLISION`，不签发令牌或发布。成功只保留新专家配置，教师双案例 fixture 和知识变更必须清理并恢复。清理同时要求已尝试教师写入、实际确认的 changeId，以及 backend 按 runId + changeId 返回的精确案例归属；当前减基线仅用于发现候选，不作为所有权证据。未开始教师写入时，只读检查原知识和案例状态；外部变化保留并报告残留。删除前 runner 与 backend 都校验知识 version+digest，删除后的知识回执必须与当前回读一致才可 restore；restore 后再次独立回读。配置与知识分别执行 CAS，第三方变化返回 `ROLLBACK_FAILED` 并保留残留状态。
+
+首个可能写入前，target 锁内原子保存私有恢复快照与 `IN_FLIGHT` fence。若配置包含必须脱敏的字段，无法保存完整安全快照，则在写前阻断。进程崩溃后，同 target 的任何 dry-run/apply 都返回 `RECOVERY_REQUIRED` 和 `write_may_have_occurred`，不重建 baseline、不覆盖旧 checkpoint、不发起写请求。只有同进程正常清理或回滚且独立回读成功，才解除 fence；未确认写状态或 `ROLLBACK_FAILED` 保留。自动 rollback 只覆盖同进程捕获的异常，本批不实现跨进程自动 resume，崩溃需人工对账恢复。
+
+DOCX 结构测试始终运行。视觉验收通过 `POLYMAS_QA_PYTHON` 和 `POLYMAS_DOCX_RENDERER` 显式注入 bundled Python 与 canonical renderer；未注入时仅跳过视觉测试，显式路径不存在则失败。取得当前工作区依赖路径后运行 `python -m pytest -q tests/test_online_e2e_plan.py`，不硬编码插件版本。
 
 ### Synthetic 固定回归
 

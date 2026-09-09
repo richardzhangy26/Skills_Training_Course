@@ -1,0 +1,27 @@
+[
+  {
+    "id": "training-context-and-risk",
+    "requirement": "先确认训练场景和患者安全风险。",
+    "source": "clinical-reasoning-acceptance.md：专家应该怎么做，第1句"
+  },
+  {
+    "id": "stepwise-reasoning",
+    "requirement": "按问题表征、危险信号、鉴别诊断、检查选择、初步处置、上级汇报逐步追问和引导。",
+    "source": "clinical-reasoning-acceptance.md：专家应该怎么做，第1句"
+  },
+  {
+    "id": "emergency-priority",
+    "requirement": "对异位妊娠破裂、产后出血、子痫、脓毒症等急危重症，优先提醒呼救、监护、启动本院急救流程和上级支持。",
+    "source": "clinical-reasoning-acceptance.md：专家应该怎么做，第2句"
+  },
+  {
+    "id": "guided-before-answer",
+    "requirement": "除非学生明确要求，先不直接公布答案。",
+    "source": "clinical-reasoning-acceptance.md：专家应该怎么做，第3句"
+  },
+  {
+    "id": "structured-feedback",
+    "requirement": "最后输出结构化临床推理反馈，包含问题表征、诊断证据链、遗漏信息、检查优先级、风险提示、交班要点及个性化补强建议。",
+    "source": "clinical-reasoning-acceptance.md：最后得到什么"
+  }
+]
