@@ -43,11 +43,8 @@ def test_expert_uses_pds_template_and_general_finance_identity():
     assert "${agent\\_name}" not in config
 
 
-def test_subscription_defaults_to_current_expert_session_without_course_access():
-    config = read(CONFIG)
-    deployment = read(DEPLOYMENT)
-    skill = read(SKILL_ROOT / "SKILL.md")
-    combined = "\n".join((config, deployment, skill))
+def test_expert_does_not_access_or_select_courses():
+    combined = "\n".join((read(CONFIG), read(DEPLOYMENT), read(SKILL_ROOT / "SKILL.md")))
 
     for forbidden in (
         "学生班课查询",
@@ -57,173 +54,158 @@ def test_subscription_defaults_to_current_expert_session_without_course_access()
         "finance-news:{schoolId}:{userId}:{courseId}",
     ):
         assert forbidden not in combined
+    assert "无需选择课程" in combined
 
-    for required in (
-        "无需选择课程",
-        "当前运行时的本专家个人会话",
+
+def test_only_domain_skills_are_mounted_and_runtime_capabilities_are_builtin():
+    config = read(CONFIG)
+    deployment = read(DEPLOYMENT)
+    skill_section = config.split("## 可用技能", 1)[1].split("## 工作流程", 1)[0]
+
+    assert "1. `finance-news-commentary`" in skill_section
+    assert "2. `平台通用工具 0.0.4`" in skill_section
+    assert "cron 0.0.1" not in skill_section
+    assert "channel-message" not in skill_section
+    assert "channel_message" not in skill_section
+
+    for token in (
+        "`ask_user_question` 是 AI 助教内置工具",
+        "`cron` 是 AI 助教内置工具",
+        "不作为 Skill 挂载",
+        "只挂载两项专业 Skill",
+    ):
+        assert token in config + deployment
+
+
+def test_ask_user_question_collects_only_missing_schedule_topics_and_confirmation():
+    config = read(CONFIG)
+
+    for token in (
+        "学生明确的信息不重复询问",
+        "每轮最多三个相关问题",
+        "主题：综合财经、宏观政策、资本市场、行业或公司",
+        "频率：每日、工作日、每周或自定义",
+        "时间与 IANA 时区",
+        "取得明确确认",
+        "确认前不创建或修改任务",
+    ):
+        assert token in config
+
+
+def test_builtin_cron_commands_are_explicit_and_always_use_agent_id():
+    combined = "\n".join((read(CONFIG), read(DEPLOYMENT)))
+
+    for token in (
+        "cron list --agent-id <当前专家>",
+        "cron create --agent-id <当前专家>",
+        "cron get <cron_job_id> --agent-id <当前专家>",
+        "cron state <cron_job_id> --agent-id <当前专家>",
+        "cron pause <cron_job_id> --agent-id <当前专家>",
+        "cron resume <cron_job_id> --agent-id <当前专家>",
+        "cron delete <cron_job_id> --agent-id <当前专家>",
+        "cron run <cron_job_id> --agent-id <当前专家>",
+    ):
+        assert token in combined
+
+
+def test_builtin_cron_creates_named_task_and_validates_creation():
+    config = read(CONFIG)
+
+    for token in (
+        "任务名称 `财经新闻推送`",
+        "当前专家下同名任务",
+        "已有同名任务时直接回读并复用",
+        "cron create --agent-id <当前专家>",
+        "cron get <cron_job_id> --agent-id <当前专家>",
+        "cron state <cron_job_id> --agent-id <当前专家>",
+        "只有工具真实返回可查询、已启用的任务，才报告订阅成功",
+    ):
+        assert token in config
+
+    for forbidden in (
         "finance-news:{schoolId}:{userId}:{agentId}",
-        "不查询或改绑到其他会话",
-    ):
-        assert required in combined
-
-
-def test_skill_mount_order_contains_only_domain_search_cron_and_message():
-    config = read(CONFIG)
-    expected = (
-        "1. `finance-news-commentary`",
-        "2. `平台通用工具 0.0.4`",
-        "3. `cron 0.0.1`",
-        "4. `channel-message 0.0.1`",
-    )
-
-    positions = [config.index(token) for token in expected]
-    assert positions == sorted(positions)
-    assert "四项技能" in config
-
-
-def test_ask_user_question_only_collects_schedule_topics_and_confirmation():
-    config = read(CONFIG)
-
-    for token in (
-        "调用 `ask_user_question` 收集频率、星期、时间、IANA 时区和财经主题",
-        "展示规范化计划并取得明确订阅确认",
-        "并真正等待",
-        "重复订阅不创建第二个 Cron",
-    ):
-        assert token in config
-
-
-def test_subscription_schema_has_agent_job_key_and_no_course_object():
-    config = read(CONFIG)
-    schema = config[config.index("每份订阅只绑定") : config.index("### 3. Cron")]
-
-    for token in (
-        '"job_key": "finance-news:{schoolId}:{userId}:{agentId}"',
-        '"target_session_id": "当前专家个人会话标识"',
-        '"binding_version": 1',
-        '"plan_version": 1',
-        '"auto_delivery_status": "enabled | disabled_atomicity"',
-    ):
-        assert token in schema
-    assert '"course"' not in schema
-    assert "courseId" not in schema
-
-
-def test_first_subscription_uses_atomic_job_key_claim_before_cron_creation():
-    config = read(CONFIG)
-
-    for token in (
-        "订阅持久层原子 `create-if-absent`",
-        "唯一约束",
-        "原子 claim 成功者",
-        "竞争失败者复用既有订阅",
-        "不创建 Cron",
-    ):
-        assert token in config
-
-
-def test_cron_activation_switch_and_recovery_are_fail_closed():
-    config = read(CONFIG)
-
-    for token in (
-        "pending_activation",
-        "初始暂停的候选 Cron",
-        "写候选 ID",
-        "启用并回读",
-        "最后写 `active`",
-        "暂停已验证旧任务",
-        "写新 ID/version",
-        "旧 `cron_job_id`、旧 `plan_version`、旧计划",
-        "恢复旧订阅与旧任务",
-        "恢复或清理失败时新旧均暂停",
-        "recovery_required=true",
-        "禁止双发",
-        "不得直接写 `active`",
-    ):
-        assert token in config
-
-
-def test_delivery_revalidates_current_agent_session_and_stale_trigger():
-    config = read(CONFIG)
-
-    for token in (
-        "trigger_cron_job_id",
         "trigger_job_key",
         "trigger_plan_version",
         "trigger_agent_id",
-        "trigger_binding_version",
-        "trigger_target_session_id",
+        "duplicate_cron_conflict",
+    ):
+        assert forbidden not in config
+
+
+def test_builtin_cron_plan_change_uses_task_id_and_simple_rollback():
+    config = read(CONFIG)
+
+    for token in (
+        "cron pause <旧 cron_job_id> --agent-id <当前专家>",
+        "cron create --agent-id <当前专家>",
+        "cron get/state",
+        "删除旧任务",
+        "候选创建或校验失败时删除候选并恢复旧任务",
+        "清理或恢复失败时报告真实状态",
+    ):
+        assert token in config
+
+
+def test_builtin_cron_returns_final_answer_in_current_expert_conversation():
+    combined = "\n".join((read(CONFIG), read(DEPLOYMENT)))
+
+    for token in (
+        "定时任务的最终回复直接显示在创建任务的当前专家对话中",
+        "不调用任何消息发送 Skill",
+        "将简报作为本次 Cron 唤醒的最终回复直接返回",
+        "不查询、选择或保存其他会话 ID",
+    ):
+        assert token in combined
+
+
+def test_builtin_cron_contract_has_no_session_binding_or_message_delivery_state():
+    combined = "\n".join(
+        (
+            read(CONFIG),
+            read(DEPLOYMENT),
+            read(SKILL_ROOT / "references" / "data-contract.md"),
+        )
+    )
+
+    for forbidden in (
         "target_session_id",
-        "同一学生、当前专家且为个人会话",
-        "skipped_stale_trigger",
-        "不调用 `channel-message`",
-        "不更新成功历史",
-        "逐一比对 Cron ID、任务键、计划版本、agent-id、绑定版本和目标会话",
-    ):
-        assert token in config
-
-
-def test_rebind_pauses_cron_and_cas_increments_binding_version():
-    config = read(CONFIG)
-
-    for token in (
-        "暂停当前 Cron",
-        "CAS",
         "binding_version",
-        "递增",
-        "恢复旧绑定与 Cron",
-        "旧触发",
+        "trigger_target_session_id",
+        "trigger_binding_version",
+        "message_receipt",
+        "delivery_key",
+        "copaw chats list",
+        "copaw channels send",
+        "finance-news:{schoolId}:{userId}:{agentId}",
+        "trigger_job_key",
+        "trigger_plan_version",
+        "trigger_agent_id",
         "skipped_stale_trigger",
     ):
-        assert token in config
+        assert forbidden not in combined
 
 
-def test_delivery_requires_atomic_key_and_records_only_confirmed_success():
+def test_cron_maintenance_uses_verified_task_and_real_tool_receipts():
     config = read(CONFIG)
 
     for token in (
-        "delivery_key={job_key}:{plan_version}:{edition_id}",
-        "create-if-absent",
-        "skipped_duplicate",
-        "delivery_uncertain",
-        "delivery_atomicity_unavailable",
-        "disabled_atomicity",
-        "不自动重发",
-        "不更新 `last_success_at`",
-        "schedule_state_error",
+        "用任务名称和当前 `agent-id` 精确定位",
+        "回读状态后报告",
+        "再次 list/get 确认不存在后才报告退订完成",
+        "两种方式都不新建任务",
+        "订阅操作回执只包含内置 Cron 实际返回",
     ):
         assert token in config
 
 
-def test_history_is_scoped_to_student_agent_and_bound_session():
-    config = read(CONFIG)
-
-    for token in (
-        "schoolId/userId/agentId/target_session_id",
-        '"agent_id": "当前专家标识"',
-        '"target_session_id": "已绑定的当前专家个人会话"',
-        '"retrieved_at": "带时区检索时间"',
-        '"theory_analysis": "通用财经知识分析"',
-        '"source": "规范化来源"',
-        '"url": "https://www.pbc.gov.cn/example"',
-        '"published_at": "带时区发布时间"',
-        '"source_level": 1',
-        "不使用其他会话或未投递草稿",
-    ):
-        assert token in config
-
-
-def test_deployment_matches_no_course_current_session_mode():
+def test_deployment_clearly_marks_online_cron_as_unverified():
     deployment = read(DEPLOYMENT)
 
     for token in (
-        "finance-news-commentary.zip",
-        "四项能力",
-        "当前运行时会话自动绑定",
-        "不查询或改绑到其他会话",
-        "finance-news:{schoolId}:{userId}:{agentId}",
-        "不触发任何课程查询",
         "真实平台联调",
+        "本地 Markdown、脚本和测试通过不能替代",
+        "cron run",
+        "最终简报显示在当前专家对话中",
     ):
         assert token in deployment
 

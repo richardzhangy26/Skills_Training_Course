@@ -109,7 +109,8 @@ def test_data_contract_has_no_course_or_identity_inputs():
         "discussion_question",
         "ready",
         "no_eligible_candidates",
-        "finance-news:{schoolId}:{userId}:{agentId}",
+        "任务名称 `财经新闻推送`",
+        "不保存学生内部身份",
     ):
         assert token in contract
     for forbidden in (
@@ -119,6 +120,7 @@ def test_data_contract_has_no_course_or_identity_inputs():
         '"course_evidence_available":',
         '"theory_citations":',
         "skipped_no_course_evidence",
+        "finance-news:{schoolId}:{userId}:{agentId}",
     ):
         assert forbidden not in contract
     assert "不得静默忽略旧课程字段" in contract
