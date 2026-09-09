@@ -52,3 +52,48 @@ python3 -m unittest discover -s ai翻转/data-law-case-expert/tests -p 'test_*.p
 - 平台资源上传、知识写入和专家回读尚未联调。
 - `artifact_ready_knowledge_pending` 不是发布成功；只有 `knowledge_verified` 表示专家能够检索新版本。
 - 未经用户明确授权，本目录不会上传 Skill、创建线上专家或发送测试消息。
+
+## Online E2E 编排器
+
+`online_e2e` 把只读预检、线上快照、期望配置差异、一次性确认、发布、固定回归和清理组织为同一状态机。PDS 专家公开 NID `x3PalTZaWr`、中药材助教 NID `FEpEJws9cS` 和未来教学 runtime 标识分别建模，不互相替代。期望配置从线上完整配置克隆，只替换 `expertMd.customContent`，并按线上已观察顺序保留五个已声明 Skill；未知、缺失或重复 Skill 会阻断。
+
+当前可安全执行 live `dry-run`。它读取当前用户、助教列表、助教与专家关系、专家完整配置和知识绑定，生成快照与差异，但不会写平台。由于专用测试助教、权威知识库目标、知识内容级快照/恢复、可信学生 transport、保存模型转换、新会话、上传、发送和教师恢复接口尚未验证，当前目标会返回 `BLOCKED / DEPENDENCY_UNVERIFIED`，不会签发确认令牌。`apply` 也会在任何平台写入前以相同原因阻断。
+
+在本目录执行：
+
+```bash
+python -m online_e2e data-law-case-expert dry-run full \
+  --run-id run-20260904-readonly \
+  --env-file /absolute/path/to/polymas.env
+```
+
+env 文件必须由 `--env-file` 显式传入，至少包含 `AUTHORIZATION` 与 `COOKIE`，并且必须来自能够精确看到目标 `assistant_nid` 的同一账号。浏览器 Chrome 当前账号与 env 凭证账号不同，或该账号没有目标助教关系时，会返回 `ASSISTANT_NOT_ACCESSIBLE`；应从正确账号重新取得 AUTHORIZATION/COOKIE，不能改用名称包含、相似名称或其他模糊匹配绕过。生产 transport 只接受 `https://cloudapi.polymas.com` origin，并在发送前复核最终 URL，拒绝 path 中的 scheme/netloc、反斜杠和控制字符，避免凭证被带到外域。凭证只进入内存请求头，不进入 stdout、checkpoint 或报告。CLI 的 stdout 始终恰好一个 JSON；`--help/-h` 也只输出单个 HELP JSON，诊断写 stderr。运行 checkpoint 位于 `.online-e2e-state/`，JSON/Markdown 报告位于 `reports/online-e2e/`，两者均被 gitignore 且使用共享的 0600 原子写实现。发布前的稳定 ClientError 也会生成 BLOCKED JSON/Markdown 报告；只有 store/report 自身不可用时才由 CLI 返回无报告路径的单 JSON `INTERNAL_ERROR`。
+
+只有所有 live 前置条件补证后，`dry-run` 才会把一次性确认令牌返回到 stdout。随后必须使用相同 `run_id` 和原令牌执行：
+
+```bash
+python -m online_e2e data-law-case-expert apply full \
+  --run-id run-20260904-approved \
+  --env-file /absolute/path/to/polymas.env \
+  --confirmation-token '<dry-run stdout 中的令牌>'
+```
+
+`apply` 在 target 级文件锁内重新计算本地资产摘要、线上快照、隔离助教 NID、关系版本和请求计划摘要；确认签名单独绑定知识 version 与 content digest，同版本内容变化也会使旧令牌失效。令牌和 nonce 均为一次性消费。dry-run 与 apply 都精确查询本 run 的目标 `AUTO-{RUN_ID}-01/02`，目标集合和 baseline（包括显式空集合）进入计划摘要；任一目标已存在即 `FIXTURE_ID_COLLISION`，不签发令牌或发布。成功只保留新专家配置，教师双案例 fixture 和知识变更必须清理并恢复。同步或失败后再次精确查询，`created_owned=current_exact-baseline_exact`；cleanup 只接收该差集，绝不因相同前缀删除 `-99` 等其他案例，且 `deletedIds` 必须精确相等。知识 restore 后重新读取 version+digest，PASSED 前重新读取配置 digest；配置与知识分别执行 CAS。任一项检测到第三方并发变化时停止覆盖，报告 `ROLLBACK_FAILED` 与 `config_not_restored` 或 `knowledge_not_restored` 残留状态。
+
+### Synthetic 固定回归
+
+`SyntheticRegressionBackend` 只用于离线证明完整状态机，不是 live 平台或 CDP 录制。固定学生套件覆盖精确案例法条、详细讲解、同 conversation 连续追问、模糊候选、未知案例拒绝补造和学生写入拒绝；runner 独立检查 outcome、案例/法条/候选/拒绝证据，不信任 backend 自报 `passed=true`。详细讲解必须同时具有基本案情、争议焦点或分析、反思思考题三类结构化证据。教师套件生成两个明确标注 `FICTIONAL TEST CASES / NO REAL PII` 的 DOCX 案例，backend 实际解析 DOCX 并核对 run_id、两个 exact case ID 和 scene，通过结构化上传、确认、同步和按 ID 回读后清理；自然语言“成功”不能替代写入回执或独立回读。发布可能落地后的 None、非 Mapping、状态化读取异常或 TypeError 都会先做安全回读，再按 owned/before/other 分支回滚或报告残留。
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/test_online_e2e_runner.py
+```
+
+### Codex Goal 示例
+
+```text
+在 data-law-case-expert 目录运行 online_e2e 的 data-law-case-expert dry-run full。
+使用我明确提供的 --env-file；只做 API-first 只读预检、快照和差异。
+若返回 blocker，列出 blocker 与报告路径并停止，不执行 apply、浏览器写入或平台写入。
+```
+
+API-first 是默认路径。只有为补齐尚未验证的协议事实时才使用 CDP bootstrap：先由用户在独立测试助教中完成一次受控操作，采集并脱敏 method、path、精确 payload 字段、响应字段和终止条件，再把证据固化为 endpoint profile 与回归测试。CDP 不读取无关登录态，不把清空记忆或 `run_id` 冒充新会话，也不在未获得最终确认时保存或发送。详细证据边界见 [线上联调说明](docs/online-e2e-live-integration.md)。

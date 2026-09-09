@@ -24,6 +24,7 @@ __pycache__/
 .qoder/
 .codex/
 .agents/
+.superpowers/
 .playwright-mcp/
 .worktrees/
 
@@ -48,6 +49,8 @@ ws_trainflow.txt
 viedo_download.csv
 skill_training_evaluation/evaluation_report.json
 skill_training_pro/trainV2?*
+polymas_v5/ai翻转/data-law-case-expert/reports/
+polymas_v5/ai翻转/data-law-case-expert/.online-e2e-state/
 
 # ===== 一次性脚本与草稿（本地保留，不入库） =====
 /generate_case_images*.py
