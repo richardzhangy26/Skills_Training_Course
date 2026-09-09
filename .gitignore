@@ -4,6 +4,7 @@
 !.env.example
 .env.backup
 *.swp
+odes
 智能体课程配置账号情况*.csv
 转正申请.md
 student_profiles.json
@@ -23,7 +24,9 @@ __pycache__/
 .trae/
 .qoder/
 .codex/
-.agents/
+.agents/*
+!.agents/skills/
+!.agents/skills/*
 .superpowers/
 .playwright-mcp/
 .worktrees/
@@ -37,7 +40,17 @@ test_logs_v2/
 trainv2_pro_logs/
 trainv2_logs/
 tmp/
+output/
+reports/
+HTML/
+**/.docx-build/
 *.log
+*.har
+*_dialogue.txt
+*_dialogue.json
+*_runcard.txt
+*对话日志/
+*对话日志*.txt
 voice_test.json
 能力训练pro_har.json
 conversation_log.json
@@ -86,10 +99,19 @@ demo_create_regions.sh
 *.heif
 /case拥挤*.png
 /spee曲线*.png
+# 视频
+*.mov
+*.mp4
+*.webm
+*.avi
+*.mkv
 # 压缩包（skill 已有解压后的目录）
 *.zip
 media/
 resources/
+# 可由 scripts/build_atomic_skill_catalog.py 重建
+polymas_v5/docs/atomic-skill-catalog.json
+polymas_v5/docs/atomic-skill-catalog.md
 
 # ===== 子仓库与独立项目 =====
 homework_review/
