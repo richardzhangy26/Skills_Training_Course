@@ -44,15 +44,17 @@
 1. 先由用户明确批准专用测试助教、专用知识库和测试专家；不得操作生产中药材助教或自动挑选 14 个绑定中的任一知识库。
 2. 使用 CDP bootstrap 时，每次只观察一个用户明确执行的动作。记录脱敏后的 method、path、请求字段、文件字段、响应字段、SSE 终止条件及写后回读；Authorization、Cookie、userNid 和个人会话信息不落盘。
 3. 为每个新观察先增加 synthetic/fixture 协议测试，再把对应 endpoint profile 标记 verified。不能凭 URL 命名、旧脚本或前端按钮文字猜 payload。
-4. 证明知识内容全量 snapshot 与 restore、临时案例按 exact ID 查询/清理以及清理后不可检索。dry-run/apply 分别读取目标 01/02 baseline，目标与 baseline 均绑定计划摘要；清理集合只能是 `current_exact-baseline_exact`，不能用 `AUTO-run` 前缀推断 ownership。dry-run 确认必须分别绑定知识 version 与 content digest；同步回执必须返回本 run 写入后的 knowledge version+digest。恢复前和 backend 内再次 CAS，restore 回执后还要独立回读；任一不匹配都保留外部版本并报告 `knowledge_not_restored`。
+4. 证明知识内容全量 snapshot 与 restore、临时案例按 exact ID 查询/清理以及清理后不可检索。目标与 baseline 绑定计划摘要；`current_exact-baseline_exact` 仅发现候选，删除还必须有实际教师写入尝试、已确认 changeId 和 backend 的 runId + changeId 精确归属。删除前 runner 与 backend 双重知识 CAS；删除后权威知识回执与当前回读一致才能 restore，restore 后再次独立回读。未知归属或知识变化都停止删除/恢复并报告残留。
 5. 证明 PDS 发布后的专家版本已被专用测试助教绑定；版本不一致只报告差异，不修改无关专家关系。PASSED 前必须再次回读配置 digest 等于本 run owned digest。
 6. 重跑 live `dry-run`。只有所有 blocker 消失且快照/差异仍匹配时才可获得一次性令牌；再由用户明确批准同一 `run_id` 的 `apply`。
 
 ## 状态解释
 
 - `PASSED`：仅当指定 environment 的完整计划、结构化回执、回读与清理全部通过。
-- `BLOCKED`：尚未写入，或 dry-run 正在等待确认。当前 live 目标属于此状态。
+- `BLOCKED`：当前调用被门禁阻断或正在等待确认；若 code 为 `RECOVERY_REQUIRED`，前次运行可能已经写入，必须依据 residual_state 人工对账，不能解释为尚未写入。
 - `ROLLED_BACK`：发布后测试失败，且本 run 的案例、知识和配置均已恢复并回读。
 - `ROLLBACK_FAILED`：检测到外部并发变化或恢复无法核验；停止覆盖并列出残留状态。
 
 报告中的 `environment` 必须是 `synthetic` 或 `live`。只有 live 报告能证明真实平台行为；本任务没有产生 live 全链路通过报告。
+
+首个写前持久化 target fence 和安全原始配置快照引用；未对账 fence 阻断同 target 任意新调用且保持旧 checkpoint。正常 `PASSED`/`ROLLED_BACK` 经回读才解除 fence。进程终止只提供停写与人工对账，不支持跨进程自动 resume；同进程捕获的异常才进入自动 rollback。

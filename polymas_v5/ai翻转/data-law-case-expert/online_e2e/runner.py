@@ -24,6 +24,7 @@ from .contracts import ConfirmationBinding, KnowledgeSnapshot, TargetConfig
 from .desired_config import DesiredConfigError, build_desired_config
 from .fixtures import build_teacher_docx, student_scenarios, teacher_case_ids, validate_run_id
 from .json_clone import clone_json
+from .safety import sanitize_json
 from .transport import ClientError
 
 
@@ -57,6 +58,8 @@ def _mapping_receipt(value, operation):
 class ExecutionOwnership:
     fixture: FixtureOwnership
     knowledge: KnowledgeSnapshot
+    teacher_write_attempted: bool = False
+    change_id: str | None = None
 
 
 def evaluate_student_receipt(
@@ -177,13 +180,16 @@ class ExpertE2ERunner:
         path = self.store.write_checkpoint(payload["run_id"], payload)
         payload["checkpoint_path"] = str(path)
 
-    def _finish(self, payload, *, token=None):
+    def _finish(self, payload, *, token=None, preserve_checkpoint=False):
         for stage in payload["stages"]:
             if stage["status"] == "PENDING":
                 stage["status"] = "SKIPPED"
-        self._checkpoint(payload)
+        if not preserve_checkpoint:
+            self._checkpoint(payload)
         paths = self.report_writer.write(payload)
-        result = dict(payload)
+        if payload["status"] in ("PASSED", "ROLLED_BACK"):
+            self.store.clear_fence(self.target.target_id, payload["run_id"])
+        result = sanitize_json(payload)
         result["report_json"] = str(paths.json)
         result["report_markdown"] = str(paths.markdown)
         if token is not None:
@@ -351,20 +357,49 @@ class ExpertE2ERunner:
     ):
         fixture = ownership.fixture
         current_exact = self._existing_case_ids(fixture.target_case_ids)
+        current_knowledge = self.backend.current_knowledge_snapshot()
+        if not ownership.teacher_write_attempted or ownership.change_id is None:
+            if (not fixture.is_restored(current_exact)
+                or current_knowledge.version != knowledge_snapshot.version
+                or current_knowledge.digest != knowledge_snapshot.digest):
+                raise BackendFailure("EXTERNAL_CONCURRENT_CHANGE", "knowledge_not_restored")
+            return
+        # 在任何删除前验证知识仍属于本次事务；回执缺失时不能按案例前缀推断归属。
+        if (current_knowledge.version != ownership.knowledge.version
+            or current_knowledge.digest != ownership.knowledge.digest):
+            raise BackendFailure("EXTERNAL_CONCURRENT_CHANGE", "knowledge_not_restored")
         try:
             created_owned = fixture.cleanup_case_ids(current_exact)
         except ValueError:
             raise BackendFailure(
                 "EXTERNAL_CONCURRENT_CHANGE", "teacher_cases_not_cleaned"
             ) from None
+        if not created_owned and fixture.is_restored(current_exact) and (
+            current_knowledge.version == knowledge_snapshot.version
+            and current_knowledge.digest == knowledge_snapshot.digest
+        ):
+            return
+        query = getattr(self.backend, "case_ownership", None)
+        if query is None:
+            raise BackendFailure("CASE_OWNERSHIP_UNVERIFIED", "teacher_cases_not_cleaned")
+        evidence = self._require(self._call_receipt(
+            "case_ownership", query, created_owned,
+            run_id=fixture.run_id, change_id=ownership.change_id,
+        ), ("caseIds", "runId", "changeId"))
+        if (evidence["runId"] != fixture.run_id or evidence["changeId"] != ownership.change_id
+            or evidence["caseIds"] != list(created_owned)):
+            raise BackendFailure("CASE_OWNERSHIP_UNVERIFIED", "teacher_cases_not_cleaned")
         cleanup = self._require(
             self._call_receipt(
                 "cleanup_teacher_cases",
                 self.backend.cleanup_teacher_cases,
                 created_owned,
                 fixture.run_id,
+                owned_version=ownership.knowledge.version,
+                owned_digest=ownership.knowledge.digest,
+                change_id=ownership.change_id,
             ),
-            ("cleaned", "deletedIds", "ownedRunId"),
+            ("cleaned", "deletedIds", "ownedRunId", "knowledgeVersion", "knowledgeDigest"),
         )
         if cleanup["cleaned"] is not True or cleanup["ownedRunId"] != fixture.run_id:
             raise BackendFailure("CLEANUP_VERIFICATION_FAILED")
@@ -381,10 +416,11 @@ class ExpertE2ERunner:
             raise BackendFailure("CLEANUP_VERIFICATION_FAILED", "teacher_cases_not_cleaned")
         current_knowledge = self.backend.current_knowledge_snapshot()
         if (
-            current_knowledge.version != ownership.knowledge.version
-            or current_knowledge.digest != ownership.knowledge.digest
+            current_knowledge.version != cleanup["knowledgeVersion"]
+            or current_knowledge.digest != cleanup["knowledgeDigest"]
         ):
             raise BackendFailure("EXTERNAL_CONCURRENT_CHANGE", "knowledge_not_restored")
+        ownership.knowledge = current_knowledge
         restored = self._require(
             self._call_receipt(
                 "restore_knowledge",
@@ -443,6 +479,7 @@ class ExpertE2ERunner:
         remember = getattr(self.backend, "remember_pending_cases", None)
         if remember is not None:
             remember(fixture.target_case_ids)
+        ownership.teacher_write_attempted = True
         upload = self._require(
             self._call_receipt(
                 "upload_teacher_fixture",
@@ -466,6 +503,9 @@ class ExpertE2ERunner:
         )
         if confirmed["confirmed"] is not True:
             raise BackendFailure("STRUCTURED_RECEIPT_REQUIRED")
+        if not _nonempty_string(confirmed["changeId"]):
+            raise BackendFailure("STRUCTURED_RECEIPT_REQUIRED")
+        ownership.change_id = confirmed["changeId"]
         synced = self._require(
             self._call_receipt(
                 "sync_teacher_change",
@@ -570,6 +610,13 @@ class ExpertE2ERunner:
             raise ValueError("invalid_mode")
         with self.store.target_lock(self.target.target_id):
             payload = self._base(run_id)
+            fence = self.store.read_fence(self.target.target_id)
+            if fence is not None:
+                payload.update(
+                    status="BLOCKED", code="RECOVERY_REQUIRED", recovery=fence,
+                    residual_state=["write_may_have_occurred", "manual_reconciliation_required"],
+                )
+                return self._finish(payload, preserve_checkpoint=True)
             try:
                 prior = self.store.read_checkpoint(run_id) if mode == "apply" else None
                 (
@@ -614,6 +661,12 @@ class ExpertE2ERunner:
                 return self._finish(payload)
             self._stage(payload, "AWAITING_CONFIRMATION", "PASSED")
             self._stage(payload, "PUBLISHING", "RUNNING")
+            try:
+                self.store.begin_write(self.target.target_id, run_id, before, desired_snapshot.digest)
+                self._checkpoint(payload)
+            except (OSError, ValueError):
+                payload.update(status="BLOCKED", code="RECOVERY_SNAPSHOT_UNAVAILABLE")
+                return self._finish(payload)
             try:
                 publication = self._require(
                     self._call_receipt(

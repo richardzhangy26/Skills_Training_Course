@@ -114,11 +114,15 @@ class RequestsTransport:
                 files=files,
                 timeout=self._timeout,
                 stream=stream,
+                allow_redirects=False,
             )
         except requests.Timeout:
             raise ClientError("TRANSPORT_TIMEOUT", "transport") from None
         except requests.RequestException:
             raise ClientError("TRANSPORT_ERROR", "transport") from None
+        if 300 <= response.status_code < 400:
+            response.close()
+            raise ClientError("REDIRECT_BLOCKED", "transport")
         if response.status_code in (401, 403):
             response.close()
             raise ClientError("AUTH_REQUIRED", "transport")

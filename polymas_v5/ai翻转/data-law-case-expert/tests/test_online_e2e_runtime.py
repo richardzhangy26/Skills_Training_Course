@@ -314,7 +314,8 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
             "confirmation_token": "must-never-persist",
             "Authorization": "Bearer private-auth",
             "userNid": "private-user",
-            "sessionId": "private-session",
+            "sessionId": "session-visible",
+            "sessionCookie": "private-session",
             "assistantId": "assistant-visible",
             "conversationId": "conversation-visible",
             "messageId": "message-visible",
@@ -330,6 +331,7 @@ class OnlineE2ERuntimeTests(unittest.TestCase):
             for visible in (
                 "assistant-visible",
                 "conversation-visible",
+                "session-visible",
                 "message-visible",
                 "plan-visible",
                 "trace-visible",

@@ -13,23 +13,10 @@ from typing import Any, Iterator
 
 from .contracts import ConfirmationBinding
 from .fixtures import validate_run_id
+from .json_clone import clone_json
 from .private_io import write_private_bytes_atomic, write_private_json_atomic
 from .safety import ConfirmationTokenManager
-from .safety import redact_sensitive
-
-
-def _without_confirmation_tokens(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {
-            str(key): _without_confirmation_tokens(item)
-            for key, item in value.items()
-            if "token" not in str(key).lower().replace("_", "").replace("-", "")
-        }
-    if isinstance(value, (list, tuple)):
-        return [_without_confirmation_tokens(item) for item in value]
-    if isinstance(value, str):
-        return redact_sensitive(value)
-    return value
+from .safety import sanitize_json
 
 
 class DurableConfirmations:
@@ -130,8 +117,56 @@ class DurableRunStore:
     def write_checkpoint(self, run_id: str, payload: Any) -> Path:
         safe_run_id = validate_run_id(run_id)
         path = self.root / "runs" / f"{safe_run_id}.json"
-        write_private_json_atomic(path, _without_confirmation_tokens(payload))
+        write_private_json_atomic(path, sanitize_json(payload))
         return path
+
+    def _fence_path(self, target_id: str) -> Path:
+        return self.root / "fences" / f"{validate_run_id(target_id)}.json"
+
+    def read_fence(self, target_id: str) -> dict[str, Any] | None:
+        """损坏状态同样停写；调用者必须持有 target 锁。"""
+        path = self._fence_path(target_id)
+        if not path.exists():
+            return None
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(value, dict) or value.get("state") not in ("IN_FLIGHT", "RESOLVED"):
+                raise ValueError("invalid_fence")
+        except (OSError, ValueError):
+            return {"state": "RECOVERY_REQUIRED", "target_id": target_id, "reason": "fence_unreadable"}
+        return None if value["state"] == "RESOLVED" else sanitize_json(value)
+
+    def begin_write(self, target_id: str, run_id: str, before, expected_digest: str) -> None:
+        """先落可恢复快照，再原子持久 fence，完成后才准许首个写动作。"""
+        if self.read_fence(target_id) is not None:
+            raise ValueError("recovery_required")
+        original = {
+            "config": clone_json(before.config.normalized),
+            "config_digest": before.config.digest,
+            "knowledge_version": before.knowledge.version,
+            "knowledge_digest": before.knowledge.digest,
+        }
+        safe = sanitize_json(original)
+        if safe != original:
+            # 删除敏感字段会破坏恢复能力，故不生成不完整快照，也不允许写入。
+            raise ValueError("recovery_snapshot_contains_private_data")
+        snapshot_ref = f"recovery/{validate_run_id(target_id)}-{validate_run_id(run_id)}.json"
+        snapshot_path = write_private_json_atomic(self.root / snapshot_ref, safe)
+        write_private_json_atomic(self._fence_path(target_id), {
+            "state": "IN_FLIGHT", "target_id": target_id, "run_id": run_id,
+            "before_digest": before.config.digest, "expected_digest": expected_digest,
+            "knowledge_version": before.knowledge.version, "knowledge_digest": before.knowledge.digest,
+            "snapshot_ref": snapshot_ref,
+            "snapshot_sha256": hashlib.sha256(snapshot_path.read_bytes()).hexdigest(),
+        })
+
+    def clear_fence(self, target_id: str, run_id: str) -> None:
+        current = self.read_fence(target_id)
+        if current is None:
+            return
+        if current.get("run_id") != run_id:
+            raise ValueError("recovery_owner_mismatch")
+        write_private_json_atomic(self._fence_path(target_id), {**current, "state": "RESOLVED"})
 
     def read_checkpoint(self, run_id: str) -> dict[str, Any] | None:
         safe_run_id = validate_run_id(run_id)

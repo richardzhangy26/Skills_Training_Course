@@ -575,8 +575,8 @@ class OnlineE2ERunnerTests(unittest.TestCase):
                 self.mode = mode
                 self.used_wrong_receipt = False
 
-            def cleanup_teacher_cases(self, case_ids, run_id):
-                receipt = super().cleanup_teacher_cases(case_ids, run_id)
+            def cleanup_teacher_cases(self, case_ids, run_id, **kwargs):
+                receipt = super().cleanup_teacher_cases(case_ids, run_id, **kwargs)
                 if not self.used_wrong_receipt and case_ids:
                     self.used_wrong_receipt = True
                     if self.mode == "empty":

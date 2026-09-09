@@ -29,6 +29,8 @@ description: "Use when 学生询问数据法学案例、涉案法条、裁判或
 ```text
 data-law-case-query/
 ├── SKILL.md
+├── data/
+│   └── published-cases.json
 ├── references/
 │   └── retrieval-contract.md
 ├── output_format/
@@ -37,6 +39,7 @@ data-law-case-query/
     └── search_cases.py
 ```
 
+- `data/published-cases.json` 是技能内置的已发布案例索引，查询默认使用它，不依赖专家工作空间是否存在 `current.json`。
 - `references/retrieval-contract.md` 是定位状态、证据分层和引导规则的权威契约。
 - `output_format/student-answer.md` 是学生可见回答的固定结构。
 - `scripts/search_cases.py` 只返回可解释的候选案例，不生成法律结论。
@@ -49,9 +52,11 @@ data-law-case-query/
    - 修改案例库：停止本技能并路由到维护技能。
 
 2. **[CALL] 定位案例**
-   - 有可访问的结构化案例目录时，调用 `search_cases.py <library_root> <query> --limit 5`。
-   - 平台只提供已挂载知识库时，调用实际存在的知识检索能力，检索结果必须包含稳定案例 ID、标题、场景、证据状态和完整字段。
-   - 两种能力均不可用时，返回“案例知识源未配置”，不依赖模型记忆回答。
+   - 只调用本技能脚本：`search_cases.py "<用户问题>" --limit 5`。脚本默认读取技能内 `data/published-cases.json`。
+   - 仅当教师明确给出可访问的结构化案例库根目录时，才追加 `--library-root <library_root>`。
+   - 禁止调用 `search-router`、`db-search`、`search.py`、知识库通用检索或任何以专家中文名/专家 NID 命名的工具来查询案例事实。
+   - 脚本返回 `no_match` 时，说明当前已发布案例索引未收录该案，不编造案情；禁止因此输出“案例知识源未配置”“检索引擎不可用”“脚本不存在”。
+   - 只有脚本返回 `{"error":...}` 且内置索引无法读取时，才可以说案例索引不可用，仍不得改用通用检索引擎编造案例。
 
 3. **[FILTER] 校验定位状态**
    - 唯一精确标题命中：直接采用并回显案例名称。
@@ -93,4 +98,5 @@ data-law-case-query/
 - 不把当前有效法律直接说成案件当时裁判依据。
 - 只有检索到当前已验证知识版本的完整记录后才能回答；片段不足时继续检索或说明不足。
 - `search_cases.py` stdout 成功时为单个 JSON；失败时只转述其 `{"error":"..."}`，不得伪造候选。
-- 本技能全程只读，不调用上传、知识蒸馏、发布、删除或版本切换能力。
+- 本技能全程只读，不调用上传、知识蒸馏、发布、删除、版本切换、`search-router` 或 `data-law-case-maintenance`。
+- 工具名固定为 `data-law-case-query`，不得用专家名称或 NID 代替。

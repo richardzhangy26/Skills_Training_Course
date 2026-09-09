@@ -56,6 +56,27 @@ class SearchAndKnowledgePackTests(unittest.TestCase):
         search = load_module("search_cases", SEARCH_PATH)
         self.assertEqual(search.search_cases("量子引力波天文学", library_cases()), [])
 
+    def test_bundled_index_answers_without_workspace_library(self):
+        search = load_module("search_cases", SEARCH_PATH)
+        cases = search.load_cases(None)
+        matches = search.search_cases("虚假招聘侵害个人信息案", cases, limit=5)
+        self.assertGreaterEqual(len(cases), 1)
+        self.assertEqual(matches[0]["title"], "虚假招聘侵害个人信息案")
+        self.assertIn("个人信息保护法", json.dumps(matches[0], ensure_ascii=False))
+        moon = search.search_cases("请在当前案例库查询《月球居民量子人格数据案》", cases, limit=5)
+        self.assertEqual(moon, [])
+
+    def test_embedded_json_loads_when_file_missing(self, tmp_path=None):
+        search = load_module("search_cases", SEARCH_PATH)
+        original = search.BUNDLED_CASES
+        search.BUNDLED_CASES = Path("/tmp/does-not-exist-published-cases.json")
+        try:
+            cases = search.load_cases(None)
+        finally:
+            search.BUNDLED_CASES = original
+        self.assertGreaterEqual(len(cases), 1)
+        self.assertEqual(cases[0]["title"], "虚假招聘侵害个人信息案")
+
     def test_knowledge_pack_has_one_traceable_block_per_case(self):
         packer = load_module("build_knowledge_pack", PACK_PATH)
         with tempfile.TemporaryDirectory() as tmp:

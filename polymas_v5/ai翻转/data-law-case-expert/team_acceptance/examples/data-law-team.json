@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "assistants": [
+    {
+      "name": "法学测试",
+      "nid": "Q9aMzRv8ne",
+      "experts": [
+        {
+          "name": "数据法学案例专家",
+          "nid": "x3PalTZaWr",
+          "expected_version": "6",
+          "knowledge_bindings": [
+            {"nid": "M8prVaa9wh", "name": "数据法学（测试）"}
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "case-statute-query",
+      "assistant_nid": "Q9aMzRv8ne",
+      "expert_nid": "x3PalTZaWr",
+      "read_only": true,
+      "prompt": "请查询“虚假招聘侵害个人信息案”，说明法条依据和材料来源，并提出一个相关思考问题。仅做查询与讲解，不修改案例库。",
+      "assertions": {
+        "terminal_status": ["ALL_FINISHED"],
+        "contains_all": ["虚假招聘", "来源"],
+        "contains_any": ["个人信息保护法", "民法典"],
+        "forbidden": ["案例知识源未配置", "无法完成本次查询", "检索引擎不可用", "脚本不存在", "已写入案例库", "已删除案例", "已更新案例库"]
+      }
+    },
+    {
+      "id": "unknown-case-query",
+      "assistant_nid": "Q9aMzRv8ne",
+      "expert_nid": "x3PalTZaWr",
+      "read_only": true,
+      "prompt": "请在当前案例库查询《月球居民量子人格数据案》。若没有匹配资料，请明确说明未找到，不要虚构案情、法院或法条引用；不要修改案例库。",
+      "assertions": {
+        "terminal_status": ["ALL_FINISHED"],
+        "contains_any": ["未找到", "未检索到", "没有找到", "无匹配", "查不到", "无法检索", "无法查询"],
+        "forbidden": ["已写入案例库", "已删除案例", "已更新案例库"]
+      }
+    }
+  ]
+}

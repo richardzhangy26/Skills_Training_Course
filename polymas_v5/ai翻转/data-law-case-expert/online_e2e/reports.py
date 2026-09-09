@@ -10,33 +10,10 @@ from typing import Any, Mapping
 
 from .fixtures import validate_run_id
 from .private_io import write_private_bytes_atomic
-from .safety import redact_sensitive
+from .safety import sanitize_json
 
 
-_PRESERVED_IDS = {"assistantid", "assistantnid", "conversationid", "conversationnid",
-                  "messageid", "messagenid", "planid", "plannid", "traceid", "tracenid"}
-_DROP = re.compile(r"token|secret|password|credential")
-_PERSONAL = re.compile(r"user|student|session|authorization|cookie|auth")
-
-
-def sanitize_report(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        result = {}
-        for key, item in value.items():
-            rendered_key = str(key)
-            normalized = re.sub(r"[^a-z0-9]", "", rendered_key.lower())
-            if _DROP.search(normalized):
-                continue
-            if normalized not in _PRESERVED_IDS and _PERSONAL.search(normalized):
-                result[rendered_key] = "[REDACTED]"
-            else:
-                result[rendered_key] = sanitize_report(item)
-        return result
-    if isinstance(value, (list, tuple)):
-        return [sanitize_report(item) for item in value]
-    if isinstance(value, str):
-        return redact_sensitive(value)
-    return value
+sanitize_report = sanitize_json
 
 
 @dataclass(frozen=True)
