@@ -95,6 +95,8 @@ python -m evaluation -t doc.docx -D ./logs/ -O ./reports/ --workers 3
 - [evaluation/AGENTS.md](./evaluation/AGENTS.md) - 对话质量评测
 - [.claude/skills/AGENTS.md](./.claude/skills/AGENTS.md) - Claude Code技能系统
 
+`polymas_v5` 已独立为 https://github.com/richardzhangy26/polymas_v5 ，本仓库不再跟踪该目录。
+
 ---
 
 ## Agent skills
