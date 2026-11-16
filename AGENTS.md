@@ -112,3 +112,8 @@ Issue 跟踪在 GitHub（origin 仓库 `richardzhangy26/Skills_Training_Course`�
 ### Domain docs
 
 单上下文布局：根目录 `CONTEXT.md` + `docs/adr/`。详见 `docs/agents/domain.md`。
+- [agent_microcourse/AGENTS.md](./agent_microcourse/AGENTS.md) - 智能体微课（旁白微课视频生产，独立 repo `agent-microcourse`）
+- [polymas_v5/AGENTS.md](./polymas_v5/AGENTS.md) - 专家智能体搭建（独立 repo）
+- [skills_training_course/AGENTS.md](./skills_training_course/AGENTS.md) - 能力训练课程资料与交付物
+- [HTML/AGENTS.md](./HTML/AGENTS.md) - 互动网页与视觉小说类项目
+- [docs/agents/workspace-map.md](./docs/agents/workspace-map.md) - 各项目 skill / agent / AGENTS.md 总览（`python3 scripts/workspace_inventory.py` 生成清单）
