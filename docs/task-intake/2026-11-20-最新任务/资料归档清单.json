@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-20",
+  "files": [
+    {
+      "file": "（新）模块五-智能体习题.docx",
+      "path": "skills_training_course/枣庄职业技术学院-生命与急救教育/原始资料/（新）模块五-智能体习题.docx",
+      "size": 34355,
+      "sha256": "d148a0c388a7b45c22adea99c2ad94f5665e46bd020e3c8d93403538c150a382",
+      "source": "张霖一，11月20日模块五返修",
+      "status": "新归档"
+    },
+    {
+      "file": "智能体-心理疏导修改11.14.docx",
+      "path": "skills_training_course/枣庄职业技术学院-生命与急救教育/模块6/智能体-心理疏导修改11.14.docx",
+      "size": 13757475,
+      "sha256": "8b18ce54121b46e3943371824d13081a8b2a09b63bf430e2780d08146f6b49a7",
+      "source": "张霖一，11月17日模块六反馈，既有项目资料",
+      "status": "复用已有"
+    },
+    {
+      "file": "视频1需修改部分.docx",
+      "path": "agent_microcourse/大学英语六级选词填空/视频1-阅读六级实训I/视频1需修改部分.docx",
+      "size": 1925155,
+      "sha256": "f70e36e6cb91bac6de3e9c0c3474336943d7bec834fe1c6bf5a37c78a8554a6b",
+      "source": "赵欣兰，11月19日视频1反馈",
+      "status": "复用已有"
+    },
+    {
+      "file": "视频4动画协同要求.docx",
+      "path": "agent_microcourse/大学英语六级选词填空/视频4/视频4动画协同要求.docx",
+      "size": 1589103,
+      "sha256": "c988af17746bfcd315d2832820e63f7e2e63b674d18d252db4611fa455ddc85a",
+      "source": "赵欣兰，11月19日视频4补充反馈",
+      "status": "复用已有"
+    }
+  ]
+}

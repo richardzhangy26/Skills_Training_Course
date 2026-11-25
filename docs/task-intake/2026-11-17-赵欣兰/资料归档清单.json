@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-17",
+  "source": "赵欣兰私聊",
+  "files": [
+    {
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/d6e51b855595f9b674fed94f021c50d6/视频1阅读问题反馈修改11.16.docx",
+      "destination": "/Users/zhangyichi/工作/能力训练/agent_microcourse/大学英语六级选词填空/视频1-阅读六级实训I/视频1阅读问题反馈修改11.16.docx",
+      "size": 2311591,
+      "sha256": "916a3463f617e5b441fb9898e2687cdcacff4842088aa51f124e4f68e6e78f25",
+      "status": "已复制"
+    },
+    {
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/7A83240C3F8862CE7C32C15DBF185FBB/大学英语六级阅读选词填空 10.14.pptx",
+      "destination": "/Users/zhangyichi/工作/能力训练/agent_microcourse/大学英语六级选词填空/视频1-阅读六级实训I/2026-11-17_大学英语六级阅读选词填空 10.14.pptx",
+      "size": 90360080,
+      "sha256": "19fa4e81b637f5a5f9cdd59232d5697c4dc0c604accba897af0b4fed0145f5af",
+      "status": "保存为日期版本"
+    },
+    {
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/205b47cb2475a08734f18c61782e479c/翻译协同文档.docx",
+      "destination": "/Users/zhangyichi/工作/能力训练/agent_microcourse/大学英语六级选词填空/视频4/翻译协同文档.docx",
+      "size": 23894,
+      "sha256": "89d419fe232ff4345d8598e33c18c39d2da64528077370d778e38be0633db2ac",
+      "status": "复用已有"
+    },
+    {
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/dcf9ffc5d361fd0056afd887561b8d7b/翻译六级实训1+文稿 - 第一讲1014（修改版）.pptx",
+      "destination": "/Users/zhangyichi/工作/能力训练/agent_microcourse/大学英语六级选词填空/视频4/翻译六级实训1+文稿 - 第一讲1014（修改版）.pptx",
+      "size": 1637149,
+      "sha256": "024456981f0ec0fbad506cda384be6c53af6297a9a3048044713651031e2bd6d",
+      "status": "复用已有"
+    },
+    {
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/4560b6019eef8f8fd4e1e654f6fcb001/视频3写作 修改意见.docx",
+      "destination": "/Users/zhangyichi/工作/能力训练/agent_microcourse/大学英语六级选词填空/视频3/视频3写作 修改意见.docx",
+      "size": 228000,
+      "sha256": "effdaa2a0413fa1e17477b446220c4038b024ac5a536167ef4eb2897e2dabf14",
+      "status": "已复制"
+    },
+    {
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/683968b7d5f47f751df07557a430a210/CET6_writing_lecture1.pptx",
+      "destination": "/Users/zhangyichi/工作/能力训练/agent_microcourse/大学英语六级选词填空/视频3/CET6_writing_lecture1.pptx",
+      "size": 778184,
+      "sha256": "93c030c476e7acf48131724ef4dead7d71c93e2829dd885e00a3dfdec6d8887d",
+      "status": "已复制"
+    }
+  ]
+}

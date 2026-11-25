@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-16",
+  "method": "企业微信原生应用界面；未使用企业微信CLI",
+  "before_list_count": 10,
+  "after_list_count": 11,
+  "created": 1,
+  "updated": 2,
+  "verified": [
+    {
+      "title": "数据库原理与应用-广州软件学院｜3个能力训练（10月22日截止）",
+      "description_verified": true,
+      "deadline_field_verified": false,
+      "actual_deadline": null,
+      "target_deadline": "2026-10-22"
+    },
+    {
+      "title": "配置生命与急救剩余实训内容",
+      "description_verified": true,
+      "deadline_field_verified": true,
+      "actual_deadline": "2026-10-16",
+      "target_deadline": "2026-10-16"
+    },
+    {
+      "title": "韩国语言文化与社会-两个能力训练",
+      "description_verified": true,
+      "deadline_field_verified": true,
+      "actual_deadline": "2026-10-16",
+      "target_deadline": "2026-10-16"
+    }
+  ],
+  "remaining": "仅数据库任务截止时间字段需人工设为2026-10-22；标题与备注已记该日期。",
+  "state_changes": "没有代勾完成、删除、邀请他人或发送聊天消息。"
+}

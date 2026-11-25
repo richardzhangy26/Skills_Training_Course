@@ -1,1 +1,0 @@
-../../../../docs/atomic-skill-catalog.md

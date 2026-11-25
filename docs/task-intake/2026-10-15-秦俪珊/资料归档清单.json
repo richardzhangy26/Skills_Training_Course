@@ -1,0 +1,196 @@
+{
+  "date": "2026-10-15",
+  "arranger": "秦俪珊",
+  "files": [
+    {
+      "role": "训练教师原稿",
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/db325f3c3f2403f7bfc5735abaf46715/文化与旅游创意写作_能力实训脚本.docx",
+      "archive": "skills_training_course/文化与旅游创意写作-云南艺术学院/原始资料/文化与旅游创意写作_能力实训脚本.docx",
+      "bytes": 44063,
+      "sha256": "7784f91b37499fd668665eb172ab021d0516778789bfebb35eaa3a2da8c488eb",
+      "verified": true
+    },
+    {
+      "role": "课程背景参考，不是已确认批阅rubric",
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/db325f3c3f2403f7bfc5735abaf46715/文化与旅游创意写作_能力实训脚本.docx",
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/原始资料/文化与旅游创意写作_能力实训脚本.docx",
+      "bytes": 44063,
+      "sha256": "7784f91b37499fd668665eb172ab021d0516778789bfebb35eaa3a2da8c488eb",
+      "verified": true
+    },
+    {
+      "role": "学生样本原始压缩包",
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/da58af396abdcd562400dc518ae1d444/期末作业.zip",
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/原始资料/期末作业.zip",
+      "bytes": 441528640,
+      "sha256": "7a5e7a827fa2c943c1fc59797cb28c00f975919470f51d650e0a98bddb73c543",
+      "verified": true
+    },
+    {
+      "role": "情绪社会化陪伴智能体需求",
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/650f3568397629a6e38f66f055c395e9/智能体课程搭建框架_丰富版.docx",
+      "archive": "polymas_v5/社会学概论-昌吉学院/原始资料/智能体课程搭建框架_丰富版.docx",
+      "bytes": 62779,
+      "sha256": "db84b641e6ff61ac761a1532e337bb33f0cdf04df862317f51d6aed7b0130e3f",
+      "verified": true
+    },
+    {
+      "role": "复用本地教师原件",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/北京语言大学-韩国语言文化与社会/能力训练 - 教材日常对话.docx",
+      "archive": "skills_training_course/韩国语言文化与社会-北京语言大学/原始资料/能力训练 - 教材日常对话.docx",
+      "bytes": 29710,
+      "sha256": "30b52b08851a6b71e9d6f4afcabe196f9da47b4385f25f0721f959b1578b629e",
+      "verified": true
+    },
+    {
+      "role": "复用本地教师原件",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/北京语言大学-韩国语言文化与社会/能力训练 - 影视配音.docx",
+      "archive": "skills_training_course/韩国语言文化与社会-北京语言大学/原始资料/能力训练 - 影视配音.docx",
+      "bytes": 16554,
+      "sha256": "3e4ab5e0024bc022dd88f79b80be5493911dfacc7f66efdc279b61dd8f8cc2c2",
+      "verified": true
+    },
+    {
+      "role": "已交付训练原稿，本地项目提供学校线索",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/河北工程大学-中华民族共同体/《中华民族共同体概论》智能体能力训练实训文档：云游中华民族共同体VR博物馆.docx",
+      "archive": "skills_training_course/中华民族共同体概论-河北工程大学/原始资料/《中华民族共同体概论》智能体能力训练实训文档：云游中华民族共同体VR博物馆.docx",
+      "bytes": 11659,
+      "sha256": "aa027f42d45fb820d9475209114dabd769f338c7db4a9145875ee90a3a3e65b3",
+      "verified": true
+    }
+  ],
+  "extracted_files": [
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144002 韩靖哲 文化与旅游创意写作/202304144002 韩靖哲《双茶》话剧项目汇报PPT.pptx",
+      "bytes": 14448944,
+      "sha256": "2544d1bedaa812bac12cc54a08e647606741143e09839658e8ed88436567dbcb",
+      "zip_crc": 1137295800
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144002 韩靖哲 文化与旅游创意写作/202304144002 韩靖哲《双茶》庭院戏剧策划案.docx",
+      "bytes": 1441727,
+      "sha256": "ce99df28d65a3ef62cf65357a0884d4288870bd55a1118605c2c5c0921208b7a",
+      "zip_crc": 3100071206
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144034 陈炳焜 文化与旅游创意写作/202304144034 陈炳焜 “戏韵商魂·文脉周村”项目PPT.pptx",
+      "bytes": 77018852,
+      "sha256": "87b1f75e77ec052d6f81745aa4a8db590d52fe4bfbd6d87f5fd58a537667a214",
+      "zip_crc": 4202141134
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144034 陈炳焜 文化与旅游创意写作/202304144034 陈炳焜 策划案.docx",
+      "bytes": 2094075,
+      "sha256": "925f0d8e382dd76b1a1c7ed2cac62edbf032a85f0175ab622ff6d6926520fafc",
+      "zip_crc": 3821994452
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144017 郭铭源 文化与旅游创意写作/202304144017 郭铭源  戏韵沙洲，酒香优黄 PPT.pptx",
+      "bytes": 7066660,
+      "sha256": "eb3e0c32e5764263ae67712f84dd26fd98f7ec1bd64350f922afd2c84c23ce70",
+      "zip_crc": 2154432732
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144017 郭铭源 文化与旅游创意写作/2020230414401720 郭铭源 策划案.docx",
+      "bytes": 383763,
+      "sha256": "b22f4f6a9559aff07b80c88c68ef27adc68f01b1f6a98c70e210b6b1912d0111",
+      "zip_crc": 1745558143
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144045肖宪阳 文化与旅游创意写作/202304144045肖宪阳 PPT.pptx",
+      "bytes": 33694714,
+      "sha256": "4ac11de314eb52875e9aa62c4a02071e6544d5609373ae7757eb2e44ded2f786",
+      "zip_crc": 3102056044
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144045肖宪阳 文化与旅游创意写作/202304144045肖宪阳 策划方案.docx",
+      "bytes": 64941,
+      "sha256": "c200abbde936c91a24a5bfc57974cf805b78c1167ddff83565bcf9636640e762",
+      "zip_crc": 1994277217
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144029 李赛菊 文化与旅游创意写作/20202304144029  李赛菊 阿奶的治愈角落项目策划.docx",
+      "bytes": 32858188,
+      "sha256": "2cbd51cadd65c863087462830421119dcdd7aac783f85e5d132e5a80e383f330",
+      "zip_crc": 1301022651
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144029 李赛菊 文化与旅游创意写作/202304144029  李赛菊   阿奶的治愈角落策划.pptx",
+      "bytes": 72425041,
+      "sha256": "c27d3b6d374e008f9745dffb09bd1396b23e4d270d347d8301a08abd1e666967",
+      "zip_crc": 436205612
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144033 杨   艳 文化与旅游创意写作/202304144033  杨艳  《雁塔村文旅项目策划案》.docx",
+      "bytes": 2277480,
+      "sha256": "6ee64bacafd28797c794d48aaff61cfb425fdaf5a5564fa86da9a9ab8eea6c51",
+      "zip_crc": 2530833576
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144033 杨   艳 文化与旅游创意写作/202304144033 杨艳《雁塔村文旅项目策划案》PPT.pptx",
+      "bytes": 8469813,
+      "sha256": "84702b6bc0816d89f29dccb8bb5a70e027e1e091e45d00ed213def60941d3b56",
+      "zip_crc": 2410715647
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144038 沈卓然 文化与旅游创意写作/202304144038  沈卓然  《表演者》：翠湖街头戏剧计划PPT.pptx",
+      "bytes": 9544259,
+      "sha256": "0acfd06c94dc60337846a016dd1646d1a471c15717898c0e3d84b4edd2666d67",
+      "zip_crc": 3777820390
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144038 沈卓然 文化与旅游创意写作/202304144038 沈卓然《表演者》翠湖街头戏剧计划.docx",
+      "bytes": 9931265,
+      "sha256": "4438aae0b96009c8f724cba7ef97edc1213a0b36ba5221195bc663a88e00f8e1",
+      "zip_crc": 2251359863
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144039 杨曼熙 文化与旅游创意写作/ 202304144039 杨曼熙 小剧场策划.docx",
+      "bytes": 6121504,
+      "sha256": "cdd642c5cad6d8ba85c312f8e9628c03e568333742ea571f02a278a75e7ec739",
+      "zip_crc": 1103966929
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144039 杨曼熙 文化与旅游创意写作/ 202304144039 杨曼熙  PPT.pptx",
+      "bytes": 50757548,
+      "sha256": "f3b7f45be596486a14cb170ea1f502a4a22df1522dd06f352f0bc056e6ffd7d5",
+      "zip_crc": 2321000306
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144037 侯小乐 文化与旅游创意写作/202304144037侯小乐 策划案.docx",
+      "bytes": 2289253,
+      "sha256": "edc5016710f31aae06ff56a1f645aba7a0e54d3b37b524deadbdf14f595fc14a",
+      "zip_crc": 1131059475
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144037 侯小乐 文化与旅游创意写作/202304144037侯小乐 PPT.pptx",
+      "bytes": 25623859,
+      "sha256": "857d14c783156f0a14e6e28d0a2d0d8b0d5d2811ab1cc82c7282b72b9ae1d5f4",
+      "zip_crc": 888582090
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144021 徐翌辰 文化与旅游创意写作/202304144021 徐翌辰  《拂水如隐》沉浸式文史寻踪体验策划案  .docx",
+      "bytes": 4618806,
+      "sha256": "a9f041cc8a9ef39555502c894866d8abab0a0b68fa500cb543237beb95335296",
+      "zip_crc": 2948377055
+    },
+    {
+      "archive": "homework_review/文化与旅游创意写作-云南艺术学院/学生样本/期末作业/202304144021 徐翌辰 文化与旅游创意写作/202304144021 徐翌辰  《拂水如隐》沉浸式文史寻踪体验策划案  .pptx",
+      "bytes": 85758520,
+      "sha256": "8fe758259705750f9b28a8c3c6664cc6c5fb749423a8622e06330da2ca4a08eb",
+      "zip_crc": 1724795597
+    }
+  ],
+  "verification": {
+    "copies_verified": 7,
+    "sha256_all_match": true,
+    "original_archives_crc_passed": true,
+    "extracted_docx": 10,
+    "extracted_pptx": 10,
+    "school_confirmed_in_docx": 10,
+    "full_course_name_in_docx": 9,
+    "short_course_name_in_docx": 1,
+    "todo_status": "待界面保存与回读；不能据此认定已创建",
+    "execution_scope": "任务记录与资料归档，未搭建或发布课程、专家或批阅技能"
+  }
+}

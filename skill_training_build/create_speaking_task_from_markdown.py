@@ -14,6 +14,21 @@ from nanoid import generate
 
 DEFAULT_ABILITY_TRAIN_API_BASE = "https://cloudapi.polymas.com/teacher-course/abilityTrain"
 DEFAULT_TRANSITION_HISTORY_NUM = 10
+ORAL_TRAIN_SUBTYPE = "oral"
+DEFAULT_ORAL_DIGITAL_HUMAN = {
+    "agentId": "TgbLpKo08D",
+    "avatarNid": "6ikwydCEOp",
+    "agentVoiceId": "en_female_sarah_new_conversation_wvae_bigtts",
+    "customDigitalHuman": "3cNI5DCVT3",
+    "customDigitalHumanSpeechRate": 1,
+}
+REQUIRED_ORAL_DIGITAL_HUMAN_FIELDS = (
+    "agentId",
+    "avatarNid",
+    "agentVoiceId",
+    "customDigitalHuman",
+)
+INVALID_ORAL_AGENT_IDS = frozenset({"en-US-GuyNeural"})
 
 STEP_DETAIL_METADATA_FIELDS = (
     "scriptStepCover",
@@ -31,6 +46,7 @@ STEP_DETAIL_METADATA_FIELDS = (
     "backgroundTheme",
     "transitionDescriptionUrl",
     "customDigitalHuman",
+    "customDigitalHumanSpeechRate",
     "knowledgeResourceList",
     "trainTime",
     "isSkipStep",
@@ -324,6 +340,25 @@ def parse_markdown(markdown_path):
         if normalized.startswith('**形象**:'):
             current_step['avatarNid'] = normalize_md_value(extract_md_field_value(stripped))
             continue
+
+        if normalized.startswith('**数字人音色**:'):
+            current_step['agentVoiceId'] = normalize_md_value(extract_md_field_value(stripped))
+            continue
+
+        if normalized.startswith('**数字人**:'):
+            current_step['customDigitalHuman'] = normalize_md_value(extract_md_field_value(stripped))
+            continue
+
+        if normalized.startswith('**数字人语速**:'):
+            raw_speed = normalize_md_value(extract_md_field_value(stripped))
+            try:
+                speed = float(raw_speed)
+                current_step['customDigitalHumanSpeechRate'] = (
+                    int(speed) if speed.is_integer() else speed
+                )
+            except (TypeError, ValueError):
+                current_step['customDigitalHumanSpeechRate'] = 1
+            continue
             
         if normalized.startswith('**阶段描述**:'):
             current_step['description'] = normalize_md_value(extract_md_field_value(stripped))
@@ -431,6 +466,39 @@ def apply_step_metadata(steps, metadata_by_step_id):
                 step[field] = copy.deepcopy(metadata[field])
         matched_count += 1
     return matched_count
+
+def resolve_oral_digital_human(source=None):
+    """Return a complete oral digital-human profile.
+
+    Markdown/source values win when present; otherwise the English Assistant
+    defaults are used. Azure TTS IDs such as en-US-GuyNeural are ignored.
+    """
+    resolved = dict(DEFAULT_ORAL_DIGITAL_HUMAN)
+    if not source:
+        return resolved
+    for field in DEFAULT_ORAL_DIGITAL_HUMAN:
+        value = source.get(field)
+        if value in (None, ""):
+            continue
+        if field == "agentId" and str(value) in INVALID_ORAL_AGENT_IDS:
+            continue
+        resolved[field] = value
+    return resolved
+
+
+def has_complete_oral_digital_human(detail):
+    if not detail:
+        return False
+    if str(detail.get("agentId") or "") in INVALID_ORAL_AGENT_IDS:
+        return False
+    return all(detail.get(field) for field in REQUIRED_ORAL_DIGITAL_HUMAN_FIELDS)
+
+
+def apply_oral_digital_human_defaults(steps):
+    for step in steps:
+        if not has_complete_oral_digital_human(step):
+            step.update(resolve_oral_digital_human(step))
+
 
 def apply_step_detail_metadata(step_detail, step_data):
     """Apply metadata fields to a createScriptStep detail payload."""
@@ -779,7 +847,14 @@ def print_create_dry_run_preview(steps, metadata_match_count=0):
 
 # --- API Interaction ---
 
-def create_script_step(train_task_id, step_data, position):
+def create_script_step(
+    train_task_id,
+    step_data,
+    position,
+    train_sub_type="ability",
+    course_id="",
+    library_id="",
+):
     """Create a single script step."""
     url = ability_train_url("createScriptStep")
     
@@ -805,9 +880,11 @@ def create_script_step(train_task_id, step_data, position):
         "knowledgeBaseSwitch": 1,
         "searchEngineSwitch": 1,
         "historyRecordNum": -1,
-        "trainSubType": "ability"
+        "trainSubType": train_sub_type
     }
     apply_step_detail_metadata(step_detail, step_data)
+    if train_sub_type == ORAL_TRAIN_SUBTYPE:
+        step_detail.update(resolve_oral_digital_human(step_data))
 
     payload = {
         "trainTaskId": train_task_id,
@@ -815,6 +892,10 @@ def create_script_step(train_task_id, step_data, position):
         "stepDetailDTO": step_detail,
         "positionDTO": position
     }
+    if course_id:
+        payload["courseId"] = course_id
+    if library_id:
+        payload["libraryFolderId"] = library_id
 
     try:
         response = requests.post(url, headers=get_headers(), json=payload, timeout=20)
@@ -829,7 +910,12 @@ def create_script_step(train_task_id, step_data, position):
         print(f"❌ Error creating step: {e}")
         return None
 
-def create_start_end_nodes(train_task_id: str, course_id: str) -> tuple[str, str]:
+def create_start_end_nodes(
+    train_task_id: str,
+    course_id: str,
+    train_sub_type: str = "ability",
+    library_id: str = "",
+) -> tuple[str, str]:
     """为任务创建 SCRIPT_START 和 SCRIPT_END 节点"""
     url = ability_train_url("createScriptStep")
 
@@ -852,11 +938,11 @@ def create_start_end_nodes(train_task_id: str, course_id: str) -> tuple[str, str
             "scriptStepResourceList": [],
             "knowledgeBaseSwitch": 0,
             "searchEngineSwitch": 0,
-            "trainSubType": "ability"
+            "trainSubType": train_sub_type
         },
         "positionDTO": {"x": 100, "y": 100},
         "courseId": course_id,
-        "libraryFolderId": ""
+        "libraryFolderId": library_id
     }
 
     # 创建 END 节点
@@ -878,11 +964,11 @@ def create_start_end_nodes(train_task_id: str, course_id: str) -> tuple[str, str
             "scriptStepResourceList": [],
             "knowledgeBaseSwitch": 0,
             "searchEngineSwitch": 0,
-            "trainSubType": "ability"
+            "trainSubType": train_sub_type
         },
         "positionDTO": {"x": 900, "y": 100},
         "courseId": course_id,
-        "libraryFolderId": ""
+        "libraryFolderId": library_id
     }
 
     try:
@@ -990,12 +1076,12 @@ def create_script_flow(
 # --- Main Flow ---
 
 
-def query_script_steps(train_task_id):
+def query_script_steps(train_task_id, train_sub_type="ability"):
     """Query existing script steps."""
     url = ability_train_url("queryScriptStepList")
     payload = {
         "trainTaskId": train_task_id,
-        "trainSubType": "ability"
+        "trainSubType": train_sub_type
     }
 
     try:
@@ -1168,75 +1254,6 @@ def extract_start_end_ids(step_list):
     return start_node_id, end_node_id
 
 
-def create_start_end_nodes(train_task_id: str, course_id: str) -> tuple[str, str]:
-    """为任务创建 SCRIPT_START 和 SCRIPT_END 节点"""
-    url = ability_train_url("createScriptStep")
-
-    start_id = generate(size=21)
-    start_payload = {
-        "trainTaskId": train_task_id,
-        "stepId": start_id,
-        "stepDetailDTO": {
-            "nodeType": "SCRIPT_START",
-            "stepName": "defaultStepName",
-            "description": "",
-            "prologue": "",
-            "modelId": "",
-            "llmPrompt": "",
-            "trainerName": "",
-            "scriptStepCover": {},
-            "whiteBoardSwitch": 0,
-            "videoSwitch": 0,
-            "scriptStepResourceList": [],
-            "knowledgeBaseSwitch": 0,
-            "searchEngineSwitch": 0,
-            "trainSubType": "ability"
-        },
-        "positionDTO": {"x": 100, "y": 100},
-        "courseId": course_id,
-        "libraryFolderId": ""
-    }
-
-    end_id = generate(size=21)
-    end_payload = {
-        "trainTaskId": train_task_id,
-        "stepId": end_id,
-        "stepDetailDTO": {
-            "nodeType": "SCRIPT_END",
-            "stepName": "defaultStepName",
-            "description": "",
-            "prologue": "",
-            "modelId": "",
-            "llmPrompt": "",
-            "trainerName": "",
-            "scriptStepCover": {},
-            "whiteBoardSwitch": 0,
-            "videoSwitch": 0,
-            "scriptStepResourceList": [],
-            "knowledgeBaseSwitch": 0,
-            "searchEngineSwitch": 0,
-            "trainSubType": "ability"
-        },
-        "positionDTO": {"x": 900, "y": 100},
-        "courseId": course_id,
-        "libraryFolderId": ""
-    }
-
-    try:
-        resp = requests.post(url, headers=get_headers(), json=start_payload, timeout=20)
-        result = resp.json()
-        if result.get('code') != 200 and not result.get('success'):
-            raise RuntimeError(f"创建 START 节点失败: {result}")
-
-        resp = requests.post(url, headers=get_headers(), json=end_payload, timeout=20)
-        result = resp.json()
-        if result.get('code') != 200 and not result.get('success'):
-            raise RuntimeError(f"创建 END 节点失败: {result}")
-
-        return start_id, end_id
-    except Exception as e:
-        raise RuntimeError(f"创建 START/END 节点失败: {e}")
-
 def query_script_step_flows(train_task_id):
     """Query existing script step flows."""
     url = ability_train_url("queryScriptStepFlowList")
@@ -1340,6 +1357,9 @@ def build_steps_from_markdown(
     insert_after_step_name=None,
     steps=None,
     metadata_by_step_id=None,
+    train_sub_type="ability",
+    course_id="",
+    library_id="",
 ):
     """Parse markdown and create script steps/flows for a task."""
     target_md = Path(markdown_path)
@@ -1363,7 +1383,7 @@ def build_steps_from_markdown(
 
     if start_node_id is None or end_node_id is None:
         print(f"\n⏳ Fetching task info for Task ID: {train_task_id}...")
-        step_list = query_script_steps(train_task_id)
+        step_list = query_script_steps(train_task_id, train_sub_type=train_sub_type)
         start_node_id, end_node_id = extract_start_end_ids(step_list)
 
     if flow_list is None:
@@ -1407,7 +1427,14 @@ def build_steps_from_markdown(
             step['scriptStepCover'] = global_cover
 
         pos = {"x": x_start + (idx * x_gap), "y": y_start}
-        new_id = create_script_step(train_task_id, step, pos)
+        new_id = create_script_step(
+            train_task_id,
+            step,
+            pos,
+            train_sub_type=train_sub_type,
+            course_id=course_id,
+            library_id=library_id,
+        )
         if new_id:
             created_steps_map[idx] = new_id
         else:

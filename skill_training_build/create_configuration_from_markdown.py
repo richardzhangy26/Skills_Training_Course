@@ -65,6 +65,23 @@ PLACEHOLDER_VALUES = {
     "（选填）",
 }
 
+ORAL_TRAIN_SUBTYPE = "oral"
+ORAL_EXT_CONFIG_DEFAULTS = {
+    "trainSubType": ORAL_TRAIN_SUBTYPE,
+    "dialogueLanguage": "en",
+    "dialogueDifficulty": "basic",
+    "translationAssistantEnabled": False,
+    "speechToTextEnabled": False,
+    "answerAssistantEnabled": False,
+    "keyVocabularyEnabled": False,
+    "vocabularyApplicationEnabled": False,
+    "semanticCoherenceEnabled": False,
+    "pronunciationExpressionEnabled": False,
+    "grammaticalAccuracyEnabled": False,
+    "trainScreen": False,
+    "trainScreenType": 1,
+}
+
 
 @dataclass(frozen=True)
 class BaseConfiguration:
@@ -148,8 +165,16 @@ def require_course_id() -> str:
     return course_id
 
 
+def env_write_disabled() -> bool:
+    """POLYMAS_NO_ENV_WRITE=1 时不回写 .env（并行 worker 用，避免互相覆盖）。"""
+    return os.environ.get("POLYMAS_NO_ENV_WRITE") == "1"
+
+
 def write_root_task_id(train_task_id: str, env_path: Path = ROOT_ENV_PATH) -> Path:
     env_path = Path(env_path)
+    if env_write_disabled():
+        os.environ["TASK_ID"] = train_task_id
+        return env_path
     task_line = f'TASK_ID="{train_task_id}"\n'
 
     if env_path.exists():
@@ -177,16 +202,23 @@ def build_create_configuration_payload(
     course_id: str,
     train_task_id: str,
     train_task_cover: Dict[str, str],
+    train_sub_type: str = "ability",
 ) -> Dict:
-    return {
+    payload = {
         "trainTaskName": base_config.train_task_name,
         "description": base_config.description,
-        "trainType": "voice",
+        "trainType": "all",
+        "entranceVoiceNid": "Tg3LpKo28D",
         "trainTaskCover": train_task_cover,
         "trainTime": -1,
         "courseId": course_id,
         "trainTaskId": train_task_id,
     }
+    if train_sub_type == ORAL_TRAIN_SUBTYPE:
+        payload.pop("trainType", None)
+        payload["trainSubType"] = ORAL_TRAIN_SUBTYPE
+        payload["extConfig"] = dict(ORAL_EXT_CONFIG_DEFAULTS)
+    return payload
 
 
 def create_configuration(
@@ -196,6 +228,7 @@ def create_configuration(
     *,
     post: Callable = requests.post,
     id_factory: Callable[[], str] | None = None,
+    train_sub_type: str = "ability",
 ) -> str:
     if id_factory is None:
         id_factory = lambda: generate(size=21)
@@ -206,6 +239,7 @@ def create_configuration(
         course_id=course_id,
         train_task_id=train_task_id,
         train_task_cover=train_task_cover,
+        train_sub_type=train_sub_type,
     )
 
     response = post(API_URL, headers=get_headers(), json=payload, timeout=20)
@@ -317,7 +351,10 @@ def create_from_markdown(
     train_task_id = create_configuration(base_config, course_id, train_task_cover)
     print(f"✅ 基础配置创建成功，trainTaskId={train_task_id}")
     env_path = write_root_task_id(train_task_id)
-    print(f"📝 已写入根目录 .env: {env_path}")
+    if env_write_disabled():
+        print("⏭ POLYMAS_NO_ENV_WRITE=1：未写入根目录 .env，TASK_ID 仅在当前进程生效")
+    else:
+        print(f"📝 已写入根目录 .env: {env_path}")
 
     if with_steps:
         print("🧩 准备导入阶段节点和连线...")

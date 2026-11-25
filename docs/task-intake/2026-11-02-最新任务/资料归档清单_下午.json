@@ -1,0 +1,27 @@
+{
+  "日期": "2026-11-02",
+  "来源": "企业微信已下载附件",
+  "文件": [
+    {
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/3e081ac0e9fd09d53997caeee2397b1b/re《热力学基础》场景训练三：统计微观观测站.docx",
+      "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/天津大学-热力学/原始资料/re《热力学基础》场景训练三：统计微观观测站.docx",
+      "bytes": 23167,
+      "sha256": "c7144486357ba8fd58d243634cf5db1e324605916ef9055f001adea081b6af59",
+      "action": "copied"
+    },
+    {
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/5605b6bc134ece1de3cc924ed7eee23d/HIT未来空天能力训练方案.docx",
+      "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/哈尔滨工业大学-大学物理/原始资料/HIT未来空天能力训练方案.docx",
+      "bytes": 36050,
+      "sha256": "b936e671aa243500b5505de101c10abed888bc59bf8f9fe9f80ba6ebf8e29b22",
+      "action": "copied"
+    },
+    {
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/63654eae6e2050bc397d55ead5b0dcb3/能力训练智能体初步方案 - 20261008.docx",
+      "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/哈尔滨工业大学-大学物理/原始资料/能力训练智能体初步方案 - 20261008.docx",
+      "bytes": 1571574,
+      "sha256": "7c04e4fa7cf69327020e3b8cb47b920a6fb0664578ca536cb6e2fda83ca611e7",
+      "action": "copied"
+    }
+  ]
+}

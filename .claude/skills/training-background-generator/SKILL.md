@@ -1,178 +1,64 @@
 ---
 name: training-background-generator
-description: "根据能力训练剧本配置文档，为每个训练阶段生成写实中国风的16:9背景图片。解析Markdown格式的剧本配置，提取每个阶段的描述和场景配置，使用阿里百炼 qwen-image 模型生成对应的背景图并保存到任务配置目录。关键词:背景图生成、阶段背景、中国风、写实风格、16:9、训练剧本、场景图片、文生图"
+description: 根据能力训练剧本 Markdown 批量生成阶段背景图和任务封面，优先使用项目 secrets.json 配置的生图服务，保存图片并回填剧本路径。适用于生成训练背景图、阶段场景图片或任务封面。
 allowed-tools: Read, Bash, Write
 ---
 
 # 训练阶段背景图生成器
 
-根据能力训练剧本配置文档，为每个训练阶段生成写实中国风的16:9背景图片，并自动保存到对应的任务配置目录。
+读取训练剧本，生成与阶段场景相符的写实宽屏背景图，保存到本地并回填 Markdown。
 
-## 使用时机
+## 凭证与模型选择
 
-当用户需要为能力训练的各个阶段生成背景图片时使用此 skill，典型场景包括:
-- 用户提供了训练剧本配置文档（Markdown格式），需要为每个阶段生成背景图
-- 用户提到"生成阶段背景图"、"生成训练背景"、"为剧本生成图片"等关键词
-- 用户需要批量生成多个阶段的场景背景图
-- 用户提到 qwen-image、百炼、文生图、背景图相关词汇
+默认读取 `/Users/zhangyichi/工作/能力训练/secrets.json`：
 
-## 工作流程
+- 生图主配置使用 `providers.image` 的 `url`、`api_key`、`model`、`size`，即 Polymas 网关；当前为 `gpt-image-2`、`2560x1440`，实际以文件内容为准。同一网关还可用 `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst`，需要时用 `--model` 指定。
+- 备用配置为同组 `fallback_url`、`fallback_api_key`、`fallback_model`，即火山方舟 Seedream 5.0 Pro。调用时会关闭水印。
+- 提示词生成使用 `providers.llm` 的 `url`、`api_key`、`model`。
+- CLI 的 `--model`、`--size`、`--text-model` 可覆盖模型或尺寸。普通 `--model` 覆盖仍使用主端点。主服务某张图失败时，这张图自动改用备用服务重试一次；明确指定 `providers.image.fallback_model` 时，直接使用备用端点和 Key，不再回退。
+- 默认文件不存在或未配置对应 provider 时，兼容 `.claude/skills/.env`、项目根 `.env` 中的 `BAILIAN_API_KEY`。旧生图模式为 DashScope 原生接口、`qwen-image-2.0-pro`、`1664x928`；旧文本模型读取 `BAILIAN_TEXT_MODEL`，缺省为 `qwen3.7-plus`。
+- 显式指定的凭证文件不存在、JSON 损坏或生图配置不完整时直接报错，先修复配置。
 
-### 第一步: 读取剧本配置文档
+凭证仅在运行时读取。只查看必要字段，文档、日志和生成台账均不复制 Key，也不输出整个 secrets 文件。
 
-1. 使用 Read 工具读取用户提供的训练剧本配置 Markdown 文件
-2. 确认文档包含 `### 阶段N:` 或 `### 阶段N：` 格式的阶段标题
+## 操作流程
 
-### 第二步: 调用脚本生成背景图
+1. 读取剧本，确认存在 `### 阶段N:` 或 `### 阶段N：` 标题；背景描述来自阶段描述、场景配置，也支持 Pro 的 `**卡片描述**`、`**背景图描述**`。
+2. 使用下面的脚本生成图片，无需另外实现接口调用：
 
-使用 Bash 工具运行 `scripts/generate_background.py`，该脚本会自动完成:
-1. 解析所有训练阶段（阶段编号、名称、描述、场景配置）
-2. 调用百炼 qwen 文本模型（LLM）理解阶段上下文，生成高质量文生图提示词
-3. 调用百炼 DashScope 文生图 API（qwen-image 系列）生成 16:9 背景图
-4. 下载并保存图片到 `backgrounds_{任务名字}/` 目录
-5. 自动回填图片路径到剧本 Markdown 的 `**背景图**` 字段
-6. 生成 `generation_record.json` 记录文件
-
-**调用方式**:
 ```bash
 cd /Users/zhangyichi/工作/能力训练
-python .claude/skills/training-background-generator/scripts/generate_background.py <剧本配置.md路径>
+python .claude/skills/training-background-generator/scripts/generate_background.py "<训练剧本配置.md路径>"
 ```
 
-**可选参数**:
-```bash
-# 指定输出目录
-python ... <剧本配置.md> --output-dir ./my_backgrounds
+3. 检查 `generation_record.json` 的 `cover`、`success`、`failed`，确认本地图片和剧本路径已写入。逐项报告成功与失败；脚本退出不代表所有图片都成功。
 
-# 跳过LLM生成提示词（直接硬拼，速度更快但质量略低）
-python ... <剧本配置.md> --no-llm-prompt
+脚本会根据阶段上下文生成约 100～200 字的中文场景提示词，并追加风格后缀；默认强调环境、光线、物体和氛围，避免把人物动作或对话直接当背景。提示词生成失败时使用场景描述拼接。需要特定人物或医学/工业细节时，应在场景描述中明确要求，并检查图片是否符合教学情境。
 
-# 自定义风格后缀
-python ... <剧本配置.md> --style "中国写实人物风格，东方美学，16:9"
+存在 `## 基础配置` 时，额外生成任务封面；否则只生成阶段图。接口兼容 OpenAI Images 的 URL / Base64 返回，以及 DashScope 原生图片 URL。
 
-# 指定文生图模型（默认: qwen-image-2.0-pro）
-# 可选: qwen-image-2.0 / qwen-image-max / wan2.7-image-pro / z-image-turbo
-python ... <剧本配置.md> --model qwen-image-2.0-pro
-
-# 指定文本模型（用于生成提示词，默认 qwen3.7-plus）
-python ... <剧本配置.md> --text-model qwen3.7-plus
-```
-
-### 第三步: 向用户汇报结果
-
-报告:
-- 成功生成的图片数量和文件路径
-- 每个阶段使用的提示词（便于后续调整）
-- 保存目录的完整路径
-- 如有失败，列出失败的阶段和错误原因
-
-## 环境配置
-
-脚本使用 `.claude/skills/.env` 或项目根 `.env` 中的以下变量:
-
-| 变量 | 用途 | 备注 |
-|------|------|------|
-| `BAILIAN_API_KEY` | 百炼 API 密钥（文生图 + 文本模型） | 必需 |
-| `BAILIAN_TEXT_MODEL` | 文本模型（用于生成提示词） | 可选，默认 `qwen3.7-plus` |
-
-**接口说明**: 百炼 OpenAI 兼容的 images 端点不可用（404），脚本使用 DashScope 原生接口
-`/api/v1/services/aigc/multimodal-generation/generation`。
-
-## 示例
-
-### 示例输入
-
-```
-@skills_training_course/化工原理-武夷学院/离心泵汽蚀故障紧急诊断/训练剧本配置.md
-请为这个剧本的每个阶段生成背景图
-```
-
-### 解析结果示例
-
-| 阶段 | 名称 | 场景描述 |
-|------|------|---------|
-| 1 | 开场与现象认知 | 化工厂车间，B区设备间，泵旁有监控屏幕 |
-| 2 | 根因分析 | 李主任办公室或泵房，手里拿着运行记录本 |
-| 3 | 应急处理与决策 | 泵房和控制室，李主任在旁边指挥 |
-| 4 | 知识整合与总结 | 会议室或办公室，墙上贴着维护记录 |
-
-### 输出文件结构
-
-```
-离心泵汽蚀故障紧急诊断/
-├── 训练剧本配置.md              ← 背景图路径已自动回填
-├── backgrounds/
-│   ├── stage_1_开场与现象认知.png
-│   ├── stage_2_根因分析.png
-│   ├── stage_3_应急处理与决策.png
-│   ├── stage_4_知识整合与总结.png
-│   └── generation_record.json   ← 生成记录（URL、提示词、时间戳）
-```
-
-## 提示词设计指南
-
-脚本使用 LLM 自动生成提示词，以下是不同场景类型的参考风格:
-
-### 工业/工厂场景
-- 强调工业设备的细节和真实感
-- 包含安全标识、管道、仪表等元素
-- 使用工业照明（荧光灯、应急灯）
-- 中国工业现场风格
-
-### 办公/会议场景
-- 现代中式办公环境
-- 包含白板、投影、文件资料等
-- 自然光与室内照明结合
-
-### 实验室/教学场景
-- 精密仪器和实验设备
-- 干净整洁的实验台
-- 专业的实验室照明
-
-## 注意事项
-
-1. **16:9比例**: 默认尺寸 1664x928（百炼 qwen-image 系列支持的 16:9 分辨率）
-2. **风格一致性**: 同一任务的所有阶段背景图应保持视觉风格一致
-3. **API限流**: 每次图片生成之间有2秒间隔，避免触发限流
-4. **URL时效性**: 生成的图片 URL 有时效性，脚本会自动下载到本地保存
-5. **回填字段**: 剧本 Markdown 中需要有 `**背景图**:` 字段才能自动回填路径
-6. **wan 系列限制**: 若换用 `wan2.7-image(-pro)` 模型，尺寸必须 ≥768×768（约 59 万像素以上）
-
-## 错误处理
-
-1. **BAILIAN_API_KEY未配置**: 提示用户在 .env 中配置
-2. **某阶段提示词生成失败**: 自动使用硬拼方式 (fallback)，继续处理其他阶段
-3. **图片生成失败**: 记录失败阶段，继续生成其他阶段，最终汇总报告
-4. **未找到背景图字段**: 正常完成生成，提示用户手动添加 `**背景图**:` 字段
-
-## 脚本工具
-
-### scripts/generate_background.py
-
-独立的 CLI 脚本，可直接运行批量生成阶段背景图。
-
-#### 依赖安装
+## 常用参数
 
 ```bash
-pip install requests python-dotenv openai
+# 使用人工写好的场景描述，跳过文本模型
+python .claude/skills/training-background-generator/scripts/generate_background.py "<剧本.md>" --no-llm-prompt
+
+# 明确覆盖尺寸和风格
+python .claude/skills/training-background-generator/scripts/generate_background.py "<剧本.md>" --size 1920x1080 --style "写实摄影，自然光，16:9，不要文字或水印"
+
+# 使用另一份同结构的凭证配置
+python .claude/skills/training-background-generator/scripts/generate_background.py "<剧本.md>" --secrets-file "/path/to/secrets.json"
 ```
 
-#### 环境变量
+`--output-dir` / `-o` 指定输出父目录，实际写入其下的 `backgrounds_<剧本文件名>/`；未指定时写入剧本同级 `backgrounds/`。
 
-在 `.claude/skills/.env` 或项目根 `.env` 中配置:
-```bash
-BAILIAN_API_KEY=sk-xxx       # 百炼 API Key（必需）
-BAILIAN_TEXT_MODEL=qwen3.7-plus  # 可选，用于生成提示词
-```
+## 输出与验收
 
-#### 参数说明
+- 阶段图片：`<剧本文件名>_stage_<编号>_<阶段名>.png`。
+- 封面图片：`<任务名称>_cover.png`。
+- 阶段路径回填至已有的 `**背景图**:` 字段；基础配置的背景图字段可自动添加。
+- `generation_record.json` 保存主模型、备用模型、尺寸、提示词、时间、本地路径及成功/失败条目；每个成功条目的 `model` 是实际出图模型，走了备用时另记 `primary_error`。Base64 图片只存本地文件，台账中的 URL 为 `null`。
+- 图片逐张生成，间隔 2 秒。主服务和备用都失败时记录两边的错误，继续其他阶段，最终按记录汇报失败原因。
+- 本 Skill 完成于本地图片与路径回填；平台上传由后续导入流程处理。
 
-| 参数 | 缩写 | 默认值 | 说明 |
-|------|------|--------|------|
-| `markdown_file` | — | *必需* | 训练剧本配置 Markdown 文件路径 |
-| `--output-dir` | `-o` | 剧本同级 `backgrounds/` | 输出目录 |
-| `--model` | `-m` | `qwen-image-2.0-pro` | 文生图模型名称 |
-| `--size` | `-s` | `1664x928` | 图片尺寸（16:9） |
-| `--style` | — | 写实中国风 | 风格描述后缀，附加到每个阶段提示词末尾 |
-| `--text-model` | — | `qwen3.7-plus` | 文本模型，用于智能生成提示词 |
-| `--no-llm-prompt` | — | `false` | 跳过LLM生成，直接硬拼提示词 |
+依赖：`requests`、`python-dotenv`、`openai`。

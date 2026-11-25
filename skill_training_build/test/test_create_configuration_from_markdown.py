@@ -83,11 +83,46 @@ def test_build_create_configuration_payload_uses_expected_defaults() -> None:
     assert payload == {
         "trainTaskName": "任务名称",
         "description": "任务描述",
-        "trainType": "voice",
+        "trainType": "all",
+        "entranceVoiceNid": "Tg3LpKo28D",
         "trainTaskCover": {"fileId": "file-1", "fileUrl": "https://example.com/1.png"},
         "trainTime": -1,
         "courseId": "course-1",
         "trainTaskId": "task-1",
+    }
+
+
+def test_build_create_configuration_payload_uses_native_oral_shape() -> None:
+    base_config = cfm.BaseConfiguration(
+        train_task_name="Oral Training",
+        description="Practice spoken English",
+        background_image="cover.png",
+    )
+
+    payload = cfm.build_create_configuration_payload(
+        base_config=base_config,
+        course_id="course-1",
+        train_task_id="task-1",
+        train_task_cover={"fileId": "file-1", "fileUrl": "https://example.com/1.png"},
+        train_sub_type="oral",
+    )
+
+    assert payload["trainSubType"] == "oral"
+    assert "trainType" not in payload
+    assert payload["extConfig"] == {
+        "trainSubType": "oral",
+        "dialogueLanguage": "en",
+        "dialogueDifficulty": "basic",
+        "translationAssistantEnabled": False,
+        "speechToTextEnabled": False,
+        "answerAssistantEnabled": False,
+        "keyVocabularyEnabled": False,
+        "vocabularyApplicationEnabled": False,
+        "semanticCoherenceEnabled": False,
+        "pronunciationExpressionEnabled": False,
+        "grammaticalAccuracyEnabled": False,
+        "trainScreen": False,
+        "trainScreenType": 1,
     }
 
 

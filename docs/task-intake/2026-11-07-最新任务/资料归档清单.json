@@ -1,0 +1,30 @@
+{
+  "日期": "2026-11-07",
+  "来源": "企业微信已下载附件",
+  "文件": [
+    {
+      "src": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/91a4d1bc2efe254c8efc1194c33d235f/上海健康医学院_诊断学_能力实训.docx",
+      "dst": "/Users/zhangyichi/工作/能力训练/skills_training_course/上海健康医学院-诊断学/原始资料/上海健康医学院_诊断学_能力实训.docx",
+      "msg": "秦俪珊2026-11-05 17:07发送修订材料",
+      "bytes": 52200,
+      "sha256": "89ec27675beed2cca90939becabec6b9bb937deb079d328830c6ca8b20665a72",
+      "status": "copied"
+    },
+    {
+      "src": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/ef8b10f4c15f8077d1ab4df248d5bfa3/临床诊断学智能体能力训练设计方案.docx",
+      "dst": "/Users/zhangyichi/工作/能力训练/skills_training_course/上海健康医学院-诊断学/原始资料/临床诊断学智能体能力训练设计方案.docx",
+      "msg": "秦俪珊2026-11-03发送早期材料",
+      "bytes": 29160,
+      "sha256": "0aeeddbadc89346fa5d41de1ae6f9c4003059a9ad66182fc4e3460b2160b37f2",
+      "status": "copied"
+    },
+    {
+      "src": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/34faf65f9b6b19616c3b90e55a2cf285/HIT未来空天能力训练方案.docx",
+      "dst": "/Users/zhangyichi/工作/能力训练/skills_training_course/哈尔滨工业大学-大学物理/原始资料/2026-11-02_顾问修订/HIT未来空天能力训练方案.docx",
+      "msg": "秦俪珊2026-11-02 13:13发送修订版",
+      "bytes": 36453,
+      "sha256": "60fd033ca4d5da50a212a881c597ced2c3ba1437f68f100a576cd9d74c3bc822",
+      "status": "copied"
+    }
+  ]
+}

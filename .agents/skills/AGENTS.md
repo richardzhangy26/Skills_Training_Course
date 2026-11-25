@@ -1,0 +1,1 @@
+../../.claude/skills/AGENTS.md

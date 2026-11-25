@@ -7,7 +7,7 @@ A full stage configuration for a speech-delivery stage, using the Speech templat
 ## Stage: Deliver a 1–2 Minute Speech on a Chosen Topic
 
 **Virtual Trainer Name**: Sam
-**Model**: Doubao-Seed-1.6
+**Model**: doubao-seed-2.0-pro
 **Stage Description**: The student delivers a continuous speech of roughly 1–2 minutes on the topic of their choice. The agent acts as a supportive audience — listening, not evaluating.
 **Interaction Rounds**: 3–6 (student may speak across multiple turns)
 

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS launchd 模板。由 install.sh 自动替换占位符后写到
+  ~/Library/LaunchAgents/<label>.plist ：登录自启 + 崩溃自动重启。
+  占位符：__LABEL__ __NODE__ __SCRIPT__ __PORT__ __HOST__ __UPSTREAM__ __LOG__
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__LABEL__</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>__SCRIPT__</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>POLYMAS_PROXY_PORT</key>
+    <string>__PORT__</string>
+    <key>POLYMAS_PROXY_HOST</key>
+    <string>__HOST__</string>
+    <key>POLYMAS_PROXY_UPSTREAM</key>
+    <string>__UPSTREAM__</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__LOG__</string>
+  <key>StandardErrorPath</key>
+  <string>__LOG__.err</string>
+</dict>
+</plist>

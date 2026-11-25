@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-26",
+  "school": "云南林业职业技术学院",
+  "course": "林政执法实务",
+  "title": "云南林业职业技术学院-林政执法实务｜两个能力训练场景与互动优化（10月27日）",
+  "assigned_by": "秦俪珊",
+  "direct_assignment_date": "2026-10-26 10:05及后续",
+  "forwarded_chat_date": "2026-10-20 11:34—14:05",
+  "forwarded_chat_speakers": [
+    "王兴杰",
+    "邱佳凝",
+    "李俊登"
+  ],
+  "quantity": 2,
+  "selected_topics": null,
+  "deadline_original": "大概周二周三的样子做完",
+  "deadline_range": [
+    "2026-10-27",
+    "2026-10-28"
+  ],
+  "exact_deadline": "2026-10-27",
+  "todo_saved": true,
+  "todo_title_reopened_verified": true,
+  "todo_description_reopened_verified": true,
+  "todo_deadline_field": "2026-10-27",
+  "todo_empty_deadline_reopened_verified": false,
+  "todo_not_completed": true,
+  "unfinished_count_before": 16,
+  "unfinished_count_after": 17,
+  "school_evidence": "direct chat and attached DOCX title agree",
+  "original_file": "/Users/zhangyichi/工作/能力训练/skills_training_course/云南林业职业技术学院-林政执法实务/原始资料/林政执法实务_能力训练剧本主题.docx",
+  "bytes": 77312,
+  "sha256": "ebda5c7715c138eda9904d71b64197d013b94e8a5faba129e25c51c866ee535f",
+  "original_copy_hash_verified": true,
+  "limitations": [
+    "具体两个主题未指定",
+    "平台交互和字幕呈现可实现性未验证",
+    "转发图片未逐张导出核验",
+    "未制作或部署"
+  ],
+  "messages_sent": false,
+  "wecom_cli_used": false,
+  "deadline_note": "需求表备注10.27；原私聊10月27—28日范围保留",
+  "deadline_field_pending": false,
+  "deadline_field_source": "user_confirmed_manual_setting",
+  "deadline_field_reopened_verified": false
+}

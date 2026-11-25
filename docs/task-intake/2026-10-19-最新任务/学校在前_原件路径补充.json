@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-19",
+  "files": [
+    {
+      "source": "skills_training_course/最优化方法-浙江科技大学/原始资料/最优化方法实训任务示例集（4个）.docx",
+      "archive": "skills_training_course/浙江科技大学-最优化方法/原始资料/最优化方法实训任务示例集（4个）.docx",
+      "sha256": "4932454ab4634f7d03a63139384861c66e32b76022c58c6da3c4c63e30a877d5",
+      "bytes": 62846
+    },
+    {
+      "source": "skills_training_course/方剂学-山东中医药大学/原始资料/方剂学课程能力训练-小儿积食-zhanglu(1).docx",
+      "archive": "skills_training_course/山东中医药大学-方剂学/原始资料/方剂学课程能力训练-小儿积食-zhanglu(1).docx",
+      "sha256": "82982e1fa82c88bcb7cebeda54bea39209dd976486649757a28f9ffbeaa43815",
+      "bytes": 45053
+    }
+  ],
+  "scope": "保留历史路径，仅复用学校在前目录放入待办所需原件"
+}

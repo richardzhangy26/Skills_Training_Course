@@ -124,14 +124,16 @@ python scripts/auto_login.py --province "福建省区" --headless
 **解决：**
 1. 检查文件路径是否包含学校名称
 2. 使用 `--province` 参数直接指定省区
-3. 更新 `data/school_province_map.json` 添加新的映射
+3. 在账号表 `智能体课程配置账号情况.xlsx` 里补一行该学校的账号，再用 `--list-accounts 学校名` 确认能查到
 
-### Q2: 验证码无法自动处理
+### Q2: 验证码自动破解失败
 
-**问题：** 脚本提示需要手动完成滑块验证
+**问题：** 4 次自动破解都没过，脚本转人工
 
 **解决：**
-这是预期的行为。当前平台使用滑块验证码，无法完全自动化。脚本会暂停并提示你手动完成滑块验证，完成后按回车键继续。
+1. 直接重跑即可，滑块每次是新图，单次通过率 60~80%
+2. 检查 `scripts/yidun_slider.py` 依赖（opencv-python / numpy）是否正常
+3. 仍未过时可手动拖一次，脚本会继续往下走
 
 ### Q3: 登录后仍然提示认证失败
 
@@ -142,17 +144,12 @@ python scripts/auto_login.py --province "福建省区" --headless
 2. 重新运行登录脚本
 3. 手动从浏览器开发者工具复制最新的 AUTHORIZATION 和 COOKIE
 
-### Q4: 如何查看当前支持的省区
+### Q4: 如何查看账号表里的省区 / 学校
 
 ```bash
-python -c "
-import json
-with open('.claude/skills/training-auto-login/data/school_province_map.json') as f:
-    data = json.load(f)
-    print('支持的省区:')
-    for province in data['province_accounts'].keys():
-        print(f'  - {province}')
-"
+cd .claude/skills/training-auto-login/scripts
+python3 auto_login.py --list-accounts            # 全部账号（省份/学校/教工号/密码）
+python3 auto_login.py --list-accounts 天津        # 按省份或学校关键字过滤
 ```
 
 ## 集成到工作流
@@ -197,18 +194,16 @@ else
 fi
 ```
 
-## 更新学校映射
+## 更新账号（唯一来源：账号表）
 
-如果需要添加新的学校映射，编辑 `data/school_province_map.json`：
+账号统一维护在根目录 `智能体课程配置账号情况.xlsx` 主段，加一行即可：
 
-```json
-{
-  "mappings": {
-    "新学校名称": "对应省区",
-    ...
-  }
-}
 ```
+对应省份 | 教工号 | 学校/机构 | 机构名称 | 默认密码 | 手机号 | 备注
+天津     | TJU000000 | 天津大学 | Polymas实验室 | Zhihuishu@000000 | 14950000005 |
+```
+
+校验：`python3 auto_login.py --list-accounts 天津大学`；登录：`--school "天津大学"`。
 
 ## 注意事项
 

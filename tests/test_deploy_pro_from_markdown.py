@@ -163,6 +163,32 @@ def test_assign_stage_steps_reuses_ui_placeholder_before_creating() -> None:
     assert removable == []
 
 
+def test_assign_stage_steps_sorts_decimal_placeholder_positions() -> None:
+    stages = [
+        deployer.StageIdentity(1, "阶段一"),
+        deployer.StageIdentity(2, "阶段二"),
+    ]
+    existing = [
+        {
+            "nid": "lower",
+            "stepName": "未命名阶段",
+            "positionY": "835.8218288083431",
+        },
+        {
+            "nid": "upper",
+            "stepName": "未命名阶段",
+            "positionY": "211.5",
+        },
+    ]
+
+    assignments, missing, removable = deployer.assign_stage_steps(stages, existing)
+
+    assert assignments["阶段一"]["nid"] == "upper"
+    assert assignments["阶段二"]["nid"] == "lower"
+    assert missing == []
+    assert removable == []
+
+
 def test_assign_stage_steps_marks_only_empty_surplus_placeholders_removable() -> None:
     stages = [deployer.StageIdentity(1, "阶段一")]
     existing = [

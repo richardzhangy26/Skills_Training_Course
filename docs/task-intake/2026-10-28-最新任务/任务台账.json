@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-28",
+  "coverage": [
+    "王鑫7",
+    "秦俪珊",
+    "刘晨昕",
+    "张心睿"
+  ],
+  "new_tasks": [
+    {
+      "title": "昆明理工大学-生态水文原理及应用｜剧本一高原湖泊污染溯源训练（本周尽快）",
+      "assigned_by": "秦俪珊",
+      "deadline_original": "本周尽快",
+      "deadline_range": [
+        "2026-10-26",
+        "2026-11-01"
+      ],
+      "deadline": null,
+      "todo_saved": true,
+      "title_reopened_verified": true,
+      "description_reopened_verified": true,
+      "deadline_unset_reopened_verified": true
+    },
+    {
+      "title": "昆明理工大学-生态水文原理及应用｜其余能力训练（下周）",
+      "assigned_by": "秦俪珊",
+      "deadline_original": "其余的下周",
+      "deadline_range": [
+        "2026-11-02",
+        "2026-11-08"
+      ],
+      "deadline": null,
+      "optional_sixth_scope_unconfirmed": true,
+      "todo_saved": true,
+      "title_reopened_verified": true,
+      "description_reopened_verified": true,
+      "deadline_unset_reopened_verified": true
+    }
+  ],
+  "updated_tasks": [
+    {
+      "course": "中南财经大学（校名待核对）-微观经济学",
+      "status": "待下午查看定时推送结果",
+      "todo_note_reopened_verified": true,
+      "completion_unchanged": true
+    },
+    {
+      "course": "北大医学部-智能体场景化训练案例",
+      "status": "凝胶过滤优化版已调整、测试中；酶竞争性抑制10月30日",
+      "todo_note_reopened_verified": true,
+      "completion_unchanged": true
+    }
+  ],
+  "last_verified_unfinished": 19,
+  "wecom_cli_used": false,
+  "messages_sent": false,
+  "platform_implementation": false,
+  "original_docx_archived": true,
+  "original_copy_sha256_verified": true
+}

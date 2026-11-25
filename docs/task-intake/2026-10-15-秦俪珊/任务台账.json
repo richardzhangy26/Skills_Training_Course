@@ -1,0 +1,92 @@
+{
+  "updated": "2026-10-15",
+  "arranger": "秦俪珊",
+  "tasks": [
+    {
+      "key": "QIN-20261013-KO",
+      "course": "韩国语言文化与社会",
+      "school": "北京语言大学",
+      "type": "能力训练",
+      "deliverables": [
+        "教材日常对话",
+        "影视配音"
+      ],
+      "deadline": "2026-10-16",
+      "deadline_evidence": "2026-10-13 10:43私聊说本周做完；已有企业微信待办设置10月16日",
+      "path": "skills_training_course/韩国语言文化与社会-北京语言大学",
+      "legacy_project": "skills_training_course/北京语言大学-韩国语言文化与社会",
+      "status": "教材日常对话有10月14日本地发布回读记录，运行验收未覆盖；影视配音缺真实片源和台词。未重新核验线上。",
+      "todo_status": "本次已从列表回读已有待办：截止明天，即2026-10-16；未新建，资料路径备注尚待补充",
+      "todo_deadline_verified": true
+    },
+    {
+      "key": "QIN-20261014-WRITE-TRAIN",
+      "course": "文化与旅游创意写作",
+      "school": "云南艺术学院",
+      "type": "能力训练",
+      "deliverables": [
+        "地域文化资源的创意转化与文旅文案策划",
+        "文旅微剧本创作——从文化IP到情景故事"
+      ],
+      "deadline": "2026-10-21",
+      "deadline_evidence": "2026-10-14 14:40秦俪珊：“两个能力训练和一个作业批阅”“ddl是下周三”，换算为10月21日",
+      "path": "skills_training_course/文化与旅游创意写作-云南艺术学院",
+      "status": "教师原件已归档；未搭建、未部署",
+      "todo_status": "已创建并在列表回读；DDL已写入标题及备注，截止字段待人工设置后回读",
+      "todo_title": "文化与旅游创意写作-云南艺术学院｜两个能力训练（10月21日截止）",
+      "todo_deadline_verified": false
+    },
+    {
+      "key": "QIN-20261014-WRITE-REVIEW",
+      "course": "文化与旅游创意写作",
+      "school": "云南艺术学院",
+      "type": "作业批阅",
+      "deliverables": [
+        "一项作业批阅，结合期末作业样本"
+      ],
+      "deadline": "2026-10-21",
+      "deadline_evidence": "2026-10-14 14:40同批分派：两个能力训练和一个作业批阅，DDL下周三，即10月21日",
+      "path": "homework_review/文化与旅游创意写作-云南艺术学院",
+      "status": "原ZIP及10份Word、10份PPT已归档；教师作业任务书、评分rubric、批阅输入输出合同待核对。训练脚本仅作课程背景；不能用样本评语自动代替评分rubric。",
+      "todo_status": "已创建并在列表回读；DDL已写入标题及备注，截止字段待人工设置后回读",
+      "todo_title": "文化与旅游创意写作-云南艺术学院｜作业批阅（10月21日截止）",
+      "todo_deadline_verified": false
+    },
+    {
+      "key": "QIN-20261014-SOCIAL",
+      "course": "社会学概论",
+      "school": "昌吉学院",
+      "type": "专家智能体搭建资料",
+      "deliverables": [
+        "情绪社会化智能陪伴课程，五模块与配套知识库",
+        "将学校心理中心预约电话09942280216纳入资源导航"
+      ],
+      "deadline": null,
+      "deadline_evidence": "2026-10-14 14:41秦俪珊引用框架补充“这个也是下周吧”，你14:43回复“好的”；期限范围2026-10-19至2026-10-25，具体日待确认",
+      "path": "polymas_v5/社会学概论-昌吉学院",
+      "legacy_project": "skills_training_course/昌吉学院-社会学概论",
+      "status": "丰富版原件已归档；按跨会话记忆、多智能体陪伴需求归专家资料。具体平台实现、后台通知、记忆和安全转介能力需后续验证。与已有社会学能力训练任务区分。",
+      "todo_status": "已创建并在待办列表回读；标题及备注记下周范围，未设具体截止日期",
+      "deadline_range": {
+        "begin": "2026-10-19",
+        "end": "2026-10-25"
+      },
+      "todo_title": "社会学概论-昌吉学院｜情绪社会化陪伴智能体（下周，日期待确认）"
+    },
+    {
+      "key": "QIN-20261012-VR",
+      "course": "中华民族共同体概论",
+      "school": "河北工程大学",
+      "type": "能力训练",
+      "deliverables": [
+        "云游中华民族共同体VR博物馆：开场引导、七馆平行跳转及声音提示"
+      ],
+      "deadline": "2026-10-12",
+      "deadline_evidence": "2026-10-12 10:16秦俪珊转发王鑫7需求，要求当日完成；学校来自既有本地项目目录",
+      "path": "skills_training_course/中华民族共同体概论-河北工程大学",
+      "legacy_project": "skills_training_course/河北工程大学-中华民族共同体",
+      "status": "聊天已有10月12日交付记录及10月13日跳转确认；本次仅补原件归档，不重新创建未完成待办。",
+      "todo_status": "历史已交付，不新建重复未完成任务"
+    }
+  ]
+}

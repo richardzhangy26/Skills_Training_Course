@@ -1,0 +1,13 @@
+{
+  "timeoutSeconds": 300,
+  "authTimeoutSeconds": 300,
+  "resourceType": 2,
+  "endpoints": {
+    "currentUserMenu": { "method": "POST", "url": "https://cloudapi.polymas.com/console/v1/current-user-menu" },
+    "upload": { "method": "POST", "url": "https://cloudapi.polymas.com/course-deliver/dynamic-html/upload" },
+    "create": { "method": "POST", "url": "https://cloudapi.polymas.com/course-deliver/dynamic-html/create" },
+    "detail": { "method": "GET", "url": "https://cloudapi.polymas.com/course-deliver/dynamic-html/detail" },
+    "updateAndPublish": { "method": "POST", "url": "https://cloudapi.polymas.com/course-deliver/dynamic-html/updateAndPublish" },
+    "update": { "method": "POST", "url": "https://cloudapi.polymas.com/course-deliver/dynamic-html/update" }
+  }
+}

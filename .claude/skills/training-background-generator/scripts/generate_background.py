@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-训练阶段背景图生成器（阿里百炼版本）
+训练阶段背景图生成器（优先读取项目 secrets.json）
 
 解析训练剧本配置 Markdown，为每个阶段:
-1. 由 LLM（百炼 qwen 文本模型）理解阶段上下文，智能生成文生图提示词
-2. 调用百炼 DashScope 原生文生图 API（qwen-image 系列）生成背景图
+1. 由 LLM 理解阶段上下文，智能生成文生图提示词
+2. 优先调用 secrets.json 的 providers.image 主配置（Polymas），失败时改用 fallback_*（Seedream），兼容 OpenAI Images 与 DashScope
 3. 下载保存到本地 backgrounds/ 目录
 
 依赖安装:
     pip install requests python-dotenv openai
 
-环境变量（从 .claude/skills/.env 或项目根 .env 加载）:
-    BAILIAN_API_KEY: 百炼 API 密钥（必需）
+凭证优先读取项目根 secrets.json，可用 --secrets-file 指定其他文件。
+旧版环境变量（secrets 未配置对应 provider 时使用）:
+    BAILIAN_API_KEY: 百炼 API 密钥
     BAILIAN_TEXT_MODEL: 文本模型名称（可选，默认 qwen3.7-plus）
 
 使用方式:
@@ -22,12 +23,13 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
@@ -38,6 +40,7 @@ from dotenv import load_dotenv
 # 脚本位于 .claude/skills/training-background-generator/scripts/
 # 优先加载 .claude/skills/.env，再用项目根 .env 补缺（load_dotenv 默认不覆盖已有变量）
 _SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_SECRETS_FILE = _SCRIPT_DIR.parents[3] / "secrets.json"
 for _env_file in (
     _SCRIPT_DIR.parent.parent / ".env",  # .claude/skills/.env
     _SCRIPT_DIR.parent.parent.parent.parent / ".env",  # 项目根 .env
@@ -63,6 +66,73 @@ DEFAULT_TEXT_MODEL = "qwen3.7-plus"
 DOWNLOAD_TIMEOUT = 60
 # API 调用间隔（秒），避免触发限流
 API_INTERVAL = 2
+
+
+def load_providers(secrets_file: str | Path | None = None) -> dict:
+    """只在运行时读取凭证；显式路径或损坏配置不静默降级。"""
+    path = Path(secrets_file) if secrets_file is not None else DEFAULT_SECRETS_FILE
+    if secrets_file is None and not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        raise ValueError(f"secrets 文件不是有效 JSON: {path}") from None
+    if not isinstance(data, dict) or not isinstance(data.get("providers", {}), dict):
+        raise ValueError("secrets.providers 必须是对象")
+    return data.get("providers", {})
+
+
+def require_provider_fields(config: dict, provider: str, fields: tuple[str, ...]) -> None:
+    for name in fields:
+        if not isinstance(config.get(name), str) or not config[name].strip():
+            raise ValueError(f"secrets.providers.{provider}.{name} 缺失或为空")
+
+
+@dataclass(frozen=True)
+class ImageConfig:
+    url: str
+    model: str
+    size: str
+    api_key: str = field(repr=False)
+    fallback: ImageConfig | None = None
+
+
+def resolve_image_config(
+    secrets_file: str | Path | None = None,
+    model: str | None = None,
+    size: str | None = None,
+) -> ImageConfig:
+    config = load_providers(secrets_file).get("image")
+    if config is not None:
+        if not isinstance(config, dict):
+            raise ValueError("secrets.providers.image 必须是对象")
+        require_provider_fields(config, "image", ("url", "api_key", "model", "size"))
+        # 明确指定备用模型时直接走备用端点与凭证；否则主服务失败后自动改用备用服务。
+        prefix = "fallback_" if model and model == config.get("fallback_model") else ""
+        require_provider_fields(config, "image", (prefix + "url", prefix + "api_key"))
+        fallback = None
+        if not prefix and config.get("fallback_model"):
+            require_provider_fields(config, "image", ("fallback_url", "fallback_api_key"))
+            fallback = ImageConfig(
+                url=config["fallback_url"],
+                model=config["fallback_model"],
+                size=size or config["size"],
+                api_key=config["fallback_api_key"],
+            )
+        return ImageConfig(
+            url=config[prefix + "url"],
+            model=model or config["model"],
+            size=size or config["size"],
+            api_key=config[prefix + "api_key"],
+            fallback=fallback,
+        )
+    api_key = os.environ.get("BAILIAN_API_KEY")
+    if not api_key:
+        raise EnvironmentError("请配置 secrets.json 的 providers.image，或设置 BAILIAN_API_KEY。")
+    return ImageConfig(
+        url=BAILIAN_IMAGE_URL, model=model or DEFAULT_IMAGE_MODEL,
+        size=size or DEFAULT_SIZE, api_key=api_key,
+    )
 
 
 # ── 数据结构 ───────────────────────────────────────────────
@@ -177,6 +247,13 @@ def parse_script_markdown(content: str) -> List[StageInfo]:
             else:
                 desc_lines.append(stripped)
         description = "，".join(desc_lines)[:300]
+        pro_description = re.search(
+            r"^\*\*卡片描述\*\*\s*[:：]\s*([^\n]+)",
+            section,
+            re.MULTILINE,
+        )
+        if pro_description:
+            description = pro_description.group(1).strip()[:300]
 
         # 提取场景配置
         scene_config = ""
@@ -191,6 +268,13 @@ def parse_script_markdown(content: str) -> List[StageInfo]:
                 if stripped and not stripped.startswith("#"):
                     scene_lines.append(stripped.lstrip("-* "))
             scene_config = "，".join(scene_lines)[:300]
+        pro_background = re.search(
+            r"^\*\*背景图描述\*\*\s*[:：]\s*([^\n]+)",
+            section,
+            re.MULTILINE,
+        )
+        if pro_background:
+            scene_config = pro_background.group(1).strip()[:300]
 
         stages.append(
             StageInfo(
@@ -246,10 +330,16 @@ _PROMPT_USER_TEMPLATE = """请根据以下训练阶段信息，生成一段文�
 请直接输出场景描述提示词，不要有任何额外内容。"""
 
 
-def _get_text_client():
-    """创建用于生成提示词的 OpenAI 兼容客户端（百炼 compatible-mode）。"""
+def _get_text_client(secrets_file: str | Path | None = None):
+    """文本服务优先使用 secrets 的 llm 配置，再兼容旧百炼环境变量。"""
     from openai import OpenAI
 
+    config = load_providers(secrets_file).get("llm")
+    if config is not None:
+        if not isinstance(config, dict):
+            raise ValueError("secrets.providers.llm 必须是对象")
+        require_provider_fields(config, "llm", ("url", "api_key", "model"))
+        return OpenAI(base_url=config["url"], api_key=config["api_key"])
     api_key = os.environ.get("BAILIAN_API_KEY")
     if not api_key:
         raise EnvironmentError("请设置 BAILIAN_API_KEY 环境变量。")
@@ -399,26 +489,28 @@ def build_prompt_fallback(stage: StageInfo, style_suffix: str) -> str:
 
 
 # ── 图片生成与下载 ──────────────────────────────────────────
-def generate_image(prompt: str, model: str, size: str, api_key: str) -> str:
-    """调用百炼 DashScope 原生文生图 API，返回图片 URL。
-
-    请求格式（multimodal-generation）:
-        input.messages[0].content = [{"text": prompt}]
-        响应: output.choices[0].message.content[0].image
-    """
+def generate_image(
+    prompt: str, model: str, size: str, api_key: str,
+    *, api_url: str = BAILIAN_IMAGE_URL,
+) -> str:
+    """调用配置的文生图接口，返回远程 URL 或 Base64 data URL。"""
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    payload = {
-        "model": model,
-        "input": {
-            "messages": [{"role": "user", "content": [{"text": prompt}]}]
-        },
-        "parameters": {"size": size.replace("x", "*")},
-    }
+    is_dashscope = "/multimodal-generation/" in api_url
+    if is_dashscope:
+        payload = {
+            "model": model,
+            "input": {"messages": [{"role": "user", "content": [{"text": prompt}]}]},
+            "parameters": {"size": size.replace("x", "*")},
+        }
+    else:
+        payload = {"model": model, "prompt": prompt, "size": size, "n": 1}
+        if "volces.com" in api_url:
+            payload["watermark"] = False  # 火山方舟 Seedream 默认加水印
     resp = requests.post(
-        BAILIAN_IMAGE_URL,
+        api_url,
         headers=headers,
         json=payload,
         timeout=300,
@@ -427,20 +519,55 @@ def generate_image(prompt: str, model: str, size: str, api_key: str) -> str:
 
     data = resp.json()
     try:
-        url = data["output"]["choices"][0]["message"]["content"][0]["image"]
+        if is_dashscope:
+            url = data["output"]["choices"][0]["message"]["content"][0]["image"]
+        else:
+            result = data["data"][0]
+            url = result.get("url")
+            if not url and result.get("b64_json"):
+                url = "data:image/png;base64," + result["b64_json"]
     except (KeyError, IndexError, TypeError):
-        raise RuntimeError(f"API 返回格式异常: {json.dumps(data, ensure_ascii=False)[:300]}")
+        raise RuntimeError("API 返回格式异常，缺少图片 URL 或 b64_json") from None
     if not url:
         raise RuntimeError("API 返回的图片 URL 为空")
     return url
 
 
+def generate_with_fallback(prompt: str, config: ImageConfig) -> tuple[str, str, str | None]:
+    """主服务失败时改用备用配置；返回 (图片 URL, 实际模型, 主服务错误)。"""
+    try:
+        url = generate_image(prompt, config.model, config.size, config.api_key, api_url=config.url)
+        return url, config.model, None
+    except Exception as e:
+        if config.fallback is None:
+            raise
+        primary_error = str(e)
+    fallback = config.fallback
+    print(f"   ⚠️  主服务 {config.model} 失败 ({primary_error})，改用备用 {fallback.model}")
+    try:
+        url = generate_image(
+            prompt, fallback.model, fallback.size, fallback.api_key, api_url=fallback.url
+        )
+    except Exception as e:
+        raise RuntimeError(f"主服务失败: {primary_error}；备用 {fallback.model} 失败: {e}") from None
+    return url, fallback.model, primary_error
+
+
 def download_image(url: str, save_path: Path) -> None:
-    """从 URL 下载图片并保存到本地。"""
-    resp = requests.get(url, timeout=DOWNLOAD_TIMEOUT)
-    resp.raise_for_status()
+    """下载远程图片或解码 Base64 图片后保存到本地。"""
+    if url.startswith("data:image/") and ";base64," in url:
+        content = base64.b64decode(url.split(",", 1)[1], validate=True)
+    else:
+        resp = requests.get(url, timeout=DOWNLOAD_TIMEOUT)
+        resp.raise_for_status()
+        content = resp.content
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    save_path.write_bytes(resp.content)
+    save_path.write_bytes(content)
+
+
+def record_image_url(url: str) -> str | None:
+    """Base64 内容仅写入图片文件，生成台账只保留远程 URL。"""
+    return None if url.startswith("data:") else url
 
 
 def sanitize_filename(name: str) -> str:
@@ -491,11 +618,12 @@ def update_markdown_backgrounds(
 def process(
     md_path: str,
     output_dir: Optional[str] = None,
-    model: str = DEFAULT_IMAGE_MODEL,
-    size: str = DEFAULT_SIZE,
+    model: str | None = None,
+    size: str | None = None,
     style_suffix: str = DEFAULT_STYLE_SUFFIX,
     text_model: Optional[str] = None,
     use_llm_prompt: bool = True,
+    secrets_file: str | Path | None = None,
 ) -> dict:
     """完整处理流程: 解析 → LLM 生成提示词 → 文生图 API → 下载保存。
 
@@ -524,17 +652,18 @@ def process(
         raise ValueError("未能从文档中解析出任何阶段信息")
     print(f"   ✓ 发现 {len(stages)} 个阶段")
 
-    # 2. 获取 API Key
-    api_key = os.environ.get("BAILIAN_API_KEY")
-    if not api_key:
-        raise EnvironmentError(
-            "请设置 BAILIAN_API_KEY 环境变量。\n"
-            "  在项目根 .env 或 .claude/skills/.env 中配置 BAILIAN_API_KEY=sk-xxx"
-        )
+    # 2. secrets 优先；明确传入的模型/尺寸覆盖其默认值。
+    image_config = resolve_image_config(secrets_file, model, size)
+    model, size = image_config.model, image_config.size
+    fallback_model = image_config.fallback.model if image_config.fallback else None
+    print(f"   生图模型: {model}，尺寸: {size}" + (f"，备用: {fallback_model}" if fallback_model else ""))
 
     # 3. 确定文本模型
     if text_model is None:
-        text_model = os.environ.get("BAILIAN_TEXT_MODEL", DEFAULT_TEXT_MODEL)
+        llm_config = load_providers(secrets_file).get("llm") or {}
+        if not isinstance(llm_config, dict):
+            raise ValueError("secrets.providers.llm 必须是对象")
+        text_model = llm_config.get("model") or os.environ.get("BAILIAN_TEXT_MODEL", DEFAULT_TEXT_MODEL)
 
     # 4. 确定输出目录（提前，封面图也需要）
     task_name = md_file.stem.replace("training_background_generator_", "")
@@ -558,8 +687,8 @@ def process(
 
         # 生成封面提示词
         try:
-            text_client_cover = _get_text_client()
             if use_llm_prompt:
+                text_client_cover = _get_text_client(secrets_file)
                 cover_prompt = generate_cover_prompt_via_llm(
                     text_client_cover, cfg_task_name, cfg_task_desc, style_suffix, text_model
                 )
@@ -575,7 +704,7 @@ def process(
         cover_filename = f"{sanitize_filename(cfg_task_name)}_cover.png"
         cover_save_path = bg_dir / cover_filename
         try:
-            cover_url = generate_image(cover_prompt, model, size, api_key)
+            cover_url, cover_model, cover_primary_error = generate_with_fallback(cover_prompt, image_config)
             download_image(cover_url, cover_save_path)
             print(f"   ✓ 封面图已保存: {cover_save_path}")
 
@@ -588,10 +717,13 @@ def process(
 
             cover_result = {
                 "file": str(cover_save_path),
-                "url": cover_url,
+                "url": record_image_url(cover_url),
+                "model": cover_model,
                 "prompt": cover_prompt,
                 "task_name": cfg_task_name,
             }
+            if cover_primary_error:
+                cover_result["primary_error"] = cover_primary_error
         except Exception as e:
             print(f"   ⚠️  封面图生成失败 ({e})，跳过封面图，继续阶段图生成")
             cover_result = {"error": str(e), "prompt": cover_prompt}
@@ -603,7 +735,7 @@ def process(
     text_client = None
     if use_llm_prompt:
         print(f"\n🤖 使用 LLM ({text_model}) 智能生成提示词...")
-        text_client = _get_text_client()
+        text_client = _get_text_client(secrets_file)
         llm_fail_count = 0
         for stage in stages:
             try:
@@ -638,21 +770,23 @@ def process(
         print(f"   提示词: {stage.prompt[:80]}...")
 
         try:
-            url = generate_image(stage.prompt, model, size, api_key)
-            print("   ✓ 生成成功，下载中...")
+            url, used_model, primary_error = generate_with_fallback(stage.prompt, image_config)
+            print(f"   ✓ 生成成功（{used_model}），下载中...")
 
             download_image(url, save_path)
             print(f"   ✓ 已保存: {save_path}")
 
-            results.append(
-                {
-                    "stage": stage.number,
-                    "name": stage.name,
-                    "file": str(save_path),
-                    "url": url,
-                    "prompt": stage.prompt,
-                }
-            )
+            entry = {
+                "stage": stage.number,
+                "name": stage.name,
+                "file": str(save_path),
+                "url": record_image_url(url),
+                "model": used_model,
+                "prompt": stage.prompt,
+            }
+            if primary_error:
+                entry["primary_error"] = primary_error
+            results.append(entry)
         except Exception as e:
             print(f"   ❌ 失败: {e}")
             failed.append(
@@ -682,6 +816,7 @@ def process(
     record = {
         "source": str(md_file),
         "model": model,
+        "fallback_model": fallback_model,
         "text_model": text_model if use_llm_prompt else None,
         "size": size,
         "style_suffix": style_suffix,
@@ -711,7 +846,7 @@ def process(
 # ── CLI ────────────────────────────────────────────────────
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="训练阶段背景图生成器 — 解析剧本 Markdown 并生成阶段背景图（百炼 DashScope 版本）",
+        description="训练阶段背景图生成器 — 优先使用 secrets.json 的图片主配置，失败时改用备用配置",
     )
     parser.add_argument(
         "markdown_file",
@@ -729,15 +864,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--model",
         "-m",
         type=str,
-        default=DEFAULT_IMAGE_MODEL,
-        help=f"文生图模型名称（默认: {DEFAULT_IMAGE_MODEL}）",
+        default=None,
+        help="文生图模型（默认读取 secrets 的 providers.image.model；无配置时使用百炼）",
     )
     parser.add_argument(
         "--size",
         "-s",
         type=str,
-        default=DEFAULT_SIZE,
-        help=f"图片尺寸（默认: {DEFAULT_SIZE}）",
+        default=None,
+        help="图片尺寸（默认读取 secrets 的 providers.image.size）",
     )
     parser.add_argument(
         "--style",
@@ -749,13 +884,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--text-model",
         type=str,
         default=None,
-        help=f"文本模型名称，用于智能生成提示词（默认从.env读取，fallback: {DEFAULT_TEXT_MODEL}）",
+        help=f"文本模型（默认读取 secrets.providers.llm.model，再读取.env，最后为 {DEFAULT_TEXT_MODEL}）",
     )
     parser.add_argument(
         "--no-llm-prompt",
         action="store_true",
         default=False,
         help="跳过 LLM 生成提示词，直接使用硬拼方式（fallback）",
+    )
+    parser.add_argument(
+        "--secrets-file", type=str, default=None,
+        help=f"凭证文件路径（默认: {DEFAULT_SECRETS_FILE}）",
     )
     return parser.parse_args(argv)
 
@@ -771,6 +910,7 @@ def main() -> int:
             style_suffix=args.style,
             text_model=args.text_model,
             use_llm_prompt=not args.no_llm_prompt,
+            secrets_file=args.secrets_file,
         )
         return 0
     except FileNotFoundError as e:

@@ -10,12 +10,13 @@
 2. 教学内容以 `<能力名称>-Pro配置.md` 为单一来源；账号相关资源放在独立的资源映射 JSON，不把 `roleNid`、`customDigitalHuman` 等账号 ID 回写到跨任务剧本。
    资源映射结构参考 `pro_resource_map.example.json`。
 3. 资源映射必须提供：
-   - `members`：仅为需要消歧的成员指定 `customDigitalHuman`，也可覆盖 `voiceNid`、`voiceType`、`avatarNid`。
+   - `members`：选定平台已有 `voiceNid`、`voiceType`、`avatarNid`；执行阶段创建本任务数字人后，在此记录返回的 `customDigitalHuman`，供绑定和续跑使用。
    - `stageBackgrounds`：按阶段名称或从 1 开始的序号提供 `fileId` + `fileUrl`，或本地绝对 `path`。
    - `scoreItems`：至少一项，每项包含 `name`、正数 `score`、`requirement`，`description` 可选。
    - `cover`：可选；省略时使用第一阶段背景。
    - `entranceVoice`：必需，包含 `voiceNid`、`voiceType`、`speed`。
-4. `运行时解析` 必须在写入前解析完成。只有一个同名数字人时可自动采用；存在多个同名资源时，通过资源映射指定 `customDigitalHuman`，不得按列表顺序猜测。
+4. 遵循根目录 `AGENTS.md`「能力训练模型与数字人（统一规则）」：成员模型与剧本模型统一为 `doubao-seed-2.0-pro`。`运行时解析` 必须在写入前解析完成，默认用当前平台形象、声音资源创建本任务新数字人，不因历史同名或相同组合而复用。只有用户明确要求“新建一个数字人形象”或自定义形象时，才生成、上传或注册人物图片。
+   当前导入器的 `resolve_member_resources` 会自动匹配历史数字人；执行前须先创建本任务组合并通过 `members` 显式绑定新 ID，或先调整实现以满足新建规则。同一任务的同一角色和断点续跑沿用本任务创建记录。
 5. 优先复用 Pro 编辑器自动生成的空白“未命名阶段”。只自动移除无描述、无提示词、无背景的剩余占位卡；含内容的未命名阶段作为冲突停止导入。
 6. 平台评价标准是 Pro 保存与发布的必需配置。阶段提示词里的复盘分数不能替代 `/score-items/edit` 的平台评分项。
 
@@ -40,4 +41,4 @@ python -m skill_training_pro.deploy_pro_from_markdown <同上参数> --apply --p
 
 ## 完成标准
 
-导入完成必须回查：任务 ID 为 Pro 类型、任务入口指向第一张卡片、成员提示词与技能挂载一致、全部阶段提示词含有效角色 ID、背景存在、无多余占位卡、平台评分项与资源映射一致。发布状态必须符合本次命令；没有 `--publish` 时保持草稿。
+导入完成必须回查：任务 ID 为 Pro 类型、任务入口指向第一张卡片、成员提示词与技能挂载一致、全部阶段提示词含有效角色 ID、背景存在、无多余占位卡、平台评分项与资源映射一致。成员与剧本模型须对应 `doubao-seed-2.0-pro`，成员数字人 ID 须与本任务创建记录一致，声音与形象绑定须与所选平台资源一致。发布状态必须符合本次命令；没有 `--publish` 时保持草稿。

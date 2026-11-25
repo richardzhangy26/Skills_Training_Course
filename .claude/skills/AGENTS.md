@@ -17,6 +17,7 @@ Claude Code自动化技能系统。根据实训任务文档自动生成训练配
 ├── training-script-generator/      # 训练剧本配置
 ├── training-dialogue-simulator/    # 对话流程模拟
 ├── training-background-generator/  # 阶段背景图生成
+├── training-auto-login/            # 账号表登录+过滑块+登录态缓存
 ├── training-deploy-and-test/       # 部署+自动测试
 ├── homework-answer-generator/      # 作业答案生成
 └── doubao_skill_runner.py          # Doubao API调用基类
@@ -33,11 +34,31 @@ Claude Code自动化技能系统。根据实训任务文档自动生成训练配
 | 生成训练剧本 | `training-script-generator` | "训练剧本"、"实训配置" | 训练剧本配置.md |
 | 模拟对话流程 | `training-dialogue-simulator` | "对话流程"、"模拟对话" | 对话流程模拟.md |
 | 生成背景图 | `training-background-generator` | "背景图"、"阶段图片" | backgrounds/*.png |
+| 平台登录 | `training-auto-login` | "登录"、"账号过期" | AUTHORIZATION/COOKIE/COURSE_ID |
 | 一键部署测试 | `training-deploy-and-test` | "部署测试"、"导入平台" | 平台任务+测试报告 |
 
 ---
 
 ## CONVENTIONS
+
+### 能力训练统一配置
+生成、修改或导入普通能力训练、Pro、英文口语配置前，读取根目录 `AGENTS.md`「能力训练模型与数字人（统一规则）」：模型统一为 `doubao-seed-2.0-pro`；默认组合当前平台形象、声音创建本任务新数字人；只有用户明确要求“新建一个数字人形象”或自定义形象时才自定义人物图片。生成阶段只选资源，实际创建在已授权的导入阶段进行。
+
+### 平台登录与账号（部署类技能前置）
+
+任何需要登录 Polymas / 智慧树教学中心的技能（`training-deploy-and-test`、`training-config-setup` 等）在执行前按此顺序处理账号：
+
+1. 用户显式给了账号密码 → 直接用
+2. 用户给了 Chrome profile → 按根目录 `AGENTS.md`「Chrome Cookie」读取
+3. 都没有 → 用 `.claude/skills/training-auto-login`，账号取自根目录 `智能体课程配置账号情况.xlsx`（`--school "学校名"` 自动匹配，支持全角/半角括号差异）
+
+不要反问用户账号，也不要求用户手动登录。凭证：`.env` 的 `AUTHORIZATION`/`COOKIE`（最近一次登录）与 `training-auto-login/sessions/accounts/<教工号>.json`（按账号）；其他 agent 用 `auto_login.py --export-headers <教工号>` 离线取头，或 `new_context(storage_state=...)` 复用浏览器登录态。登录态缓存在 `training-auto-login/sessions/accounts/<账号>.json`，72 小时内直接复用；滑块（网易易盾拼图）由 `scripts/yidun_slider.py` 自动破解。
+
+```bash
+cd .claude/skills/training-auto-login/scripts
+python3 auto_login.py --list-accounts 天津        # 查账号表
+python3 auto_login.py --school "天津大学"          # 登录并回填 .env
+```
 
 ### Skill调用方式
 ```
@@ -107,6 +128,6 @@ cd .claude/skills/training-rubric-generator
 
 1. **环境变量**: `.claude/skills/.env`配置`ARK_API_KEY`
 2. **封面图**: 16:9比例(2560×1440)，Doubao Seedream生成
-3. **背景图**: 16:9比例(512×288)，写实中国风
+3. **背景图**: 通过 `training-background-generator` 读取根目录 `secrets.json` 的 `providers.image` 主配置；模型与尺寸以该文件为准
 4. **版本管理**: 各Skill有独立CHANGELOG.md
 5. **详细文档**: 每个Skill目录下有SKILL.md完整技术文档

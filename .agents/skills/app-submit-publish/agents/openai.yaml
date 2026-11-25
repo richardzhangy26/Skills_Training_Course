@@ -1,0 +1,3 @@
+interface:
+  display_name: "Polymas 应用发布"
+  short_description: "登录后创建或覆盖发布前端项目"
