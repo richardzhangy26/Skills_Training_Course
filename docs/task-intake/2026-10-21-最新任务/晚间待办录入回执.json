@@ -1,0 +1,33 @@
+{
+  "checked_on": "2026-10-21",
+  "list_before": 19,
+  "list_after": 21,
+  "new_saved": [
+    {
+      "title": "中南财经大学（校名待核对）-微观经济学｜专家新闻关联优化（10月22日）",
+      "action": "created",
+      "title_verified": true,
+      "description_verified": true,
+      "planned_date": "2026-10-22",
+      "deadline_field": null,
+      "deadline_verified": false,
+      "qualifier": "Date saved in title and description as an optimization attempt milestone. Date picker could not be accurately controlled; no incorrect default date saved. Formal school name remains unverified."
+    },
+    {
+      "title": "学校课程待确认｜5个能力训练验收（下周，10月26日—11月1日）",
+      "action": "created",
+      "title_verified": true,
+      "description_verified": true,
+      "deadline_field": null,
+      "date_range": [
+        "2026-10-26",
+        "2026-11-01"
+      ],
+      "qualifier": "Only next-week range agreed; no single-day deadline invented. School, course, task list and acceptance materials pending."
+    }
+  ],
+  "no_cli_used": true,
+  "no_messages_sent": true,
+  "participants_not_added": true,
+  "both_reopened_and_verified": true
+}

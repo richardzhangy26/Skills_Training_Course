@@ -40,18 +40,18 @@ INTERACTION_EXPERIENCE_PROMPT = """
 请以JSON格式输出评测结果：
 
 ```json
-{
+{{
   "score": 15,
-  "breakdown": {
+  "breakdown": {{
     "人设语言风格": 3,
     "表达自然度": 3,
     "上下文衔接": 3,
     "循环僵局检测": 3,
     "回复长度控制": 3
-  },
+  }},
   "comments": "详细评价说明...",
   "suggestions": "改进建议..."
-}
+}}
 ```
 
 注意：
@@ -99,18 +99,18 @@ HALLUCINATION_BOUNDARY_PROMPT = """
 请以JSON格式输出评测结果：
 
 ```json
-{
+{{
   "score": 18,
-  "breakdown": {
+  "breakdown": {{
     "事实正确性": 4,
     "逻辑自洽性": 4,
     "未知承认": 4,
     "安全围栏": 3,
     "干扰抵抗": 3
-  },
+  }},
   "comments": "详细评价说明...",
   "suggestions": "改进建议..."
-}
+}}
 ```
 
 注意：
@@ -158,18 +158,18 @@ TEACHING_STRATEGY_PROMPT = """
 请以JSON格式输出评测结果：
 
 ```json
-{
+{{
   "score": 16,
-  "breakdown": {
+  "breakdown": {{
     "启发式提问频率": 4,
     "正向激励机制": 3,
     "纠错引导路径": 3,
     "深度追问技巧": 3,
     "个性化适应": 3
-  },
+  }},
   "comments": "详细评价说明...",
   "suggestions": "改进建议..."
-}
+}}
 ```
 
 注意：

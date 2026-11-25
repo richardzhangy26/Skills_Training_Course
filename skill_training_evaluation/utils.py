@@ -145,7 +145,6 @@ async def call_llm(
         ],
         "temperature": temperature,
         "max_tokens": max_tokens,
-        "top_p": 0.9,
         "frequency_penalty": 0.3,
         "presence_penalty": 0.0,
         "n": 1,

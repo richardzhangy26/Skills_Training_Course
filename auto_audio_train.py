@@ -3,6 +3,7 @@
 语音训练平台测试工具 powered by Richard Zhang
 """
 
+import argparse
 import asyncio
 import websockets
 import json
@@ -10,7 +11,10 @@ import logging
 import io
 import os
 import sys
+import subprocess
+import threading
 import math
+import re
 import time
 import importlib.util
 from datetime import datetime
@@ -33,29 +37,19 @@ CONFIG = {
     "school_id": None,  # 稍后通过 API 获取
 }
 
-def get_user_info():
+def get_user_info(headers=None):
     """
     调用 API 获取用户和学校信息
     失败时退出程序并提示错误
     """
     url = "https://cloudapi.polymas.com/console/v1/get-current-user-detail"
 
-    authorization = os.getenv("AUTHORIZATION")
-    cookie = os.getenv("COOKIE")
-
-    if not authorization or not cookie:
-        print("❌ 错误：缺少 AUTHORIZATION 或 COOKIE 环境变量")
-        print("请在 .env 文件中配置这些参数")
-        sys.exit(1)
-
-    headers = {
-        "Authorization": authorization,
-        "Cookie": cookie,
-        "Content-Type": "application/json"
-    }
-
+    if headers is None:
+        headers = {"Authorization": os.getenv("AUTHORIZATION"), "Cookie": os.getenv("COOKIE")}
+    if not headers.get("Authorization") or not headers.get("Cookie"):
+        sys.exit("缺少登录态，请指定 --account 或设置 AUTHORIZATION 和 COOKIE")
     try:
-        response = requests.post(url, headers=headers)
+        response = requests.post(url, headers=headers, timeout=15)
         response.raise_for_status()  # 检查 HTTP 错误
 
         data = response.json()
@@ -265,8 +259,8 @@ class AudioProcessor:
 
 # ============ TTS引擎 ============
 class TTSEngine:
-    def __init__(self, voice: str = "zh-CN-XiaoxiaoNeural"):
-        self.voice = voice
+    def __init__(self, voice: str | None = None):
+        self.voice = voice or os.getenv("EDGE_TTS_VOICE", "zh-CN-XiaoxiaoNeural")
         self.provider = os.getenv("TTS_PROVIDER", "auto").lower()
         self.polymas_tts_url = os.getenv(
             "TTS_API_URL",
@@ -281,7 +275,26 @@ class TTSEngine:
         self.tts_max_retries = max(1, int(os.getenv("TTS_MAX_RETRIES", "2")))
         self.llm_service_code = os.getenv("LLM_SERVICE_CODE", "")
 
-        if self.provider not in {"auto", "edge", "polymas"}:
+        # DashScope cosyvoice TTS (from secrets.json or env)
+        self.dashscope_api_key = os.getenv("DASHSCOPE_TTS_API_KEY", "")
+        self.dashscope_model = os.getenv("DASHSCOPE_TTS_MODEL", "cosyvoice-v3-flash")
+        self.dashscope_voice = os.getenv("DASHSCOPE_TTS_VOICE", "longanlang_v3")
+        self.dashscope_url = os.getenv("DASHSCOPE_TTS_URL", "wss://dashscope.aliyuncs.com/api-ws/v1/inference")
+        if not self.dashscope_api_key:
+            try:
+                import json as _json
+                _secrets_path = Path(__file__).parent / "secrets.json"
+                if _secrets_path.exists():
+                    _s = _json.loads(_secrets_path.read_text())
+                    _tts = _s.get("providers", {}).get("tts", {})
+                    self.dashscope_api_key = _tts.get("api_key", "")
+                    self.dashscope_model = _tts.get("model", self.dashscope_model)
+                    self.dashscope_voice = _tts.get("voice", self.dashscope_voice)
+                    self.dashscope_url = _tts.get("url", self.dashscope_url)
+            except Exception:
+                pass
+
+        if self.provider not in {"auto", "edge", "polymas", "dashscope"}:
             log.warning(f"⚠️ 未知 TTS_PROVIDER={self.provider}，回退到 auto")
             self.provider = "auto"
 
@@ -299,7 +312,14 @@ class TTSEngine:
             return ["edge"]
         if self.provider == "polymas":
             return ["polymas"]
-        return ["edge", "polymas"]
+        if self.provider == "dashscope":
+            return ["dashscope"]
+        # auto: dashscope first if key available, then edge, then polymas
+        chain = []
+        if self.dashscope_api_key:
+            chain.append("dashscope")
+        chain.extend(["edge", "polymas"])
+        return chain
 
     def _log_tts_error(self, provider: str, attempt: int, error: Exception):
         try:
@@ -341,6 +361,68 @@ class TTSEngine:
         if not audio_data:
             raise ValueError("edge_tts 返回空音频")
         return bytes(audio_data)
+
+    async def _synthesize_with_dashscope(self, text: str) -> bytes:
+        """DashScope cosyvoice WebSocket TTS."""
+        import websockets
+        import uuid
+
+        if not self.dashscope_api_key:
+            raise ValueError("DashScope TTS 缺少 api_key（secrets.json providers.tts.api_key）")
+
+        task_id = uuid.uuid4().hex
+        headers = {
+            "Authorization": f"bearer {self.dashscope_api_key}",
+            "X-DashScope-DataInspection": "enable",
+        }
+        audio_chunks = bytearray()
+        async with websockets.connect(
+            self.dashscope_url, additional_headers=headers, open_timeout=15
+        ) as ws:
+            # run-task
+            run_msg = {
+                "header": {"action": "run-task", "task_id": task_id, "streaming": "duplex"},
+                "payload": {
+                    "task_group": "audio", "task": "tts", "function": "SpeechSynthesizer",
+                    "model": self.dashscope_model,
+                    "parameters": {"text_type": "PlainText", "voice": self.dashscope_voice,
+                                   "format": "mp3", "sample_rate": 22050, "volume": 50,
+                                   "rate": 1.0, "pitch": 1.0},
+                    "input": {},
+                },
+            }
+            await ws.send(json.dumps(run_msg))
+            # wait task-started
+            resp = json.loads(await asyncio.wait_for(ws.recv(), timeout=10))
+            if resp.get("header", {}).get("event") != "task-started":
+                raise ValueError(f"DashScope TTS task-started 失败: {resp}")
+            # continue-task with text
+            cont_msg = {
+                "header": {"action": "continue-task", "task_id": task_id, "streaming": "duplex"},
+                "payload": {"input": {"text": text}},
+            }
+            await ws.send(json.dumps(cont_msg))
+            # finish-task
+            fin_msg = {
+                "header": {"action": "finish-task", "task_id": task_id, "streaming": "duplex"},
+                "payload": {"input": {}},
+            }
+            await ws.send(json.dumps(fin_msg))
+            # collect audio until task-finished
+            while True:
+                msg = await asyncio.wait_for(ws.recv(), timeout=30)
+                if isinstance(msg, bytes):
+                    audio_chunks.extend(msg)
+                else:
+                    evt = json.loads(msg)
+                    event = evt.get("header", {}).get("event", "")
+                    if event == "task-finished":
+                        break
+                    if event == "task-failed":
+                        raise ValueError(f"DashScope TTS failed: {evt}")
+        if not audio_chunks:
+            raise ValueError("DashScope TTS 返回空音频")
+        return bytes(audio_chunks)
 
     async def _synthesize_with_polymas(self, text: str) -> bytes:
         if not self.polymas_api_key:
@@ -419,6 +501,8 @@ class TTSEngine:
                 try:
                     if provider == "edge":
                         audio_data = await self._synthesize_with_edge(text)
+                    elif provider == "dashscope":
+                        audio_data = await self._synthesize_with_dashscope(text)
                     else:
                         audio_data = await self._synthesize_with_polymas(text)
 
@@ -430,6 +514,8 @@ class TTSEngine:
                 except Exception as error:
                     last_error = error
                     self._log_tts_error(provider, attempt, error)
+                    if isinstance(error, ImportError):
+                        break
 
         raise RuntimeError(f"TTS 全部失败 providers={providers}") from last_error
 
@@ -463,6 +549,9 @@ class TrainingClient:
         # WebSocket 发送互斥锁：避免音频帧与控制消息（nextStep/heartBeat 等）交错发送
         self._ws_send_lock = asyncio.Lock()
 
+        self.session_started = asyncio.Event()
+        self.startup_timeout = float(os.getenv("STARTUP_TIMEOUT", "30"))
+        self.last_received_event = None
         self.session_id = None
         self.step_id = None
         self.step_name = None
@@ -1010,6 +1099,7 @@ class TrainingClient:
                 "**优先级2**: 对话记录无匹配时，优先依据知识库作答，不要编造不存在的信息",
                 "**优先级3**: 若前两者都不足，再结合学生档位特征回答；封闭式问题保持简短直接",
                 "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在30字以内。",
+                "**禁止**: 不要输出跳转词或平台指令，例如 TASK_COMPLETE、NEXT_TO_*。结束时只说 I'm done 或 I have no more questions.",
                 ""
             ])
 
@@ -1025,7 +1115,7 @@ class TrainingClient:
             answer = self._call_doubao_post(messages, temperature=0.7, max_tokens=200)
 
             if answer:
-                return answer
+                return self._sanitize_student_answer(answer)
             else:
                 # 回退到简单回答
                 return "ok, i understand."
@@ -1033,6 +1123,13 @@ class TrainingClient:
         except Exception as e:
             log.error(f"❌ 生成回答失败: {str(e)}")
             return "ok, i understand."
+
+    def _sanitize_student_answer(self, answer: str) -> str:
+        text = (answer or "").strip().strip("`\"'")
+        if re.fullmatch(r"(NEXT_TO_[A-Z0-9_]+|TASK_COMPLETE)", text, re.I):
+            log.warning("⚠️ 学生回答是跳转词，已改成口语结束语: %s", text)
+            return "I'm done."
+        return text
 
     async def speak(self, text: str) -> bool:
         self.last_sent_text = text  # 记录发送内容，用于重试
@@ -1093,6 +1190,7 @@ class TrainingClient:
         try:
             data = json.loads(message)
             event = data.get("event")
+            self.last_received_event = event
             payload = data.get("payload", {})
 
             activity_phases = {
@@ -1118,7 +1216,10 @@ class TrainingClient:
                 log.info(f"📱 会话: {self.session_id}")
                 log.info(f"📍 步骤: {self.step_name} ({self.step_id})")
                 self.step_just_started = True  # 标记新步骤开始
+                if not self.session_id or not self.step_id:
+                    raise RuntimeError("connected 缺少 sessionId 或 stepId")
                 await self.start_script()
+                self.session_started.set()
                 
             elif event == "botAnswerStart":
                 # botAnswerEnd 在当前协议里可能缺失；若上一段 Bot 文本流仍未收束，
@@ -1148,6 +1249,8 @@ class TrainingClient:
                 self.last_bot_activity_at = time.monotonic()
                 
             elif event == "botAnswerEnd":
+                if not self.current_bot_msg:
+                    self.current_bot_msg = payload.get("msg") or ""
                 self._finalize_bot_answer(
                     reason="botAnswerEnd",
                     mark_response_complete=True,
@@ -1266,14 +1369,8 @@ class TrainingClient:
                 self._request_stop_audio_sending("taskEnd")
                 
             elif event == "error":
-                log.error(f"❌ 错误: {payload}")
-                # 出错时尽量解锁等待状态，避免永远卡在 bot_speaking
-                self.bot_speaking = False
-                self.waiting_response = False
-                self.response_phase = "idle"
-                self.bot_answer_started_at = None
-                self.last_bot_activity_at = time.monotonic()
-                
+                raise RuntimeError(f"平台返回 error，code={payload.get('code', '未知')}")
+
         except json.JSONDecodeError:
             pass
     
@@ -1281,8 +1378,18 @@ class TrainingClient:
         try:
             async for message in self.ws:
                 await self.handle_message(message)
-        except websockets.ConnectionClosed:
+                if self.task_completed:
+                    return
+        except websockets.ConnectionClosed as exc:
+            if not self.task_completed:
+                raise RuntimeError(f"平台连接关闭 ({exc})，最后事件={self.last_received_event}") from exc
+        finally:
             self.is_connected = False
+        if not self.task_completed:
+            raise RuntimeError(
+                f"平台连接关闭 code={self.ws.close_code} reason={self.ws.close_reason!r}，"
+                f"最后事件={self.last_received_event}"
+            )
 
     async def _send_next_step_safely(self, step_id: str):
         """
@@ -1402,6 +1509,28 @@ class TrainingClient:
                 except (websockets.ConnectionClosed, OSError, RuntimeError) as err:
                     log.warning(f"⚠️ 心跳发送失败: {err}")
 
+    async def wait_until_ready(self, require_question):
+        try:
+            await asyncio.wait_for(self.session_started.wait(), self.startup_timeout)
+        except asyncio.TimeoutError as exc:
+            raise RuntimeError(
+                f"等待 connected / startScript 超时，最后事件={self.last_received_event}"
+            ) from exc
+
+        if not require_question:
+            return
+        deadline = time.monotonic() + self.bot_total_timeout
+        while not self.task_completed:
+            if self.current_bot_msg and not self.bot_speaking:
+                return
+            now = time.monotonic()
+            if self.current_bot_msg and self.last_bot_activity_at and now - self.last_bot_activity_at >= self.bot_idle_timeout:
+                self._finalize_bot_answer("开场文本空闲超时", True, False)
+                return
+            if now >= deadline:
+                raise RuntimeError(f"已发送 startScript，等待老师提问超时，最后事件={self.last_received_event}")
+            await asyncio.sleep(0.1)
+
     async def semi_interactive_mode(self):
         """
         半交互模式：
@@ -1422,76 +1551,32 @@ class TrainingClient:
 
         while self.is_connected and not self.task_completed:
             try:
-                if self.auto_continue:
-                    # 全自动模式：直接生成AI回答
-                    print("\n🤖 [全自动模式] 正在生成AI回答...")
-                    await asyncio.sleep(1)  # 稍等一下让用户看到 Bot 消息
-
-                    # 生成 AI 回答
-                    ai_answer = self.generate_ai_answer(self.current_bot_msg)
-                    print(f"🤖 AI: {ai_answer}")
-
-                    # 保存对话历史
-                    self._append_conversation_history(self.current_bot_msg, ai_answer)
-
-                    speak_ok = await self.speak(ai_answer)
-                else:
-                    # 半交互模式：等待用户输入
-                    print("\n" + "-" * 60)
-                    print("💬 请输入回答:")
-                    print("   [回车] AI 生成 | [输入文字] 手动 | [continue] 全自动 | [quit] 退出")
-                    print("-" * 60)
-
-                    user_input = await asyncio.get_event_loop().run_in_executor(
-                        None, input, ">> "
-                    )
-
-                    user_input = user_input.strip()
-
-                    if user_input.lower() == 'quit':
+                user_input = ""
+                if not self.auto_continue:
+                    user_input = (await read_answer(">> ")).strip()
+                    if user_input.lower() == "quit":
                         print("👋 用户主动退出")
                         break
-
-                    if user_input.lower() == 'continue':
-                        print("\n🚀 切换到全自动模式...")
+                    if user_input.lower() == "continue":
                         self.auto_continue = True
-                        # 本轮也自动回答
-                        ai_answer = self.generate_ai_answer(self.current_bot_msg)
-                        print(f"🤖 AI: {ai_answer}")
+                        user_input = ""
+                        print("🚀 切换到全自动模式")
 
-                        # 保存对话历史
-                        self._append_conversation_history(self.current_bot_msg, ai_answer)
-
-                        speak_ok = await self.speak(ai_answer)
-                    elif user_input == "":
-                        # 回车：使用 AI 生成
-                        print("\n🤖 正在生成AI回答...")
-                        ai_answer = self.generate_ai_answer(self.current_bot_msg)
-                        print(f"🤖 AI: {ai_answer}")
-
-                        # 保存对话历史
-                        self._append_conversation_history(self.current_bot_msg, ai_answer)
-
-                        speak_ok = await self.speak(ai_answer)
-                    else:
-                        # 用户手动输入
-                        print(f"\n👤 用户: {user_input}")
-
-                        # 保存对话历史
-                        self._append_conversation_history(self.current_bot_msg, user_input)
-
-                        speak_ok = await self.speak(user_input)
-
-                if not speak_ok:
-                    log.warning("⚠️ 本轮 TTS 失败，跳过并继续下一轮")
+                await self.wait_until_ready(require_question=not user_input)
+                if self.task_completed:
+                    break
+                question = self.current_bot_msg
+                answer = user_input or await asyncio.to_thread(self.generate_ai_answer, question)
+                print(f"👤 学生: {answer}")
+                if not await self.speak(answer):
+                    if self.auto_continue:
+                        raise RuntimeError("自动模式音频发送失败，已停止")
                     continue
-
-                # 等待响应（支持超时重试）
-                success = await self.wait_for_response_with_retry(self.last_sent_text)
-                if not success:
-                    log.warning("⚠️ 服务器持续无响应，继续下一轮...")
-
+                self._append_conversation_history(question, answer)
+                if not await self.wait_for_response_with_retry(self.last_sent_text) and self.auto_continue:
+                    raise RuntimeError("自动模式等待响应失败，已用尽本轮重试")
             except EOFError:
+                log.info("标准输入已结束，本地退出交互模式")
                 break
 
         if self.task_completed:
@@ -1507,14 +1592,15 @@ class TrainingClient:
         
         while self.is_connected and not self.task_completed:
             try:
-                user_input = await asyncio.get_event_loop().run_in_executor(
-                    None, input, "💬 输入: "
-                )
+                user_input = await read_answer("💬 输入: ")
                 
                 if user_input.lower() == 'quit':
                     break
                 
                 if user_input.strip():
+                    await self.wait_until_ready(require_question=False)
+                    if self.task_completed:
+                        break
                     speak_ok = await self.speak(user_input)
                     if not speak_ok:
                         log.warning("⚠️ 本轮 TTS 失败，跳过并继续下一轮")
@@ -1526,6 +1612,7 @@ class TrainingClient:
                         log.warning("⚠️ 服务器持续无响应，继续下一轮...")
                     
             except EOFError:
+                log.info("标准输入已结束，本地退出交互模式")
                 break
         
         if self.task_completed:
@@ -1544,34 +1631,92 @@ class TrainingClient:
         listen_task = asyncio.create_task(self.listen_loop())
         heartbeat_task = asyncio.create_task(self.heartbeat_loop())
 
+        self.auto_continue = mode == "auto"
+        dialogue = self.interactive_mode() if mode == "manual" else self.semi_interactive_mode()
+        dialogue_task = asyncio.create_task(dialogue)
         try:
-            if mode == 'manual':
-                await self.interactive_mode()
-            else:
-                await self.semi_interactive_mode()
-        except KeyboardInterrupt:
-            pass
+            done, _ = await asyncio.wait(
+                (listen_task, dialogue_task), return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in done:
+                task.result()
         finally:
-            listen_task.cancel()
-            heartbeat_task.cancel()
-            await asyncio.gather(listen_task, heartbeat_task, return_exceptions=True)
+            tasks = [listen_task, heartbeat_task, dialogue_task]
+            if self._next_step_task:
+                tasks.append(self._next_step_task)
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
             await self.disconnect()
 
 
+async def read_answer(prompt):
+    """stdin 可能是阻塞的 TTY 或管道，平台断连后主程序仍能退出。"""
+    loop = asyncio.get_running_loop()
+    done = loop.create_future()
+
+    def finish(value, error):
+        if not done.done():
+            if error is None:
+                done.set_result(value)
+            else:
+                done.set_exception(error)
+
+    def read():
+        try:
+            value, error = input(prompt), None
+        except Exception as exc:
+            value, error = None, exc
+        try:
+            loop.call_soon_threadsafe(finish, value, error)
+        except RuntimeError:
+            pass  # 主程序已关闭事件循环
+
+    threading.Thread(target=read, daemon=True).start()
+    return await done
+
+
 async def main():
+    parser = argparse.ArgumentParser(description="口语能力训练平台测试工具")
+    parser.add_argument("--mode", choices=["auto", "semi", "manual"], help="直接选择运行模式，跳过启动问答")
+    parser.add_argument("--account", help="使用已保存的平台账号登录态")
+    parser.add_argument("--profile", choices=STUDENT_PROFILES, default="medium")
+    parser.add_argument("--task-id", default=CONFIG["task_id"])
+    args = parser.parse_args()
+    if not args.task_id:
+        parser.error("请指定 --task-id 或设置 TASK_ID")
+    CONFIG["task_id"] = args.task_id
     # 先获取用户信息
     print("\n" + "="*60)
     print("🎓 口语能力训练平台测试工具")
     print("="*60)
     print("\n正在获取用户信息...")
 
-    user_id, school_id = get_user_info()
+    headers = None
+    if args.account:
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", args.account):
+            parser.error("账号仅支持字母、数字、下划线或连字符")
+        helper = Path(__file__).resolve().parent / ".claude/skills/training-auto-login/scripts/auto_login.py"
+        result = subprocess.run(
+            [sys.executable, str(helper), "--export-headers", args.account],
+            capture_output=True, text=True, timeout=20,
+        )
+        if result.returncode:
+            sys.exit(f"无法读取账号 {args.account} 的登录态")
+        headers = json.loads(result.stdout)
+    user_id, school_id = get_user_info(headers)
     CONFIG["user_id"] = user_id
     CONFIG["school_id"] = school_id
 
     print(f"✅ 用户ID: {user_id}")
     print(f"✅ 学校ID: {school_id}")
     print(f"✅ 任务ID: {CONFIG['task_id']}")
+
+    if args.mode:
+        client = TrainingClient()
+        client.student_profile_key = args.profile
+        await client.run(mode=args.mode)
+        return
 
     print("\n流程:")
     print("  1. 用户发送音频")
@@ -1642,4 +1787,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except RuntimeError as exc:
+        sys.exit(f"训练中止：{exc}")

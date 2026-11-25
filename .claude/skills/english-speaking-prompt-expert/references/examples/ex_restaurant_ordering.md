@@ -7,7 +7,7 @@ A full stage configuration demonstrating the Roleplay template + structured cond
 ## Stage: Ordering at a Bistro
 
 **Virtual Trainer Name**: Mia
-**Model**: Doubao-Seed-1.6
+**Model**: doubao-seed-2.0-pro
 **Stage Description**: The student practices ordering food in English at a small bistro. The waiter answers questions about the menu and takes the order.
 **Interaction Rounds**: 6–10
 

@@ -1,0 +1,180 @@
+{
+  "saved": [
+    {
+      "title": "海南医科大学-医学影像学（英文版）｜肺结核实训返修（10月21日）",
+      "action": "新增",
+      "title_verified": true,
+      "description_verified": true,
+      "deadline_field": "2026-10-21",
+      "deadline_verified": true,
+      "reminder": "当天18:00，为应用提醒，不是业务截止钟点",
+      "notes": "保留已完成原训练，本条为返修；说明中的同向归档路径尚未验证，实际制作项目在海南医科大学-VMedical/能力实训-肺结核"
+    },
+    {
+      "title": "贵州大学-大学生心理健康｜第七章作业批阅（10月26日）",
+      "action": "新增",
+      "title_verified": true,
+      "description_verified": true,
+      "deadline_field": "2026-10-26",
+      "deadline_verified": true,
+      "notes": "2026-10-21 latest list readback: deadline 2026-10-26 Monday; manually set by user and now verified."
+    },
+    {
+      "title": "流体力学-学校待确认｜AI微课小样（10月21—23日）",
+      "action": "新增",
+      "title_verified": true,
+      "description_verified": true,
+      "deadline_field": null,
+      "notes": "范围日期不设单日；学校待需求表核对。已记录算法Skill包10月21日16:52发送。"
+    },
+    {
+      "title": "大学英语六级阅读选词填空-学校待确认｜AI微课小样（10月27或28日）",
+      "action": "新增",
+      "title_verified": true,
+      "description_verified": true,
+      "deadline_field": null,
+      "notes": "备选日期不设单日；学校待需求表核对。已记录Skill包已发送，运行尚未核验。"
+    },
+    {
+      "title": "中南财经大学（校名待核对）-微观经济学｜专家新闻关联优化（10月22日）",
+      "action": "created",
+      "title_verified": true,
+      "description_verified": true,
+      "planned_date": "2026-10-22",
+      "deadline_field": null,
+      "deadline_verified": false,
+      "qualifier": "Date saved in title and description as an optimization attempt milestone. Date picker could not be accurately controlled; no incorrect default date saved. Formal school name remains unverified."
+    },
+    {
+      "title": "学校课程待确认｜5个能力训练验收（下周，10月26日—11月1日）",
+      "action": "created",
+      "title_verified": true,
+      "description_verified": true,
+      "deadline_field": null,
+      "date_range": [
+        "2026-10-26",
+        "2026-11-01"
+      ],
+      "qualifier": "Only next-week range agreed; no single-day deadline invented. School, course, task list and acceptance materials pending."
+    }
+  ],
+  "deadline_fields_verified": [
+    {
+      "title": "海南医科大学-医学影像学（英文版）｜肺结核实训返修",
+      "date": "2026-10-21"
+    },
+    {
+      "title": "西南交通大学-AI 空间信息系统与时空大数据",
+      "date": "2026-11-05",
+      "action": "保留用户原日期"
+    },
+    {
+      "title": "贵州大学-大学生心理健康｜第七章作业批阅",
+      "date": "2026-10-26",
+      "evidence": "Latest native WeCom list readback"
+    }
+  ],
+  "current_list_readback_succeeded": true,
+  "blocker": "New two tasks saved and reopened. Microeconomics 2026-10-22 is saved in title and description; actual date field still unset due to date-picker positioning failure. Five-training task has range only.",
+  "previous_attempt": {
+    "saved": [],
+    "deadline_fields_verified": [],
+    "current_list_readback_succeeded": false,
+    "blocker": "用户解锁并手动打开待办后，原生工具持续ScreenCaptureKit -3812；重置会话仍失败。本轮没有成功新增、修改或完成待办。"
+  },
+  "checked_on": "2026-10-21",
+  "list_count_before": 15,
+  "list_count_after_verified": 21,
+  "updated_saved": [
+    {
+      "title": "西南交通大学-AI 空间信息系统与时空大数据 ｜ 11月5日",
+      "description_verified": true,
+      "original_deadline": "2026-11-05",
+      "deadline_verified": true,
+      "notes": "增加10月28日前首版review节点，保留11月5日截止与当天18:00及2天前9:00提醒。"
+    },
+    {
+      "title": "湖南中医药大学-冠心病的中西医结合诊疗｜修改意见2（10月23日优先，备选27日）",
+      "description_verified": true,
+      "deadline_field": null,
+      "notes": "已存在，补全原本空描述；保留23日优先、27日备选条件。"
+    },
+    {
+      "title": "南通大学-中学英语教学设计｜模拟授课视频批阅（本周）",
+      "description_verified": true,
+      "notes": "追加10月21日15:32交付测试PDF及周文文收讫回执；保留未完成状态。"
+    },
+    {
+      "title": "贵州大学大学生心理健康2-5章前测调整",
+      "description_verified": true,
+      "original_deadline": "2026-09-24",
+      "notes": "已重新打开确认第五章10月20日交付回执，保留整项未完成状态及原截止。"
+    }
+  ],
+  "existing_completed_verified": [
+    "南通大学-中学英语教学设计｜4个场景训练",
+    "合肥工业大学-数字逻辑电路｜第4章作业批阅",
+    "专家需求评估｜学术检索、外部API及PPT翻译转LaTeX",
+    "云南艺术学院-文化与旅游创意写作｜PPT作业批阅",
+    "云南艺术学院-文化与旅游创意写作｜两个能力训练",
+    "医学影像学（英文版）-海南医科大学｜肺结核能力训练"
+  ],
+  "pending": [
+    {
+      "title": "流体力学及英语六级阅读微课",
+      "action": "学校映射仍待需求表核对，不宣称学校已确认"
+    },
+    {
+      "title": "生命与急救教育、方剂学及劳动教育",
+      "action": "历史明确DDL字段仍未在本轮补设核验"
+    },
+    {
+      "title": "中南财经大学（校名待核对）-微观经济学｜专家新闻关联优化（10月22日）",
+      "action": "Set actual deadline field to 2026-10-22; title and description are already verified."
+    }
+  ],
+  "no_cli_used": true,
+  "no_messages_sent": true,
+  "user_completion_states_preserved": true,
+  "guizhou_deadline_followup": {
+    "date": "2026-10-21",
+    "user_report": "已设好2026年10月26日",
+    "live_readback": "列表未显示截止行；重新打开第七章详情及截图均显示“截止时间 设置截止时间”",
+    "verified": true,
+    "conclusion": "Latest list readback confirms deadline 2026-10-26; previous observation was not yet synchronized.",
+    "last_attempt": "打开日历后尝试选择26日未成功，未确认错误日期；返回详情仍无截止字段。"
+  },
+  "latest_followup": {
+    "checked_on": "2026-10-21",
+    "list_before": 19,
+    "list_after": 21,
+    "new_saved": [
+      {
+        "title": "中南财经大学（校名待核对）-微观经济学｜专家新闻关联优化（10月22日）",
+        "action": "created",
+        "title_verified": true,
+        "description_verified": true,
+        "planned_date": "2026-10-22",
+        "deadline_field": null,
+        "deadline_verified": false,
+        "qualifier": "Date saved in title and description as an optimization attempt milestone. Date picker could not be accurately controlled; no incorrect default date saved. Formal school name remains unverified."
+      },
+      {
+        "title": "学校课程待确认｜5个能力训练验收（下周，10月26日—11月1日）",
+        "action": "created",
+        "title_verified": true,
+        "description_verified": true,
+        "deadline_field": null,
+        "date_range": [
+          "2026-10-26",
+          "2026-11-01"
+        ],
+        "qualifier": "Only next-week range agreed; no single-day deadline invented. School, course, task list and acceptance materials pending."
+      }
+    ],
+    "no_cli_used": true,
+    "no_messages_sent": true,
+    "participants_not_added": true,
+    "both_reopened_and_verified": true
+  }
+}

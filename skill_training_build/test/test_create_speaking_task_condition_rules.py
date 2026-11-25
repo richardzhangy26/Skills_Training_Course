@@ -22,6 +22,104 @@ BOOK2_UNIT1_SCRIPT_PATH = (
 )
 
 
+def test_oral_step_api_helpers_send_native_oral_subtype(monkeypatch) -> None:
+    captured_payloads = []
+
+    class DummyResponse:
+        def json(self):
+            return {"code": 200, "success": True, "data": []}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured_payloads.append({"url": url, "json": json})
+        return DummyResponse()
+
+    monkeypatch.setattr(csm.requests, "post", fake_post)
+    monkeypatch.setattr(csm, "get_headers", lambda: {"Authorization": "token"})
+
+    assert csm.create_script_step(
+        "task-1",
+        {"stepName": "Oral Stage"},
+        {"x": 100, "y": 200},
+        train_sub_type="oral",
+        course_id="course-1",
+        library_id="library-1",
+    )
+    assert csm.query_script_steps("task-1", train_sub_type="oral") == []
+    start_id, end_id = csm.create_start_end_nodes(
+        "task-1",
+        "course-1",
+        train_sub_type="oral",
+        library_id="library-1",
+    )
+
+    assert start_id and end_id
+    assert captured_payloads[0]["json"]["stepDetailDTO"]["trainSubType"] == "oral"
+    assert captured_payloads[0]["json"]["courseId"] == "course-1"
+    assert captured_payloads[0]["json"]["libraryFolderId"] == "library-1"
+    assert captured_payloads[0]["json"]["stepDetailDTO"]["agentId"] == "TgbLpKo08D"
+    assert captured_payloads[0]["json"]["stepDetailDTO"]["avatarNid"] == "6ikwydCEOp"
+    assert captured_payloads[0]["json"]["stepDetailDTO"]["agentVoiceId"] == (
+        "en_female_sarah_new_conversation_wvae_bigtts"
+    )
+    assert captured_payloads[0]["json"]["stepDetailDTO"]["customDigitalHuman"] == "3cNI5DCVT3"
+    assert captured_payloads[0]["json"]["stepDetailDTO"]["customDigitalHumanSpeechRate"] == 1
+    assert captured_payloads[1]["json"] == {
+        "trainTaskId": "task-1",
+        "trainSubType": "oral",
+    }
+    assert captured_payloads[2]["json"]["stepDetailDTO"]["trainSubType"] == "oral"
+    assert captured_payloads[3]["json"]["stepDetailDTO"]["trainSubType"] == "oral"
+    assert captured_payloads[2]["json"]["libraryFolderId"] == "library-1"
+    assert captured_payloads[3]["json"]["libraryFolderId"] == "library-1"
+
+
+def test_parse_markdown_supports_oral_digital_human_fields(tmp_path: Path) -> None:
+    markdown_path = tmp_path / "oral.md"
+    markdown_path.write_text(
+        "\n".join(
+            [
+                "### 阶段1: Roleplay",
+                "**声音**: TgbLpKo08D",
+                "**形象**: 6ikwydCEOp",
+                "**数字人音色**: en_female_sarah_new_conversation_wvae_bigtts",
+                "**数字人**: 3cNI5DCVT3",
+                "**数字人语速**: 1",
+                "**开场白**:",
+                "```",
+                "Hello.",
+                "```",
+                "**提示词**:",
+                "```",
+                "Speak English.",
+                "```",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    [step] = csm.parse_markdown(markdown_path)
+
+    assert step["agentId"] == "TgbLpKo08D"
+    assert step["avatarNid"] == "6ikwydCEOp"
+    assert step["agentVoiceId"] == "en_female_sarah_new_conversation_wvae_bigtts"
+    assert step["customDigitalHuman"] == "3cNI5DCVT3"
+    assert step["customDigitalHumanSpeechRate"] == 1
+
+
+def test_resolve_oral_digital_human_ignores_azure_tts_agent_id() -> None:
+    resolved = csm.resolve_oral_digital_human(
+        {
+            "agentId": "en-US-GuyNeural",
+            "avatarNid": "",
+        }
+    )
+
+    assert resolved["agentId"] == "TgbLpKo08D"
+    assert resolved["avatarNid"] == "6ikwydCEOp"
+    assert resolved["customDigitalHuman"] == "3cNI5DCVT3"
+    assert csm.has_complete_oral_digital_human({"agentId": "en-US-GuyNeural"}) is False
+
+
 def test_parse_condition_rules_from_current_speaking_script() -> None:
     steps = csm.parse_markdown(SCRIPT_PATH)
 

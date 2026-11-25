@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-26",
+  "source": "秦俪珊私聊10:08至10:26及后续",
+  "tasks": [
+    {
+      "title": "宁波大学-大学生的AI营养师｜专家智能体搭建（10月27日）",
+      "quantity": 1,
+      "type": "expert",
+      "deadline": "2026-10-27",
+      "saved": true,
+      "reopened_verified": true,
+      "deadline_field_set": true,
+      "deadline_field_reopened_verified": false,
+      "deadline_field_value": "2026-10-27",
+      "deadline_field_source": "user_confirmed_manual_setting"
+    },
+    {
+      "title": "宁波大学-大学生的AI营养师｜7个能力训练配置（10月27日）",
+      "quantity": 7,
+      "type": "ability_training",
+      "deadline": "2026-10-27",
+      "saved": true,
+      "reopened_verified": true,
+      "deadline_field_set": true,
+      "deadline_field_reopened_verified": false,
+      "deadline_field_value": "2026-10-27",
+      "deadline_field_source": "user_confirmed_manual_setting"
+    },
+    {
+      "title": "北大医学部-智能体场景化训练案例｜4个能力训练（已收2份材料，本周）",
+      "quantity": 4,
+      "type": "ability_training",
+      "deadline": null,
+      "deadline_range": [
+        "2026-10-26",
+        "2026-11-01"
+      ],
+      "saved": true,
+      "reopened_verified": true,
+      "total_quantity_in_requirement_sheet": 4,
+      "additional_materials_pending": 2,
+      "received_material_count": 2,
+      "deadline_field_set": false,
+      "no_specific_day": true
+    },
+    {
+      "title": "山东第一医科大学-外科护理学｜角色扮演Word与视频作业批阅（本周）",
+      "quantity": 1,
+      "type": "homework_review",
+      "deadline": null,
+      "deadline_range": [
+        "2026-10-26",
+        "2026-11-01"
+      ],
+      "saved": true,
+      "reopened_verified": true,
+      "rar_downloaded": false,
+      "wmv_sample_downloaded": false,
+      "deadline_field_set": false,
+      "no_specific_day": true
+    }
+  ],
+  "new_original_files_archived": 11,
+  "all_copies_hash_verified": true,
+  "messages_sent": false,
+  "platform_implementation": false,
+  "pending": [
+    "三条10月27日截止字段工具回读：用户已确认手动设好，工具独立读取仍失败"
+  ],
+  "last_verified_unfinished": 20
+}

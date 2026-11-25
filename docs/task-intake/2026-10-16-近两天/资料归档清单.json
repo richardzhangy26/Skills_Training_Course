@@ -1,0 +1,40 @@
+{
+  "files": [
+    {
+      "role": "10月16日秦俪珊分派：数据库3个能力训练",
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/fab1b4c8cba8ee822d14f6b5ba0d026b/《数据库原理与应用》能力训练参考docx.docx",
+      "archive": "skills_training_course/数据库原理与应用-广州软件学院/原始资料/《数据库原理与应用》能力训练参考docx.docx",
+      "bytes": 27247,
+      "sha256": "4e3af65c84e77184123d70fa1cd62b8c19f1f8047ba9ffe07c388185638cd95d"
+    },
+    {
+      "role": "10月15日秦俪珊分派；当天已交付",
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/27dddcd7648c2e2c5035e972be49c8d1/被遗忘的琉球实训文档.docx",
+      "archive": "skills_training_course/人工智能+广播电视编导-福建师范大学/原始资料/被遗忘的琉球实训文档.docx",
+      "bytes": 17554,
+      "sha256": "65b78fb2828378db66c435ef3127a4aac860e77c20baf8f0adcfc12dc4013c52"
+    },
+    {
+      "role": "已发付庆玲的对话日志，本次未重跑测试",
+      "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/a54b41310f2ae5da67d0da59dd4262ab/福建师范大学-被遗忘的琉球好学生_dialogue.txt",
+      "archive": "skills_training_course/人工智能+广播电视编导-福建师范大学/交付记录/福建师范大学-被遗忘的琉球好学生_dialogue.txt",
+      "bytes": 32137,
+      "sha256": "dd744f7fa35dedaf9a5f16c6c4d54b3a5850d288acad3e6d625a61c040c6668e"
+    },
+    {
+      "role": "复用既有制作项目的教师原件",
+      "source": "/Users/zhangyichi/工作/能力训练/skills_training_course/枣庄职业技术学院-生命与急救教育/生命与急救（一）.docx",
+      "archive": "skills_training_course/生命与急救教育-枣庄职业技术学院/原始资料/生命与急救（一）.docx",
+      "bytes": 24317,
+      "sha256": "86e1e30c4fddd1f9f17d965a24011b604c8774bd6c248ec235e9128863f1956d"
+    },
+    {
+      "role": "用户提供的需求表截图；数据库课程学校与负责人对应依据，非本次实时表格回读",
+      "source": "/var/folders/hc/tpdqd5491lg12k6sdb5ndwcr0000gn/T/codex-clipboard-3bff9f41-26f5-4584-b773-95b7a7e8c3be.png",
+      "archive": "docs/task-intake/2026-10-16-近两天/需求表_用户提供截图.png",
+      "bytes": 487756,
+      "sha256": "34b48040cfc3edfb7bafe8c139b1a0470e4dd6930d56365737282f520a558081"
+    }
+  ],
+  "all_sha256_match": true
+}

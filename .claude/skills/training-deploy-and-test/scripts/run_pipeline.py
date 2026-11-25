@@ -180,12 +180,20 @@ def parse_base_configuration(markdown_path: Path) -> Tuple[str, str, str]:
     return task_name, description, background_image
 
 
+def env_write_disabled() -> bool:
+    """POLYMAS_NO_ENV_WRITE=1 时不回写 .env（并行 worker 用，避免互相覆盖）。"""
+    return os.environ.get("POLYMAS_NO_ENV_WRITE") == "1"
+
+
 def write_task_id_to_env(task_id: str, env_path: Path | None = None) -> Path:
     """Write TASK_ID to .env file and update current process environment."""
     if env_path is None:
         env_path = PROJECT_ROOT / ".env"
 
     env_path = Path(env_path)
+    if env_write_disabled():
+        os.environ["TASK_ID"] = task_id
+        return env_path
     task_line = f'TASK_ID="{task_id}"\n'
 
     if env_path.exists():
@@ -403,7 +411,10 @@ def step_create_task(
 
         # 4. Write TASK_ID to .env (already done by create_from_markdown, but ensure it's set)
         env_path = write_task_id_to_env(task_id)
-        print(f"\n📝 TASK_ID 已写入: {env_path}")
+        if env_write_disabled():
+            print("\n⏭  POLYMAS_NO_ENV_WRITE=1：未写入 .env，TASK_ID 仅在当前进程生效")
+        else:
+            print(f"\n📝 TASK_ID 已写入: {env_path}")
 
         return True, task_id
 
@@ -798,7 +809,8 @@ def run_pipeline(
             print(f"✅ 训练任务已成功创建！")
             print(f"   任务 ID: {task_id}")
             print(f"   任务名称: {parse_base_configuration(md_path)[0]}")
-            print(f"\n📝 TASK_ID 已写入 .env 文件")
+            if not env_write_disabled():
+                print(f"\n📝 TASK_ID 已写入 .env 文件")
             print("\n📋 后续可以使用以下命令进行部署：")
             print(f"   python run_pipeline.py '{md_path}' --task-id {task_id}")
             return True

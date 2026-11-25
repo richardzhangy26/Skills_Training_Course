@@ -1,0 +1,15 @@
+{
+  "name": "@local/dsh-llm-usage-normalizer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "把 LLM 网关返回的字符串型 token 计数归一化成整数，避免会话投影校验失败导致历史无法加载。",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

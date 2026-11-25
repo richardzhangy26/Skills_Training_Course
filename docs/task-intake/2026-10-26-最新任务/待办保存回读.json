@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-26",
+  "channel": "native_wecom_ui",
+  "initial_unfinished": 14,
+  "new_tasks": [
+    {
+      "title": "中山大学-AI+医学影像学｜模块一AI辅助读片专家Demo（10月26日）",
+      "saved": true,
+      "title_reopened_verified": true,
+      "description_reopened_verified": true,
+      "deadline": "2026-10-26",
+      "deadline_field_reopened_verified": true,
+      "default_reminder": "18:00",
+      "business_deadline_time": null
+    },
+    {
+      "title": "AI微课制作｜数字人视频美化与打字机动效优化（学校课程待确认）",
+      "saved": true,
+      "state": "saved_and_reopened",
+      "title_reopened_verified": true,
+      "description_reopened_verified": true,
+      "deadline": null,
+      "no_deadline_field_reopened_verified": true
+    }
+  ],
+  "existing_updates": [
+    {"course": "新疆警察学院-侦查讯问学", "saved": null, "state": "description_written_and_verified_in_editor_reopen_pending", "preserve_deadline": "2026-10-30", "deadline_seen_after_edit": true},
+    {"course": "华中科技大学-批判性思维", "saved": true, "description_reopened_verified": true, "deadline_field_reopened_verified": "2026-10-23", "do_not_mark_complete": true}
+  ],
+  "last_verified_unfinished": 16,
+  "blocker": "Final interrogation note reopen still pending: repeated ScreenCaptureKit -3812, screenshot unavailable or wrong application, window menu eventually listed only requirement sheet and no WeCom main window",
+  "no_messages_sent": true,
+  "no_cli_used_for_wecom": true
+}

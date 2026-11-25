@@ -1,0 +1,27 @@
+{
+  "日期": "2026-11-02",
+  "说明": "企业微信已下载原件的无覆盖归档；SHA-256比较源文件和归档副本。课程及学校待确认事项以任务记录为准。",
+  "文件": [
+    {
+      "原文件": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/1ddb65f8a50422110cf8d8ecaf1187d5/生化系凝胶过滤层析智能体wuV1.docx",
+      "归档文件": "/Users/zhangyichi/工作/能力训练/skills_training_course/北大医（校名待核对）-智能体场景化训练案例/原始资料/生化系凝胶过滤层析智能体wuV1.docx",
+      "大小字节": 42075,
+      "sha256": "0d571a7d73b326b918cc7ce938e2404ab1004e8c5de96c77ba5984fc829e2776",
+      "状态": "已复制"
+    },
+    {
+      "原文件": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/269ed54ffee7434dc2db98388f88a80f/环境卫生学专家智能体思路.docx",
+      "归档文件": "/Users/zhangyichi/工作/能力训练/polymas_v5/学校待确认-环境卫生学/原始资料/环境卫生学专家智能体思路.docx",
+      "大小字节": 42102,
+      "sha256": "31f6914e7ff9d8b626d2aab905a9a3315d98da0ffdfe37cb64feaf39593b1e30",
+      "状态": "已复制"
+    },
+    {
+      "原文件": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-11/3cafa848c3f7b09aa9c8a0bde287e392/生化系酶竞争性抑制智能体wuxinV1.docx",
+      "归档文件": "/Users/zhangyichi/工作/能力训练/skills_training_course/北大医（校名待核对）-智能体场景化训练案例/原始资料/生化系酶竞争性抑制智能体wuxinV1.docx",
+      "大小字节": 51116,
+      "sha256": "1f116fb9573e4cecc47376857030d4bc0000de33cb48bb587a4e6877e94dd618",
+      "状态": "已复制"
+    }
+  ]
+}

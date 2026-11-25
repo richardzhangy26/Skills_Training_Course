@@ -1,0 +1,3 @@
+- insert:
+    - id: llm-usage-normalizer
+      name: '@local/dsh-llm-usage-normalizer'

@@ -1,0 +1,218 @@
+{
+  "date": "2026-10-19",
+  "range_start": "2026-10-16",
+  "tasks": [
+    {
+      "key": "NANTONG-20261016",
+      "arranger": "秦俪珊",
+      "course": "中学英语教学设计",
+      "school": "南通大学",
+      "type": "能力训练",
+      "deadline": null,
+      "deadline_range": {
+        "start": "2026-10-19",
+        "end": "2026-10-25"
+      },
+      "deadline_evidence": "10月16日18:09“这个下周需要交付”",
+      "deliverables": [
+        "4个场景训练：说与语音、词汇与语法、综合读写、听力专项"
+      ],
+      "path": "skills_training_course/中学英语教学设计-南通大学",
+      "legacy_project": "skills_training_course/南通大学-中学英语教学设计",
+      "status": "原件归档；既有制作项目已存在，本次不重复搭建。完整上线与交付待核对。",
+      "todo_action": "先查重后新增或更新，具体日期未定不虚设日",
+      "todo_saved": true,
+      "todo_deadline_verified": false,
+      "todo_title": "中学英语教学设计-南通大学｜4个场景训练（本周交付）",
+      "todo_status": "创建后列表回读到标题，待办数10增至11；本周范围写备注，未虚设具体截止日期。"
+    },
+    {
+      "key": "TB-20261019",
+      "arranger": "秦俪珊",
+      "course": "医学影像学（英文版）",
+      "school": "海南医科大学",
+      "type": "能力训练",
+      "deadline": null,
+      "deadline_upper_bound": "2026-10-22",
+      "deadline_evidence": "10月19日13:08“这个是想要本周四前做完”；周四为10月22日，未明确是否含当日",
+      "deliverables": [
+        "肺结核影像问诊能力训练",
+        "向学生展示影像片和实验室检查结果"
+      ],
+      "path": "skills_training_course/医学影像学（英文版）-海南医科大学",
+      "status": "原ZIP、教师脚本、问诊资料说明、影片＋资料PPT已归档；未制作部署。课程英文版，但不能仅据课程名自行翻译脚本，需按正文与对接需求执行。",
+      "todo_action": "新增，注明周四前及对应日期界限",
+      "todo_saved": true,
+      "todo_deadline_verified": false,
+      "todo_title": "医学影像学（英文版）-海南医科大学｜肺结核能力训练（本周四前）",
+      "todo_status": "创建后列表回读到标题，待办数9增至10；备注已保存，截止字段尚未设置，保留原文周四前。"
+    },
+    {
+      "key": "OPT-20261019",
+      "arranger": "秦俪珊",
+      "course": "最优化方法",
+      "school": "浙江科技大学",
+      "type": "能力训练",
+      "deadline": null,
+      "deadline_range": {
+        "start": "2026-10-19",
+        "end": "2026-10-25"
+      },
+      "deadline_evidence": "10月19日13:33“本周哈”；另有“只做这个”引用，精确选中哪项需看引用附件/图片",
+      "deliverables": [
+        "依据示例集制作指定训练；原稿含4个案例，选中范围待核对"
+      ],
+      "path": "skills_training_course/浙江科技大学-最优化方法",
+      "status": "原件归档。未将文档4个案例全部视为授权制作数量。",
+      "todo_action": "新增并保留范围待确认标注",
+      "todo_saved": true,
+      "todo_deadline_verified": false,
+      "todo_status": "本轮已保存，列表11增至12，回读到已保存标题及备注。",
+      "todo_title": "浙江科技大学-最优化方法｜指定能力训练（本周，范围待核对）"
+    },
+    {
+      "key": "MICROVIDEO-TABLE-20261019",
+      "arranger": "秦俪珊",
+      "course": null,
+      "school": null,
+      "type": "工作汇总",
+      "deadline": "2026-10-19",
+      "deadline_evidence": "10月19日13:55“ai微课的那个你也建一张表吧”“模仿html的汇总表”“也是今天下班前发我下”",
+      "deliverables": [
+        "仿HTML汇总表建立AI微课视频汇总表",
+        "今天下班前发秦俪珊"
+      ],
+      "path": "docs/task-intake/2026-10-19-最新任务",
+      "status": "10月19日15:14现场回读已发送AI微课视频汇总卡片，秦俪珊回复okk；以新回执替代此前仅见草稿状态。",
+      "todo_action": "记录已交付，不再新建未完成待办",
+      "todo_saved": false,
+      "todo_deadline_verified": false,
+      "todo_status": "已交付，无需新增未完成待办。"
+    },
+    {
+      "key": "WRITING-REVIEW-20261019",
+      "arranger": "高巧欣（原分派秦俪珊）",
+      "course": "文化与旅游创意写作",
+      "school": "云南艺术学院",
+      "type": "作业批阅",
+      "deadline": "2026-10-21",
+      "deadline_evidence": "沿用10月14日下周三；本次无新DDL",
+      "path": "homework_review/文化与旅游创意写作-云南艺术学院",
+      "status": "10月19日10:18确认“仅ppt”。更新原待办，Word策划只作参考，不新增第二个Word批阅。",
+      "todo_action": "更新原待办范围",
+      "todo_saved": false,
+      "todo_deadline_verified": false,
+      "todo_status": "本地记录与归档完成，企业微信尚未保存本次更新/新增。"
+    },
+    {
+      "key": "WRITING-TRAIN-20261019",
+      "arranger": "高巧欣（原分派秦俪珊）",
+      "course": "文化与旅游创意写作",
+      "school": "云南艺术学院",
+      "type": "能力训练",
+      "deadline": "2026-10-21",
+      "path": "skills_training_course/文化与旅游创意写作-云南艺术学院",
+      "status": "10月19日13:49已发送文化与旅游创意写作-对话测试.zip，收到确认；本次只记录聊天交付，不重做平台验收。",
+      "todo_action": "更新原待办交付回执，保留原状态",
+      "todo_saved": false,
+      "todo_deadline_verified": false,
+      "todo_status": "本地记录与归档完成，企业微信尚未保存本次更新/新增。"
+    },
+    {
+      "key": "DB-20261019",
+      "arranger": "秦俪珊",
+      "contact": "何思韵",
+      "course": "数据库原理与应用",
+      "school": "广州软件学院",
+      "type": "能力训练",
+      "deadline": "2026-10-22",
+      "path": "skills_training_course/广州软件学院-数据库原理与应用",
+      "status": "10月19日11:27你告知三个能力训练完成并交付好学生测试ZIP，何思韵回复感谢。目录已由用户/其他任务更名为学校-课程，本次复用现路径，不重建旧路径。",
+      "todo_action": "更新原待办交付进度和当前资料路径；不代勾完成",
+      "todo_saved": false,
+      "todo_deadline_verified": false,
+      "todo_status": "本地记录与归档完成，企业微信尚未保存本次更新/新增。"
+    },
+    {
+      "key": "3D-CONSULT-20261019",
+      "arranger": "郭佳佳",
+      "course": null,
+      "school": null,
+      "type": "技术咨询",
+      "deadline": null,
+      "status": "仅咨询三维原始文件的结构/动态效果能否批阅，仍在问文件类型；未明确分派或提供资料。",
+      "todo_action": "只记录待澄清，不自动新建制作任务",
+      "todo_saved": false,
+      "todo_deadline_verified": false,
+      "todo_status": "本地记录与归档完成，企业微信尚未保存本次更新/新增。"
+    },
+    {
+      "key": "FANGJI-20261016",
+      "arranger": "王鑫雨",
+      "course": "方剂学",
+      "school": "山东中医药大学",
+      "type": "能力训练",
+      "deadline": "2026-10-21",
+      "deadline_evidence": "10月16日13:59你提议“下周三之前 可以”，对方同意；换算为10月21日前，未给具体时刻",
+      "path": "skills_training_course/山东中医药大学-方剂学",
+      "legacy_project": "skills_training_course/山东中医药大学-方剂学",
+      "mapping_evidence": "聊天称方剂学老课程；学校依本地既有课程目录匹配，尚未本次需求表现场复核。",
+      "status": "原始DOCX已归档并校验；未制作部署。",
+      "todo_action": "新增小儿积食训练待办，学校匹配依据写备注",
+      "todo_saved": false,
+      "todo_deadline_verified": false,
+      "todo_status": "标题已填入创建表单，备注窗口已打开；Mac锁屏，备注写入失败，尚未提交。恢复时先查重。",
+      "todo_title": "山东中医药大学-方剂学｜小儿积食实训（10月21日前）"
+    },
+    {
+      "key": "USED-CAR-20261016",
+      "arranger": "王鑫雨",
+      "course": "二手车评估鉴定作业工单",
+      "school": "安徽职业技术大学",
+      "type": "作业批阅部署跟进",
+      "deadline": null,
+      "deadline_evidence": "10月16日对方说先部署，时间你安排，好了告知；未给明确DDL。",
+      "path": "homework_review/安徽职业技术大学-二手车评估鉴定作业工单",
+      "mapping_evidence": "聊天“安徽那个二手车”与既有本地课程目录匹配，尚未本次需求表现场复核。",
+      "status": "聊天已获对接人同意推进；本次仅记录，不执行部署或发送消息。",
+      "todo_action": "新增部署跟进，沿用已有制作项目",
+      "todo_saved": false,
+      "todo_deadline_verified": false,
+      "todo_status": "本地记录与归档完成，企业微信尚未保存本次更新/新增。"
+    },
+    {
+      "key": "AVATAR-CONSULT-20261016",
+      "arranger": "张霖一",
+      "course": null,
+      "school": null,
+      "type": "技术咨询",
+      "deadline": null,
+      "status": "讨论2-3位老师照片与声音做数字人/微课，素材未收到，对方问是否需免责；未明确分派可执行制作事项。",
+      "todo_action": "记录待澄清，不擅自制作/克隆或新增确定DDL",
+      "todo_status": "本地记录与归档完成，企业微信尚未保存本次更新/新增。"
+    },
+    {
+      "key": "MICROVIDEO-DESCRIPTION-20261019",
+      "arranger": "李妍5",
+      "course": null,
+      "school": null,
+      "type": "工作文案",
+      "deadline": null,
+      "deadline_evidence": "10月19日17:37请求浓缩一句话描述AI微课视频；未给明确DDL。",
+      "status": "17:52之后聊天已出现你发出的AIGC与课程视频编排说明，并询问这个咋样；待对方反馈，不重复创建制作待办。",
+      "todo_action": "记录已提交文案与待反馈；不代发消息",
+      "todo_saved": false
+    }
+  ],
+  "coverage": "已读取7位联系人；赵欣兰、李妍5、谢东、李蓉、蔡晓凡、马双、刘晨昕的最新末尾尚未全部核对，不报告全量完成",
+  "people_checked": [
+    "秦俪珊",
+    "高巧欣",
+    "郭佳佳",
+    "朱子阳",
+    "何思韵",
+    "王鑫雨",
+    "张霖一"
+  ],
+  "continuation_status": "用户已解锁，窗口定位仍不稳定；待用户将待办主列表置前，方剂学草稿未提交。"
+}

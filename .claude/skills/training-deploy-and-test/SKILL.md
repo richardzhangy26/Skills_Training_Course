@@ -6,7 +6,17 @@ allowed-tools: Read, Bash, Write
 
 # 训练部署与自动测试 Pipeline
 
+## 能力训练统一配置
+
+生成、修改或导入配置前，读取[根目录统一规则](../../../AGENTS.md#能力训练模型与数字人统一规则)：模型统一为 `doubao-seed-2.0-pro`；默认组合平台已有形象、声音新建本任务数字人；仅在用户明确要求“新建一个数字人形象”或自定义形象时才自定义。生成阶段只选资源，实际创建在已授权导入阶段执行。
+
 端到端自动化：从训练剧本 Markdown 开始，自动创建训练任务 → 生成背景图 → 导入平台 → 双档位对话测试，一步完成。
+
+## 导入前检查与回读
+
+- 检查所有业务阶段、Pro 成员和剧本的模型字段，显式使用 `doubao-seed-2.0-pro`；不同接口的模型 ID 先核实映射，旧模型兜底不得直接执行。
+- 先从当前平台形象、声音接口选资源，再在已授权导入阶段创建本任务新数字人；检查执行器的同名/相同组合自动复用逻辑，先调整调用流程或实现后再绑定新 ID。
+- 创建响应及本任务记录用于跨阶段绑定与断点续跑；回读模型、数字人 ID、形象、声音和声音参数。创建或回读失败时报告实际状态，不改用历史数字人完成验收。
 
 ## 使用时机
 
@@ -39,7 +49,7 @@ allowed-tools: Read, Bash, Write
 ```
 MODEL_TYPE=doubao_post
 LLM_API_KEY=sk-xxx
-LLM_MODEL=Doubao-1.5-pro-32k
+LLM_MODEL=doubao-seed-2.0-pro
 LLM_API_URL=http://llm-service.polymas.com/api/openai/v1/chat/completions
 LLM_SERVICE_CODE=SI_Ability
 ```
@@ -48,7 +58,7 @@ LLM_SERVICE_CODE=SI_Ability
 ```
 MODEL_TYPE=doubao_sdk
 ARK_API_KEY=ak-xxx
-DOUBAO_MODEL=doubao-seed-1-6-251015
+DOUBAO_MODEL=doubao-seed-2.0-pro
 ```
 
 ### 封面图生成需要额外配置（用于创建新任务时）

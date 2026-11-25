@@ -599,6 +599,8 @@ def find_digital_human_owner(owner_list, *, identifier="", name="", voice_nid=""
             if avatar_nid and optional_str(owner.get('avatarNid')) != avatar_nid:
                 continue
             return owner
+        # A named role must not inherit a historical human that only shares voice and avatar.
+        return None
 
     if voice_nid and avatar_nid:
         for owner in owner_list:

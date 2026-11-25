@@ -11,6 +11,91 @@ from openai import OpenAI
 from typing import Optional, List, Dict
 from workflow_tester_base import WorkflowTesterBase
 
+# 默认 120 字；交传译文和复盘可通过环境变量或 is_consecutive_interp_turn 放宽。
+CHINESE_STUDENT_MAX_CHARS = int(os.getenv("STUDENT_MAX_CHARS", "120"))
+INTERP_STUDENT_MAX_CHARS = int(os.getenv("INTERP_STUDENT_MAX_CHARS", "500"))
+NURSING_HINT_MARKERS = ("心肌梗死", "急救护理", "查鼻腔", "急性广泛前壁")
+
+
+def is_consecutive_interp_turn(question: str) -> bool:
+    """当前 AI 话轮是否为汉英交传（中文段落后提示请翻译）。"""
+    q = question or ""
+    if "请翻译" in q:
+        return True
+    has_long_zh = re.search(r"[\u4e00-\u9fff]{12,}", q) is not None
+    return has_long_zh and ("我是讲解员" in q or "请翻译" in q)
+
+
+def has_score_table(question: str) -> bool:
+    """评估者是否已经输出【实训评分表】。开场「交传表现/打分」不算。"""
+    q = question or ""
+    if "实训评分表" in q:
+        return True
+    return "口译信息完整度" in q and "英文交流能力" in q
+
+
+def is_debrief_opening(question: str) -> bool:
+    """阶段四开场：即将打分，评分表尚未出现。"""
+    q = question or ""
+    if has_score_table(q):
+        return False
+    return any(
+        k in q
+        for k in ("对照五项", "给你打分", "做复盘", "请稍等", "我先对照")
+    )
+
+
+def is_debrief_turn(question: str) -> bool:
+    """评分表已出现后的复盘答疑。开场白不算，避免学生立刻说「完成」。"""
+    return has_score_table(question)
+
+
+def is_nursing_context(knowledge_base: str = "", question: str = "") -> bool:
+    blob = f"{knowledge_base or ''}\n{question or ''}"
+    return any(k in blob for k in NURSING_HINT_MARKERS)
+
+
+def build_chinese_student_output_rules(
+    question: str = "", knowledge_base: str = ""
+) -> List[str]:
+    """学生作答规则（写入发给学生模型的 user message）。"""
+    if is_consecutive_interp_turn(question):
+        return [
+            "**任务**: 你是现场口译员。智能体刚讲完一段中文并提示「请翻译」。",
+            "**优先级1**: 只输出该段的完整英文译文，不要中文、不要解释、不要说请翻译。",
+            "**优先级2**: 若参考知识库或示例中有对应参考译文，优先使用，必须保留数字、年代、地名、器物名。",
+            "**术语**: sacrificial pit; bronze mask; protruding eyes (zongmu); large bronze standing figure; bronze sacred tree; gold mask; late Shang dynasty; Ba-Shu culture; diversity in unity; cultural deposits; 3D scanning; digital reconstruction.",
+            f"**格式要求**: 仅返回英文译文，控制在{INTERP_STUDENT_MAX_CHARS}字以内。",
+        ]
+    if is_debrief_opening(question):
+        return [
+            "**任务**: 评估者刚宣布要打分，【实训评分表】还没出现。",
+            "**优先级1**: 只回复「我准备好了。」四个字即可。",
+            "**禁止**: 不要说「完成」、不要说「训练完成」、不要说「我没有其他问题了」，不要自我评分，不要长篇反思。",
+            "**格式要求**: 仅返回：我准备好了。",
+        ]
+    if is_debrief_turn(question):
+        return [
+            "**任务**: 你已经看到【实训评分表】。针对评分提问或给出改进计划。",
+            "**优先级1**: 若问及「多元一体」等译法，回答 diversity in unity。",
+            "**优先级2**: 确认看过评分表且没有其他问题后，最后再说「完成」。未见评分表时禁止说完成。",
+            f"**格式要求**: 仅返回学生回答，控制在{max(CHINESE_STUDENT_MAX_CHARS, 400)}字以内。",
+        ]
+    rules = [
+        "**优先级1**: 如果是封闭式问题（确认式/选择式/角色确认），直接简短回答",
+        "**优先级2**: 如果示例对话中有高度相关的回答，请按「对话历史」选用示例里的下一句，禁止反复套用第一句",
+        "**优先级3**: 如果智能体用英文介绍并邀请提问，用完整英文疑问句提问（三星堆/博物馆/讲解流程），不要重复已问过的问题。问够 3-5 个后说 I have no more questions.",
+        "**优先级4**: 如果是开放式问题，再适度融入学生档位特点",
+        "**禁止重复**: 不得原样重复上一轮学生回答。",
+        f"**格式要求**: 仅返回学生回答内容，不要额外解释，控制在{CHINESE_STUDENT_MAX_CHARS}字以内。阶段一、二必须用英文提问。",
+    ]
+    if is_nursing_context(knowledge_base, question):
+        rules.insert(
+            -1,
+            "**急救顺序**: 查鼻腔→给氧→擦汗/盖被/清洁皮肤→收手机去金属→心电图→告知急性广泛前壁心肌梗死→嚼碎服药喂水→垫巾抽血问胶带过敏→呼唤能听见吗→醒来后安抚",
+        )
+    return rules
+
 
 class DialogueEntry:
     """对话日志条目"""
@@ -749,22 +834,29 @@ class WorkflowTester(WorkflowTesterBase):
             "presence_penalty": 0.2
         }
 
-        try:
-            response = requests.post(
-                self.llm_api_url,
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
-            response.raise_for_status()
-            result = response.json()
-            return result["choices"][0]["message"]["content"].strip()
-        except requests.exceptions.RequestException as e:
-            print(f"❌ HTTP POST 调用失败: {str(e)}")
-            return None
-        except (KeyError, IndexError) as e:
-            print(f"❌ 解析响应失败: {str(e)}")
-            return None
+        last_error = None
+        for attempt in range(3):
+            timeout = 45 * (attempt + 1)
+            try:
+                response = requests.post(
+                    self.llm_api_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                result = response.json()
+                return result["choices"][0]["message"]["content"].strip()
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                print(f"❌ HTTP POST 调用失败 (第 {attempt + 1}/3 次, 超时 {timeout}秒): {e}")
+                if attempt < 2:
+                    time.sleep(2 * (attempt + 1))
+            except (KeyError, IndexError) as e:
+                print(f"❌ 解析响应失败: {e}")
+                return None
+        print(f"❌ HTTP POST 三次均失败: {last_error}")
+        return None
 
     def _retry_request(self, request_func, *args, **kwargs):
         """
@@ -942,7 +1034,69 @@ class WorkflowTester(WorkflowTesterBase):
 
         try:
             profile_info = self._get_student_profile_info()
-            is_english = profile_info.get("lang") == "en"
+            kb_text = getattr(self, "knowledge_base_content", "") or ""
+            force_interp = is_consecutive_interp_turn(question)
+            force_debrief_zh = is_debrief_opening(question) or is_debrief_turn(question)
+            is_english = (
+                profile_info.get("lang") == "en"
+                and not force_interp
+                and not force_debrief_zh
+            )
+
+            if force_interp or force_debrief_zh:
+                system_prompt = (
+                    "你是一名能力训练助手，需要严格按照给定的学生档位扮演角色。"
+                )
+                sections = [
+                    "## 角色设定",
+                    f"学生档位: {profile_info['label']}",
+                    f"角色特征: {profile_info['description']}",
+                    f"表达风格: {profile_info['style']}",
+                    "",
+                ]
+                if self.dialogue_samples_content:
+                    sections.extend([
+                        "## 档位示例对话 (如有匹配请优先引用或改写，优先级最高)",
+                        self.dialogue_samples_content,
+                        "",
+                    ])
+                if self.knowledge_base_content:
+                    sections.extend([
+                        "## 参考知识库 (可结合使用)",
+                        self.knowledge_base_content,
+                        "",
+                    ])
+                if self.conversation_history:
+                    sections.append("## 对话历史（按时间顺序）")
+                    for i, turn in enumerate(self.conversation_history, 1):
+                        sections.append(f"第{i}轮:")
+                        sections.append(f"  AI提问: {turn['ai']}")
+                        sections.append(f"  学生回答: {turn['student']}")
+                    sections.append("")
+                sections.extend([
+                    "## 当前问题",
+                    question,
+                    "",
+                    "## 输出要求（按优先级执行）",
+                    *build_chinese_student_output_rules(question, kb_text),
+                    "",
+                ])
+                user_message = "\n".join(sections)
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ]
+                if self.model_type == "doubao_post":
+                    print("🔄 使用 Doubao POST API 调用...")
+                    return self._call_doubao_post(messages, temperature=0.7, max_tokens=1000)
+                print("🔄 使用 Doubao OpenAI SDK 调用...")
+                response = self.doubao_client.chat.completions.create(
+                    model=self.doubao_model,
+                    messages=messages,
+                    temperature=0.7,
+                    top_p=0.9,
+                )
+                return response.choices[0].message.content
 
             if is_english:
                 system_prompt = (
@@ -1065,12 +1219,9 @@ class WorkflowTester(WorkflowTesterBase):
                     question,
                     "",
                     "## 输出要求（按优先级执行）",
-                    "**优先级1**: 如果是封闭式问题（确认式/选择式/角色确认），直接简短回答",
-                    "**优先级2**: 如果示例对话中有高度相关的回答，请优先引用或改写",
-                    "**优先级3**: 如果是开放式问题，再适度融入学生档位特点",
-                    "**格式要求**: 仅返回学生回答内容，不要额外解释，控制在50字以内。",
-                ""
-            ])
+                    *build_chinese_student_output_rules(question, kb_text),
+                    "",
+                ])
 
             user_message = "\n".join(sections)
 
@@ -1268,7 +1419,8 @@ class WorkflowTester(WorkflowTesterBase):
                     break
 
                 # 安全检查：防止无限循环
-                if round_num > 80:
+                max_rounds = int(os.getenv("MAX_DIALOGUE_ROUNDS", "80"))
+                if round_num > max_rounds:
                     print(f"\n⚠️  警告：已达到最大对话轮数（{round_num}轮），自动退出防止无限循环")
                     break
 

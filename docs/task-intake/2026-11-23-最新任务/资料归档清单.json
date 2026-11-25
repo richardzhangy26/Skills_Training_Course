@@ -1,0 +1,35 @@
+{
+  "日期": "2026-11-23",
+  "来源": "秦俪珊企业微信私聊 09:57",
+  "原包": "skills_training_course/学校待核-数字经济概论/原始资料/《数字经济概论》能力训练整合版.zip",
+  "字节": 159336,
+  "SHA256": "ef4fa700d9c6e9963ea855c77785f3ab8f84d1a52c656a02b35e8581cc65a63b",
+  "校验": "源副本一致，原包与5个Word文件CRC通过",
+  "成员": [
+    {
+      "路径": "skills_training_course/学校待核-数字经济概论/原始资料/整合版/能力训练一 - 企业数字化转型与产业数字化.docx",
+      "字节": 36004,
+      "SHA256": "a1cf2109416d4b444989aa77eb9babfed1a950c9c226ba0a2a3d81aa943636ca"
+    },
+    {
+      "路径": "skills_training_course/学校待核-数字经济概论/原始资料/整合版/能力训练三 - 平台经济、双边市场与流量治理.docx",
+      "字节": 35086,
+      "SHA256": "5b5406f5f95ebf4cd30aa241e37df3f07ef6807ea62dc4301c4ff6c4f4d7fbf1"
+    },
+    {
+      "路径": "skills_training_course/学校待核-数字经济概论/原始资料/整合版/能力训练二 - 农业产业数字化与区块链可信溯源.docx",
+      "字节": 35291,
+      "SHA256": "9edc84da1b23f41f905d2b0c9d69b0d3c5d135757cf05c3747adefae00da075f"
+    },
+    {
+      "路径": "skills_training_course/学校待核-数字经济概论/原始资料/整合版/能力训练五 - 数字劳动力市场、零工经济与不平等治理.docx",
+      "字节": 35368,
+      "SHA256": "c5f862c5816df58578ebda71feac01269c1bd7fbe1dce04bb1ba94f1f17a53f8"
+    },
+    {
+      "路径": "skills_training_course/学校待核-数字经济概论/原始资料/整合版/能力训练四 - 数据要素治理与平台反垄断合规.docx",
+      "字节": 34745,
+      "SHA256": "07e022cadd916271a0c8bd1ded1c70d7dd5ee7998d52a1b5efd148efbc7b7147"
+    }
+  ]
+}

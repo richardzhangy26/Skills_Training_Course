@@ -1,0 +1,109 @@
+{
+  "range": {
+    "start": "2026-10-15",
+    "end": "2026-10-16"
+  },
+  "people_checked": [
+    "秦俪珊",
+    "张霖一",
+    "蔡晓凡",
+    "马双",
+    "付庆玲",
+    "徐卓瑞",
+    "张心睿",
+    "高巧欣"
+  ],
+  "tasks": [
+    {
+      "key": "DB-20261016",
+      "arranger": "秦俪珊",
+      "contact": "何思韵",
+      "course": "数据库原理与应用",
+      "school": "广州软件学院",
+      "type": "能力训练",
+      "deliverables": [
+        "数据库基础与关系模型概念辨析",
+        "SQL查询逻辑与数据库设计原理辨析",
+        "数据库高级机制与安全备份综合辨析训练"
+      ],
+      "requirements": "3个纯理论/文字辨析任务，不要求SQL代码、E-R图片或运行截图；各训练原文满分100。",
+      "deadline": "2026-10-22",
+      "deadline_evidence": "10月16日10:03秦俪珊原文“这个的ddl是10.22”",
+      "mapping_evidence": "用户提供需求表截图：课程数据库原理与应用，学校广州软件学院，负责人张一弛，项目总负责人何思韵。",
+      "path": "skills_training_course/数据库原理与应用-广州软件学院",
+      "state": "教师原件已归档，未制作或部署",
+      "todo_action": "先查重，再新增1条含3个训练的待办",
+      "todo_saved": true,
+      "todo_deadline_verified": false,
+      "todo_description_verified": true,
+      "todo_title": "数据库原理与应用-广州软件学院｜3个能力训练（10月22日截止）",
+      "todo_status": "已创建并重新打开核对标题及完整备注；截止字段显示设置截止时间，10月22日尚待人工选择。"
+    },
+    {
+      "key": "LIFE-20261016",
+      "arranger": "张霖一",
+      "course": "生命与急救教育",
+      "school": "枣庄职业技术学院",
+      "type": "能力训练",
+      "deadline": "2026-10-16",
+      "deadline_evidence": "10月16日9:57催办，你回复“我今天下午完成”；具体时刻未给出",
+      "mapping_evidence": "既有本地课程制作项目skills_training_course/枣庄职业技术学院-生命与急救教育及原始Word。",
+      "path": "skills_training_course/生命与急救教育-枣庄职业技术学院",
+      "state": "新增催办与承诺，未见本次完成回执",
+      "todo_action": "更新已有“配置生命与急救剩余实训内容”，不重复新建",
+      "todo_saved": true,
+      "todo_deadline_verified": true,
+      "todo_description_verified": true,
+      "todo_actual_deadline": "2026-10-16",
+      "todo_title": "配置生命与急救剩余实训内容",
+      "todo_status": "原待办备注已更新，关闭后重新打开核对：今天下午完成、原件路径与截止字段10月16日均已保存。"
+    },
+    {
+      "key": "KO-20261016",
+      "arranger": "马双（原分派秦俪珊）",
+      "course": "韩国语言文化与社会",
+      "school": "北京语言大学",
+      "type": "口语训练调整",
+      "deadline": "2026-10-16",
+      "deadline_evidence": "10月15日17:48你承诺“我那个教材日常对话 明天再调整一下”，原待办也是10月16日",
+      "requirements": "任务引导可中文；口语训练形式；区分文字流程测试与真实韩语口语/ASR效果。",
+      "path": "skills_training_course/韩国语言文化与社会-北京语言大学",
+      "legacy_project": "skills_training_course/北京语言大学-韩国语言文化与社会",
+      "state": "10月16日本地双语修订独立发布验收passed=true；真实对话摘要前两段跳转、下阶段双语开场/回复通过。本次未重新调用平台或验证全程语音效果。",
+      "todo_action": "更新原“韩国语言文化与社会-两个能力训练”的进度和资料路径，保持原状态",
+      "todo_saved": true,
+      "todo_deadline_verified": true,
+      "todo_description_verified": true,
+      "todo_actual_deadline": "2026-10-16",
+      "todo_title": "韩国语言文化与社会-两个能力训练",
+      "todo_status": "原待办已追加本地双语修订与验收边界、资料路径；关闭后重新打开确认备注和截止字段10月16日。"
+    },
+    {
+      "key": "RYUKYU-20261015",
+      "arranger": "秦俪珊",
+      "contact": "付庆玲",
+      "course": "人工智能+广播电视编导",
+      "school": "福建师范大学",
+      "type": "能力训练",
+      "deadline": "2026-10-16",
+      "deadline_evidence": "10月15日15:41“这个是想明天要的”",
+      "requirements": "被遗忘的琉球实训；10月15日15:55补充阶段四链接https://openrheo.rheoos.com/",
+      "path": "skills_training_course/人工智能+广播电视编导-福建师范大学",
+      "legacy_project": "skills_training_course/福建师范大学-人工智能+广播电视编导",
+      "state": "10月15日17:52已向付庆玲交付好学生日志并说能力训练完成；18:23付庆玲致谢。不能据此称本轮重新平台验收通过。",
+      "todo_action": "只记录已交付，避免新建未完成待办"
+    },
+    {
+      "key": "GZU-CH6-20261015",
+      "arranger": "蔡晓凡",
+      "course": "大学生心理健康",
+      "school": "贵州大学",
+      "type": "作业批阅",
+      "deadline": null,
+      "deadline_evidence": "10月15日10:57原文“这个本周末前哈”，未给具体日",
+      "path": "homework_review/贵州大学-大学生心理健康",
+      "state": "10月16日9:42你回复“完成了 晓凡”；已有同名第六章8个任务待办的详情曾在界面出现，不重复新建，也不代用户勾选完成。",
+      "todo_action": "如找到原待办，仅补交付回执与周期原文"
+    }
+  ]
+}

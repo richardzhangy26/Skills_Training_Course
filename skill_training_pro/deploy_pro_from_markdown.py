@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 
 from skill_training_pro.create_xray_pro_stage_cards import (
     StageCard,
+    _parse_position,
     build_step_payload,
     build_task_edit_payload,
     parse_stage_cards,
@@ -289,7 +290,10 @@ def assign_stage_steps(
     }
     placeholders = sorted(
         (step for step in existing_steps if step.get("stepName") == "未命名阶段"),
-        key=lambda item: (int(item.get("positionY") or 0), str(item.get("nid") or "")),
+        key=lambda item: (
+            _parse_position(item.get("positionY"), 0),
+            str(item.get("nid") or ""),
+        ),
     )
     missing_stages = [stage for stage in stages if stage.name not in named]
     assignments: dict[str, Mapping[str, Any]] = {

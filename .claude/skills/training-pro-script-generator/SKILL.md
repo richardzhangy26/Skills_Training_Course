@@ -6,6 +6,10 @@ allowed-tools: Read, Grep, Glob, Write, Bash
 
 # Training Pro Script Generator
 
+## 能力训练统一配置
+
+生成、修改或导入配置前，读取[根目录统一规则](../../../AGENTS.md#能力训练模型与数字人统一规则)：模型统一为 `doubao-seed-2.0-pro`；默认组合平台已有形象、声音新建本任务数字人；仅在用户明确要求“新建一个数字人形象”或自定义形象时才自定义。生成阶段只选资源，实际创建在已授权导入阶段执行。
+
 ## 目标
 
 把教师提供的任务文档转成可被后续 Python 程序解析的“能力训练 Pro 配置 Markdown”。输出包含全局成员、人物提示词、数字人资源偏好、成员技能和阶段剧本，但不创建、更新、发布平台任务。
@@ -59,9 +63,10 @@ python3 .claude/skills/training-pro-script-generator/scripts/validate_pro_config
 ### 数字人资源
 
 - 固定声音必须同时输出 `声音名称`、`声音资源ID` 和对应 `声音参数`。
-- 固定声音、形象 ID 只能来自 `resource_catalog.json`。
+- `resource_catalog.json` 只提供声音、形象候选；导入时通过当前账号平台接口核实资源及声音参数，不能把目录快照当作当前可用证明。
 - 无合适候选时，资源 ID 写 `运行时解析`，但选择条件和形象描述仍必须具体。
-- `数字人组合ID` 始终写 `运行时解析`；不得复用其他账号或任务中的 `customDigitalHuman`。
+- 生成阶段的 `数字人组合ID` 始终写 `运行时解析`；导入阶段以所选平台形象、声音新建本任务数字人，再记录返回 ID。同名或相同组合也不默认复用历史数字人。
+- `形象描述` 默认用于匹配平台资源；只有用户明确要求“新建一个数字人形象”或自定义形象时，才作为自定义人物图片的制作需求。
 - 不输出 `roleNid`、`skillNid` 等平台生成 ID。
 - 默认不访问平台。只有用户明确要求实时核验并且环境已有凭证时，才能执行 reference 中的只读查询；绝不调用创建、编辑、删除或发布接口。
 
@@ -124,7 +129,7 @@ python3 .claude/skills/training-pro-script-generator/scripts/validate_pro_config
 - **角色名称**: 平台显示的角色名称
 - **角色描述**: 身份、专业背景和训练职责
 - **角色提示词**: 身份、职责、表达方式和行为边界组成的完整提示词
-- **模型**: Doubao-Seed-2.0-pro
+- **模型**: doubao-seed-2.0-pro
 - **数字人名称**: 与成员昵称一致
 - **数字人类型**: NORMAL
 - **声音名称**: 资源目录中的名称，或运行时解析
@@ -159,7 +164,7 @@ python3 .claude/skills/training-pro-script-generator/scripts/validate_pro_config
 **用户扮演角色名称**: 用户在本阶段的完整角色名
 **AI 对用户称呼**: 简短自然称呼
 **用户扮演角色描述**: 用户身份、职责、已知信息和任务边界
-**剧本模型**: Doubao-Seed-2.0-pro
+**剧本模型**: doubao-seed-2.0-pro
 **对话结束策略**: 达成目标后结束
 **是否可跳过**: 否
 **后继阶段**: 下一阶段精确名称，最后阶段写 END

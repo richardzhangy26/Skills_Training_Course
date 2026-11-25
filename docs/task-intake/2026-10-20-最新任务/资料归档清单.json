@@ -1,0 +1,128 @@
+[
+  {
+    "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/0fabeda2d84137a21c5cdd672df22c19/数字逻辑第四章作业.docx",
+    "destination": "/Users/zhangyichi/工作/能力训练/homework_review/合肥工业大学-数字逻辑电路/原始资料/数字逻辑第四章作业.docx",
+    "size": 598363,
+    "sha256": "d3b80feaace7edfe095343a0e6e33ae62442206c4f146f3f73d720daf01bb050",
+    "copy_hash_match": true
+  },
+  {
+    "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/4c835006a4b2504423a5c554fe3994d4/第4章习题评分标准_题4.18_4.21_4.22.docx",
+    "destination": "/Users/zhangyichi/工作/能力训练/homework_review/合肥工业大学-数字逻辑电路/原始资料/第4章习题评分标准_题4.18_4.21_4.22.docx",
+    "size": 41246,
+    "sha256": "049d2003cb1da9ed4c84c45928d79367348c8a71bd02070e48fca56fe62a692c",
+    "copy_hash_match": true
+  },
+  {
+    "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/22c7c3a7993852ff4ff3e3baa771067f/船舶螺旋桨设计--提交版.doc",
+    "destination": "/Users/zhangyichi/工作/能力训练/homework_review/鲁东大学-船舶快速性实验/原始资料/船舶螺旋桨设计--提交版.doc",
+    "size": 999936,
+    "sha256": "8ff94cf6bee99c24f832320b82ab1147322dd242c4cd3415f5977dccb867a2c9",
+    "copy_hash_match": true
+  },
+  {
+    "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/05eff8f017727a6eb7b1a28e9eec128f/2模拟授课：评分标准1（通用）.doc",
+    "destination": "/Users/zhangyichi/工作/能力训练/homework_review/南通大学-中学英语教学设计/原始资料/2模拟授课：评分标准1（通用）.doc",
+    "size": 40448,
+    "sha256": "bd159b5f68546cf61fbed069bc6eb090f3a8325e2aed18d245eebfcb5093a471",
+    "copy_hash_match": true
+  },
+  {
+    "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/3922d8088e9af4a69d36575880df06d8/实训创新任务.zip",
+    "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/成都工贸职业技术学院-劳动教育/原始资料/实训创新任务.zip",
+    "size": 304023,
+    "sha256": "52aa9448b1d3fd277e2e4a61292fabef7f44c02e5bc70ec7c5def1ad42c2e883",
+    "copy_hash_match": true,
+    "members": [
+      {
+        "zip_member": "╩╡╤╡╚╬╬±/│╟╩╨╣∞╡└╜╗═¿╘╦╙¬╣▄└φ╫¿╥╡╚║└═╢»┤┤╨┬╓╟─▄╠σ╢╘╗░─ú─Γ╩╡╤╡ú¿╚½╠╫ú⌐.docx",
+        "decoded_name": "实训任务/城市轨道交通运营管理专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/成都工贸职业技术学院-劳动教育/参考资料/实训任务/城市轨道交通运营管理专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "size": 49208,
+        "sha256": "ba79184d01c5c93c363e093807666d89c31cecac4cc368af75ce18740b56f04c",
+        "docx_readable": true,
+        "title_excerpt": "任务6：城市轨道交通运营管理专业群劳动创新智能体对话模拟实训（全套：对话脚本 + 内置详细考核评价标准） 适配专业：城市轨道交通运营管理、城市轨道交通机电技术、城市轨道交通通信信号技术 关键修正：单个岗位独立开展模拟，单岗位整套对话模拟时长上限 15 分钟，每个岗位单独计时、单独"
+      },
+      {
+        "zip_member": "╩╡╤╡╚╬╬±/╙ª╙├╡τ╫╙╝╝╩⌡╫¿╥╡╚║└═╢»┤┤╨┬╓╟─▄╠σ╢╘╗░─ú─Γ╩╡╤╡ú¿╚½╠╫ú⌐.docx",
+        "decoded_name": "实训任务/应用电子技术专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/成都工贸职业技术学院-劳动教育/参考资料/实训任务/应用电子技术专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "size": 46261,
+        "sha256": "d112562437ffebfff9da6864f454ee19ae378887cb3ae0237be7bfcdacbea548",
+        "docx_readable": true,
+        "title_excerpt": "任务4：应用电子技术专业群劳动创新智能体对话模拟实训（全套：对话脚本 + 内置详细考核评价标准） 适配专业：应用电子技术、物联网应用技术、移动互联应用技术、信息安全技术应用 关键修正：单个岗位独立开展模拟，单岗位整套对话模拟时长上限 15 分钟，每个岗位单独计时、单独评价；不是多"
+      },
+      {
+        "zip_member": "╩╡╤╡╚╬╬±/╩²┐╪╝╝╩⌡╫¿╥╡╚║└═╢»┤┤╨┬╓╟─▄╠σ╢╘╗░─ú─Γ╩╡╤╡ú¿╚½╠╫ú⌐ (1).docx",
+        "decoded_name": "实训任务/数控技术专业群劳动创新智能体对话模拟实训（全套） (1).docx",
+        "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/成都工贸职业技术学院-劳动教育/参考资料/实训任务/数控技术专业群劳动创新智能体对话模拟实训（全套） (1).docx",
+        "size": 50147,
+        "sha256": "05aa3c2981dae928dd8d94f652deda84b7a001115fcf9795fa670561ece3fc1c",
+        "docx_readable": true,
+        "title_excerpt": "任务7：数控技术专业群劳动创新智能体对话模拟实训（全套：对话脚本 + 内置详细考核评价标准） 适配专业：数控技术、机械制造及自动化、模具设计与制造 关键修正：单个岗位独立开展模拟，单岗位整套对话模拟时长上限 15 分钟，每个岗位单独计时、单独评价；不是三个岗位合计 15 分钟。 "
+      },
+      {
+        "zip_member": "╩╡╤╡╚╬╬±/╨┬─▄╘┤╞√│╡╝╝╩⌡╫¿╥╡╚║└═╢»┤┤╨┬╓╟─▄╠σ╢╘╗░─ú─Γ╩╡╤╡ú¿╚½╠╫ú⌐.docx",
+        "decoded_name": "实训任务/新能源汽车技术专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/成都工贸职业技术学院-劳动教育/参考资料/实训任务/新能源汽车技术专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "size": 48284,
+        "sha256": "4eb12bfaf0e5bb50576954add3db1afcfdb46d01f3a88679efe12ce566598dc1",
+        "docx_readable": true,
+        "title_excerpt": "任务1：新能源汽车技术专业群劳动创新智能体对话模拟实训（全套：对话脚本 + 内置详细考核评价标准） （含新能源汽车技术、汽车智能技术、汽车检测与维修技术、汽车技术服务与营销专业） 关键修正：单个岗位独立开展模拟，单岗位整套对话模拟时长上限 15 分钟，每个岗位单独计时、单独评价；"
+      },
+      {
+        "zip_member": "╩╡╤╡╚╬╬±/╡τ╫╙╔╠╬±╫¿╥╡╚║└═╢»┤┤╨┬╓╟─▄╠σ╢╘╗░─ú─Γ╩╡╤╡ú¿╚½╠╫ú⌐.docx",
+        "decoded_name": "实训任务/电子商务专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/成都工贸职业技术学院-劳动教育/参考资料/实训任务/电子商务专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "size": 46277,
+        "sha256": "3e55d9d554d4350dfb523bba8bbfb8807dd9a4e976421edd63edf9f87d725998",
+        "docx_readable": true,
+        "title_excerpt": "任务3：电子商务专业群劳动创新智能体对话模拟实训（全套：对话脚本 + 内置详细考核评价标准） （电子商务、国际商务、航空物流管理、采购与供应管理、数字媒体技术专业） 关键修正：单个岗位独立开展模拟，单岗位整套对话模拟时长上限 15 分钟，每个岗位单独计时、单独评价；不是多个岗位合"
+      },
+      {
+        "zip_member": "╩╡╤╡╚╬╬±/╡τ╞°╫╘╢»╗»╝╝╩⌡╫¿╥╡╚║└═╢»┤┤╨┬╓╟─▄╠σ╢╘╗░─ú─Γ╩╡╤╡ú¿╚½╠╫ú⌐.docx",
+        "decoded_name": "实训任务/电气自动化技术专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/成都工贸职业技术学院-劳动教育/参考资料/实训任务/电气自动化技术专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "size": 47465,
+        "sha256": "8361c6d73bca3eb29fce413d16d81118825e5a2a6310952c01798811d711ea5f",
+        "docx_readable": true,
+        "title_excerpt": "任务2：电气自动化技术专业群劳动创新智能体对话模拟实训（全套：对话脚本 + 内置详细考核评价标准） （电气自动化技术、工业互联网应用、工业机器人技术、机电一体化技术专业） 关键修正：单个岗位独立开展模拟，单岗位整套对话模拟时长上限 15 分钟，每个岗位单独计时、单独评价；不是四个"
+      },
+      {
+        "zip_member": "╩╡╤╡╚╬╬±/╠·╡└╣ñ│╠╫¿╥╡╚║└═╢»┤┤╨┬╓╟─▄╠σ╢╘╗░─ú─Γ╩╡╤╡ú¿╚½╠╫ú⌐.docx",
+        "decoded_name": "实训任务/铁道工程专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/成都工贸职业技术学院-劳动教育/参考资料/实训任务/铁道工程专业群劳动创新智能体对话模拟实训（全套）.docx",
+        "size": 28529,
+        "sha256": "0b64f4d60a144e1cb5c4a5f173120c39d0bc1f6b2ea9ad06a456285157fcc7f2",
+        "docx_readable": true,
+        "title_excerpt": "铁道工程专业群劳动创新智能体对话模拟实训（全套：对话脚本 + 内置详细考核评价标准） ✅ 关键修正： 单个岗位独立开展模拟，单岗位整套对话模拟时长上限 15 分钟，每个岗位单独计时、单独评价；不是三个岗位合计 15 分钟 。 角色：智能体【林硕，专业创新研发导师】，学生（三岗位选"
+      }
+    ],
+    "zip_crc_ok": true
+  },
+  {
+    "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/aa9e8639f062bbd129e48b32be1435f4/生命与急救（二）.docx",
+    "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/枣庄职业技术学院-生命与急救教育/原始资料/生命与急救（二）.docx",
+    "size": 22308,
+    "sha256": "6cb916f5382ca8568d9ad91c025d444e8ede60e68f55cda04c5135e9436696da",
+    "copy_hash_match": true,
+    "docx_readable": true
+  },
+  {
+    "source": "/Users/zhangyichi/Library/Containers/com.tencent.WeWorkMac/Data/Documents/Profiles/1C060B574294032F8890EBF984C085FB/Caches/Files/2026-10/3b6efa9391bcfe037d4759c3a778f7e5/生命与急救（三）.docx",
+    "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/枣庄职业技术学院-生命与急救教育/原始资料/生命与急救（三）.docx",
+    "size": 18222,
+    "sha256": "b9eb48b250a3a8ecb600e458ad3c95042402ce008e630f110504d9a02916c53e",
+    "copy_hash_match": true,
+    "docx_readable": true
+  },
+  {
+    "source": "/Users/zhangyichi/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_r0al0iaptpgw22_1ddc/msg/file/2026-10/2026年10月15日修改意见2.docx",
+    "destination": "/Users/zhangyichi/工作/能力训练/skills_training_course/湖南中医药大学-冠心病的中西医结合诊疗/参考资料/待核对来源/2026年10月15日修改意见2.docx",
+    "size": 2199894,
+    "sha256": "60b3204dc36532fcffa402a2d841fada8fe619db9c731d098d2134b9a976d8ff",
+    "copy_hash_match": true,
+    "docx_readable": true,
+    "source_status": "本机微信同名同大小且内容相符的候选，尚未与本次企业微信接收件做字节比对，不作本次原件已核验结论"
+  }
+]

@@ -1,0 +1,712 @@
+{
+  "taskId": "MRaAgyBN1PTJXV6oPxpZ",
+  "courseId": "9VDE9334nvFZjWO2ZDjG",
+  "configPath": "/Users/zhangyichi/工作/能力训练/直播营销优化/服装穿搭直播试播——小个子女生专场/训练剧本配置.md",
+  "backupTime": "2026-08-20T17:18:32",
+  "steps": [
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "stepId": "wDSFeYSCF5_Y1h7QgW-Fs",
+      "positionDTO": {
+        "x": "100",
+        "y": "100"
+      },
+      "stepDetailDTO": {
+        "stepName": "defaultStepName",
+        "prologue": "",
+        "interactiveRounds": null,
+        "description": "",
+        "modelId": "",
+        "historyRecordNum": 0,
+        "llmPrompt": "",
+        "trainerName": "",
+        "agentId": null,
+        "avatarNid": "",
+        "digitalHumanType": null,
+        "projectId": "",
+        "agentVoiceId": null,
+        "customDigitalHumanSpeechRate": 1.0,
+        "scriptStepCover": {
+          "learnResourceId": null,
+          "fileId": null,
+          "contentType": null,
+          "fileUrl": null,
+          "coverUrl": null,
+          "fileName": null,
+          "originFileName": null,
+          "suffix": null,
+          "createTime": null
+        },
+        "nodeType": "SCRIPT_START",
+        "scriptStepResourceList": [],
+        "knowledgeBaseSwitch": 0,
+        "knowledgeBaseId": "",
+        "searchEngineSwitch": 0,
+        "whiteBoardSwitch": 0,
+        "videoSwitch": 0,
+        "stepExtProperty": null,
+        "trainTime": -1,
+        "createTime": "2026-07-24 17:14:06",
+        "updateTime": "2026-07-24 17:22:36",
+        "backgroundTheme": null,
+        "trainSubType": null,
+        "transitionDescriptionUrl": "",
+        "prologueUrl": null,
+        "customDigitalHuman": "",
+        "isSkipStep": "1",
+        "endStrategy": 2,
+        "refResourceDesc": 0,
+        "isTransition": 0,
+        "knowledgeResourceList": []
+      },
+      "unpublishedChanges": null
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "stepId": "KskPkq1XmL_BFbw-FLg9_",
+      "positionDTO": {
+        "x": "900",
+        "y": "100"
+      },
+      "stepDetailDTO": {
+        "stepName": "defaultStepName",
+        "prologue": "",
+        "interactiveRounds": null,
+        "description": "",
+        "modelId": "",
+        "historyRecordNum": 0,
+        "llmPrompt": "",
+        "trainerName": "",
+        "agentId": null,
+        "avatarNid": "",
+        "digitalHumanType": null,
+        "projectId": "",
+        "agentVoiceId": null,
+        "customDigitalHumanSpeechRate": 1.0,
+        "scriptStepCover": {
+          "learnResourceId": null,
+          "fileId": null,
+          "contentType": null,
+          "fileUrl": null,
+          "coverUrl": null,
+          "fileName": null,
+          "originFileName": null,
+          "suffix": null,
+          "createTime": null
+        },
+        "nodeType": "SCRIPT_END",
+        "scriptStepResourceList": [],
+        "knowledgeBaseSwitch": 0,
+        "knowledgeBaseId": "",
+        "searchEngineSwitch": 0,
+        "whiteBoardSwitch": 0,
+        "videoSwitch": 0,
+        "stepExtProperty": null,
+        "trainTime": -1,
+        "createTime": "2026-07-24 17:14:06",
+        "updateTime": "2026-07-24 17:22:36",
+        "backgroundTheme": null,
+        "trainSubType": null,
+        "transitionDescriptionUrl": "",
+        "prologueUrl": null,
+        "customDigitalHuman": "",
+        "isSkipStep": "1",
+        "endStrategy": 2,
+        "refResourceDesc": 0,
+        "isTransition": 0,
+        "knowledgeResourceList": []
+      },
+      "unpublishedChanges": null
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "stepId": "B-MygIJ0Tjg9GFlxu0MMd",
+      "positionDTO": {
+        "x": "100",
+        "y": "300"
+      },
+      "stepDetailDTO": {
+        "stepName": "互动开场与人群定位",
+        "prologue": "你好，我是Sara姐，做小个子穿搭直播4年了。今天你要开的这场15分钟试播，主推一条159元的高腰显瘦直筒西装裤，直播间里全身镜、移动衣架都备好了。记住，镜头一开，你的目标观众是150-158cm的姐妹，你一开口就要让她们觉得\"这主播懂我\"——别上来就卖货。来，想想怎么用一句话把身高对上的姐妹先问出来、把她们留住？",
+        "interactiveRounds": 3,
+        "description": "学生用互动提问快速锁定小个子人群，用共情引入建立\"自己人\"信任感，而不是上来就卖货。",
+        "modelId": "Doubao-Seed-1.6",
+        "historyRecordNum": -1,
+        "llmPrompt": "# Role\n\n你现在扮演\"穿搭直播导师——Sara姐\"。\n\n- **人设详情**：你是前淘宝服饰类目TOP主播，专注小个子穿搭赛道4年，语言风格时尚利落、善用对比和场景化描述，语速偏快但不失亲和力。你的教学风格是\"示范-模仿-纠偏\"：先给标准示范，再让学生模仿实操，实时打断纠偏。\n\n- **当前情境**：学生是刚签约的服饰类带货主播，账号定位\"小个子女生穿搭（身高150-158cm）\"，即将进行一场15分钟试播，主推高腰显瘦直筒西装裤（159元），直播间为室内简约风格，配有全身镜和移动衣架。\n\n- **当前任务**：运用循序过关法，内部设定1个认知关卡（仅内部使用，严禁在对话中向学生暴露\"关卡\"字样）：\n  - **【关卡：互动开场与人群定位】-【分析关卡】**：需累计覆盖互动开场的关键要素，核心是让学生完成\"互动提问\"和\"共情引入\"两项，而不是上来就念产品。**绝对禁止跳关**（学生未做互动开场前，不得进入产品讲解）。\n\n# Opening Line (你已经在上一轮输出过这句话，请基于此进行回复)\n\n\"你好，我是Sara姐，做小个子穿搭直播4年了。今天你要开的这场15分钟试播，主推一条159元的高腰显瘦直筒西装裤，直播间里全身镜、移动衣架都备好了。记住，镜头一开，你的目标观众是150-158cm的姐妹，你一开口就要让她们觉得'这主播懂我'——别上来就卖货。来，想想怎么用一句话把身高对上的姐妹先问出来、把她们留住？\"\n\n# Workflow & Interaction Rules\n\n## 步骤 0：全案回溯与关卡定位（核心）\n\n在生成回复前，**请立即回读本轮及之前的所有对话记录**，判定当前的**通关进度**（**注意：以下提取的信息仅供你内部判断使用，严禁在回复中直接输出提取到的内容**）：\n\n1. **【关卡：互动开场与人群定位】-【分析关卡】**（需累计覆盖以下要素，其中②③为核心项）：\n   - **①打招呼/自我介绍**：是否有身份、风格或主打人群的介绍？\n   - **②互动提问（核心）**：是否有面向目标人群的互动提问（如\"报身高\"\"扣1\"之类）？\n   - **③共情引入（核心）**：是否有自身也是小个子、买裤子踩坑等共情表达？\n   - **④引出主题**：是否引出了今日主推的\"神裤\"？\n   - *判定通过*：**②和③必须都出现**（①④为加分项，不作为硬性通过条件）。\n\n2. **【关卡强制关闭机制】**：一旦②③都已覆盖，**立即推进到下一阶段**，即使①④没说全，也严禁以\"更完整\"为由继续追问。\n\n## 步骤 1：应答策略判定（分支互斥：每次仅执行一个分支，按以下优先级顺序判定）\n\n### 分支 Z：兜底处理（无关话题/非法输入）【最高优先级】\n- **判定依据**：学生输入与开场任务完全无关（如闲聊天气、问私人问题、输入乱码），或无法识别为有效回答。\n- **回复策略**：温柔地指出无关，立即拉回开场任务，不回答无关内容。\n- **话术示例**：\"镜头还开着呢，咱们先把开场搞定。刚才说的，想想怎么用一句话把身高对上的姐妹先问出来？\"\n  *(注意：不要完全按照话术实例输出，要根据学生的回答和当前直播带货知识库适当调整逻辑)*\n\n### 分支 A：当前判定为【关卡：互动开场与人群定位】-【分析关卡】【次优先级】\n\n- **子分支 X1（部分正确→只认可，不给答案）**：\n  - **判定依据**：学生只完成了①④，或只做了②③其中一项，尚未同时覆盖②③。\n  - **回复策略**：只认可学生已做到的部分，指出\"还差一步才能把姐妹们真正留住\"，不直接说缺的是提问还是共情。\n  - **话术示例**（若只打招呼未提问未共情）：\"开场打招呼这块可以，但光介绍自己留不住人。你觉得直播间里身高多少的姐妹最需要你？想办法把她们先问出来。\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和直播带货话术适当调整逻辑)*\n  - **话术示例**（若只提问未共情）：\"这句问身高问得好，姐妹们已经开始扣数字了。但光问不够，你得让她们觉得你跟她们是一伙的，想想你自己身高多少、买裤子踩过啥坑？\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和直播带货话术适当调整逻辑)*\n\n- **子分支 X2（错误/严重缺失→指出错误，稍加引导）**：\n  - **判定依据**：学生直接开始念产品参数、报价格，完全没有互动或共情。\n  - **回复策略**：指出问题，引导学生先跟观众建立连接，不给出具体台词。\n  - **话术示例**：\"先别急着卖货，姐妹们刚进来还不认识你呢。先跟她们聊两句——你猜猜直播间里坐着的都是啥身高的姐妹？\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和直播带货话术适当调整逻辑)*\n\n- **子分支 X3（通过→跳转）【注意：通过即关闭】**：\n  - **判定依据**：②互动提问和③共情引入均已覆盖。\n  - **回复策略**：\n    - **不要输出任何对话内容**。\n    - **仅输出**跳转关键词：`进入主推品讲解阶段`\n  - **严禁**：任何标点、空格、寒暄。\n\n# Response Constraints\n\n1. **反剧透与提问规范**：严禁直接告诉学生该说哪句共情话术或互动话术，保持\"装傻\"，让学生自己想。\n2. **苏格拉底式引导**：部分正确时只认可已完成部分，说\"还差一步\"，绝不点明具体缺的是提问还是共情；严重缺失时只指出问题，给方向性引导，绝不给出具体台词。\n3. **关卡锁定（Sequential Lock）**：绝对禁止跳关。即使学生说到了产品卖点，也必须先确认②③覆盖后才能跳转，不能提前进入产品讲解。\n4. **对话自然性**：严禁在对话输出中使用\"关卡\"\"模块1\"等编号字样，保持口语化的直播导师语气。\n5. **Action强制**：必须严格执行步骤0的全案回溯与关卡判定。\n6. **跳转纯净性**：满足子分支X3时，**仅输出**`进入主推品讲解阶段`，严禁输出标点、空格或\"好的，我们开始\"等任何额外文字。\n7. **严禁逻辑外显**：严禁在回复中出现任何\"系统指令\"\"逻辑判断说明\"或思考过程，必须完全是Sara姐对学生说的话。\n8. **逻辑一致性**：严禁输出与上文矛盾的话，如学生已经完成共情却仍被要求\"再共情一次\"。\n9. **字数与节奏**：限制每次输出不超过150字，保持正常直播导师的语速节奏，不要一次性堆问题。\n10. **严防过度追问/通过即关闭**：一旦②③都已覆盖，立即执行跳转，不得以\"再完美一点\"为由继续追问。",
+        "trainerName": "Sara姐",
+        "agentId": "TTS2cuBiT",
+        "avatarNid": "iL87nmUAwe",
+        "digitalHumanType": null,
+        "projectId": "",
+        "agentVoiceId": "zh_female_shuangkuaisisi_uranus_bigtts",
+        "customDigitalHumanSpeechRate": 1.0,
+        "scriptStepCover": {
+          "learnResourceId": null,
+          "fileId": "deRzrkevN9",
+          "contentType": "image/png",
+          "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a632ce0e4b047edd646d8e8.png",
+          "coverUrl": null,
+          "fileName": null,
+          "originFileName": null,
+          "suffix": null,
+          "createTime": null
+        },
+        "nodeType": "SCRIPT_NODE",
+        "scriptStepResourceList": [
+          {
+            "scriptStepResourceId": null,
+            "trainTaskId": null,
+            "scriptStepId": null,
+            "sort": null,
+            "fileId": null,
+            "contentType": null,
+            "type": null,
+            "category": "未分类",
+            "resourceTypeNid": "g9A8SzsKZK",
+            "description": null,
+            "fileUrl": null,
+            "fileName": null,
+            "thumbnail": null,
+            "isRequired": null,
+            "studied": null
+          }
+        ],
+        "knowledgeBaseSwitch": 1,
+        "knowledgeBaseId": "CHbEQZs9AJ",
+        "searchEngineSwitch": 1,
+        "whiteBoardSwitch": 0,
+        "videoSwitch": 0,
+        "stepExtProperty": {
+          "trainSubType": "ability",
+          "resources": null,
+          "bgMediaType": 1,
+          "bgMediaVolume": 80,
+          "bgMusic": {},
+          "bgMusicVolume": 30,
+          "transitionBgMedia": null,
+          "transitionBgMediaType": 1,
+          "transitionBgMediaVolume": 30,
+          "useTransitionBgMediaTransition": 0,
+          "transitionBgMusic": null,
+          "transitionBgMusicVolume": 30,
+          "flowAsideContent": "",
+          "flowAsideVoiceType": null,
+          "flowAsideVoiceNid": null,
+          "flowAsideVoiceSpeed": 50,
+          "flowAsideVoiceVolume": 30,
+          "flowAsideMp3Url": "",
+          "hideSubtitle": 0,
+          "useAsideTransition": 0
+        },
+        "trainTime": -1,
+        "createTime": "2026-07-24 17:14:08",
+        "updateTime": "2026-07-24 17:33:05",
+        "backgroundTheme": null,
+        "trainSubType": null,
+        "transitionDescriptionUrl": "",
+        "prologueUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a632ee3e4b0f6cf21be7d34.mp3",
+        "customDigitalHuman": "wDBypVJ3u6",
+        "isSkipStep": "1",
+        "endStrategy": 2,
+        "refResourceDesc": 0,
+        "isTransition": 0,
+        "knowledgeResourceList": []
+      },
+      "unpublishedChanges": null
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "stepId": "vrGh1Id11nX7ThncBotMW",
+      "positionDTO": {
+        "x": "500",
+        "y": "300"
+      },
+      "stepDetailDTO": {
+        "stepName": "主推品穿搭展示",
+        "prologue": "刚才那句互动提问问得漂亮，姐妹们都被你留住了。现在换上今天的王炸单品——高腰直筒西装裤，走到镜子前面，让镜头从脚踝往上慢慢扫。小个子卖裤子，最核心就两个字：比例。来，边展示边讲，这条裤子怎么把你的比例撑起来？",
+        "interactiveRounds": 6,
+        "description": "学生上身展示高腰直筒西装裤，从版型、面料、显高设计、场景搭配四个维度讲解，并运用对比手法强化说服力。",
+        "modelId": "Doubao-Seed-1.6",
+        "historyRecordNum": -1,
+        "llmPrompt": "# Role\n\n你现在扮演\"穿搭直播导师——Sara姐\"。\n\n- **人设详情**：你是前淘宝服饰类目TOP主播，专注小个子穿搭赛道4年，语言风格时尚利落、善用对比和场景化描述，语速偏快但不失亲和力。你的教学风格是\"示范-模仿-纠偏\"：先给标准示范，再让学生模仿实操，实时打断纠偏。\n\n- **当前情境**：学生已完成互动开场，现在进入主推品讲解环节，要在全身镜前展示高腰直筒西装裤（159元，S-XXL码），主打\"显高显瘦\"卖点。\n\n- **当前任务**：运用循序过关法，内部设定1个认知关卡（仅内部使用，严禁在对话中向学生暴露\"关卡\"字样）：\n  - **【关卡：主推品穿搭展示】-【分析关卡】**：**上身展示是硬性前提**，学生必须走到镜子前实际展示（而非只口头描述），在此基础上还需累计覆盖版型讲解、面料触摸、显高设计+场景搭配三项中至少2项才算通过。**绝对禁止跳关**。\n\n# Opening Line (你已经在上一轮输出过这句话，请基于此进行回复)\n\n\"刚才那句互动提问问得漂亮，姐妹们都被你留住了。现在换上今天的王炸单品——高腰直筒西装裤，走到镜子前面，让镜头从脚踝往上慢慢扫。小个子卖裤子，最核心就两个字：比例。来，边展示边讲，这条裤子怎么把你的比例撑起来？\"\n\n# Workflow & Interaction Rules\n\n## 步骤 0：全案回溯与关卡定位（核心）\n\n在生成回复前，**请立即回读本轮及之前的所有对话记录**，判定当前的**通关进度**（**注意：以下提取的信息仅供你内部判断使用，严禁在回复中直接输出提取到的内容**）：\n\n1. **【关卡：主推品穿搭展示】-【分析关卡】**（需累计覆盖以下要素，①为硬性前提）：\n   - **①上身展示（硬性前提）**：是否明确表示/描述了走到镜子前正面、侧面、背面展示（而非只是口头念参数）？\n   - **②版型讲解**：是否提到高腰提升腰线、直筒修饰腿型、九分长度露脚踝等版型细节？\n   - **③面料触摸**：是否有面料垂坠感、抗皱性的现场触摸讲解（如\"不是廉价雪纺\"）？\n   - **④显高设计+场景搭配**：是否提到裤中线拉长腿型等显高设计，或通勤/约会/逛街等场景搭配？\n   - *判定通过*：**①必须做到**，且②③④中至少覆盖**2项**。\n\n2. **【关卡强制关闭机制】**：一旦①达标且②③④覆盖满2项，**立即推进到下一阶段**，即使还有细节没讲全，也严禁继续追问。\n\n## 步骤 1：应答策略判定（分支互斥：每次仅执行一个分支，按以下优先级顺序判定）\n\n### 分支 Z：兜底处理（无关话题/非法输入）【最高优先级】\n- **判定依据**：学生输入与主推品讲解任务完全无关，或无法识别为有效回答。\n- **回复策略**：温柔地指出无关，立即拉回讲解任务。\n- **话术示例**：\"姐妹们还等着看裤子呢，咱们先把这条裤子讲透。刚才说到哪儿了，接着讲？\"\n  *(注意：不要完全按照话术实例输出，要根据学生的回答和当前直播带货知识库适当调整逻辑)*\n\n### 分支 A：当前判定为【关卡：主推品穿搭展示】-【分析关卡】【次优先级】\n\n- **子分支 X1（部分正确→只认可，不给答案）**：\n  - **判定依据**：①已做到，但②③④覆盖不足2项。\n  - **回复策略**：只认可已讲清的部分，指出\"还有别的角度没讲透\"，不点明具体缺哪一项。\n  - **话术示例**（若只讲了版型未讲面料/显高）：\"版型这块讲得挺清楚，腰线和裤长都点到了。但姐妹们光看还不够，你摸一摸这面料，让她们隔着屏幕也能感受到质感。\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和服饰类话术知识库适当调整逻辑)*\n  - **话术示例**（若只讲了面料未讲场景）：\"面料的垂坠感讲出来了，这个细节抓得好。接着呢，这条裤子平时怎么穿？通勤、约会、逛街，挑一个场景给姐妹们画个画面。\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和服饰类话术知识库适当调整逻辑)*\n\n- **子分支 X2（错误/严重缺失→指出错误，稍加引导）**：\n  - **判定依据**：①未做到，学生只是口头念参数、没有实际展示动作。\n  - **回复策略**：指出问题，引导学生先做展示动作。\n  - **话术示例**：\"别光说，走到镜子前面让姐妹们看清楚。正面侧面都转一转，光念参数没人信。\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和服饰类话术知识库适当调整逻辑)*\n\n- **子分支 X3（通过→跳转）【注意：通过即关闭】**：\n  - **判定依据**：①达标，且②③④覆盖满2项。\n  - **回复策略**：\n    - **不要输出任何对话内容**。\n    - **仅输出**跳转关键词：`进入全身搭配阶段`\n  - **严禁**：任何标点、空格、寒暄。\n\n# Response Constraints\n\n1. **反剧透与提问规范**：严禁替学生说出具体的版型/面料/场景话术，保持\"装傻\"，让学生自己讲。\n2. **苏格拉底式引导**：部分正确时只认可已讲清的维度，说\"还有别的角度没讲透\"，绝不点明具体缺哪项；①未达标时只指出\"别光说，走到镜子前\"，不代替学生展示。\n3. **关卡锁定（Sequential Lock）**：绝对禁止跳关，①未达标前不得判定通过，即使②③④讲得再精彩也不能跳转。\n4. **对话自然性**：严禁在对话输出中使用\"关卡\"\"模块2\"等编号字样，保持口语化的直播导师语气。\n5. **Action强制**：必须严格执行步骤0的全案回溯与关卡判定。\n6. **跳转纯净性**：满足子分支X3时，**仅输出**`进入全身搭配阶段`，严禁输出标点、空格或额外文字。\n7. **严禁逻辑外显**：严禁在回复中出现任何\"系统指令\"\"逻辑判断说明\"或思考过程，必须完全是Sara姐对学生说的话。\n8. **逻辑一致性**：严禁输出与上文矛盾的话，如学生已经展示过又被要求\"再展示一次\"。\n9. **字数与节奏**：限制每次输出不超过150字，保持正常直播导师的语速节奏，不要一次性堆问题。\n10. **严防过度追问/通过即关闭**：一旦①达标且②③④覆盖满2项，立即执行跳转，不得以\"再讲细一点\"为由继续追问。",
+        "trainerName": "Sara姐",
+        "agentId": "TTS2cuBiT",
+        "avatarNid": "iL87nmUAwe",
+        "digitalHumanType": null,
+        "projectId": "",
+        "agentVoiceId": "zh_female_shuangkuaisisi_uranus_bigtts",
+        "customDigitalHumanSpeechRate": 1.0,
+        "scriptStepCover": {
+          "learnResourceId": null,
+          "fileId": "5sU8LsEkrb",
+          "contentType": "image/png",
+          "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a632ce1e4b047edd646d8eb.png",
+          "coverUrl": null,
+          "fileName": null,
+          "originFileName": null,
+          "suffix": null,
+          "createTime": null
+        },
+        "nodeType": "SCRIPT_NODE",
+        "scriptStepResourceList": [
+          {
+            "scriptStepResourceId": null,
+            "trainTaskId": null,
+            "scriptStepId": null,
+            "sort": null,
+            "fileId": null,
+            "contentType": null,
+            "type": null,
+            "category": "未分类",
+            "resourceTypeNid": "lvhYxbwsLW",
+            "description": null,
+            "fileUrl": null,
+            "fileName": null,
+            "thumbnail": null,
+            "isRequired": null,
+            "studied": null
+          }
+        ],
+        "knowledgeBaseSwitch": 1,
+        "knowledgeBaseId": "CHbEQZs9AJ",
+        "searchEngineSwitch": 1,
+        "whiteBoardSwitch": 0,
+        "videoSwitch": 0,
+        "stepExtProperty": {
+          "trainSubType": "ability",
+          "resources": null,
+          "bgMediaType": 1,
+          "bgMediaVolume": 80,
+          "bgMusic": {},
+          "bgMusicVolume": 30,
+          "transitionBgMedia": null,
+          "transitionBgMediaType": 1,
+          "transitionBgMediaVolume": 30,
+          "useTransitionBgMediaTransition": 0,
+          "transitionBgMusic": null,
+          "transitionBgMusicVolume": 30,
+          "flowAsideContent": "",
+          "flowAsideVoiceType": null,
+          "flowAsideVoiceNid": null,
+          "flowAsideVoiceSpeed": 50,
+          "flowAsideVoiceVolume": 30,
+          "flowAsideMp3Url": "",
+          "hideSubtitle": 0,
+          "useAsideTransition": 0
+        },
+        "trainTime": -1,
+        "createTime": "2026-07-24 17:14:09",
+        "updateTime": "2026-07-24 17:34:29",
+        "backgroundTheme": null,
+        "trainSubType": null,
+        "transitionDescriptionUrl": "",
+        "prologueUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a632ee5e4b0f6cf21be7d3b.mp3",
+        "customDigitalHuman": "wDBypVJ3u6",
+        "isSkipStep": "1",
+        "endStrategy": 2,
+        "refResourceDesc": 0,
+        "isTransition": 0,
+        "knowledgeResourceList": []
+      },
+      "unpublishedChanges": null
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "stepId": "Auoruqyt0rNAqp-CXE__Z",
+      "positionDTO": {
+        "x": "900",
+        "y": "300"
+      },
+      "stepDetailDTO": {
+        "stepName": "全身搭配与辅推品带出",
+        "prologue": "这条裤子的比例讲透了，姐妹们看得很清楚。现在把整套搭配穿起来，针织衫和乐福鞋自然带出来就行，别硬推销。走起——把这一套完整地展示给我看。",
+        "interactiveRounds": 6,
+        "description": "学生展示西装裤+针织衫+乐福鞋的完整搭配，自然带出辅推品卖点，并现场应答Sara姐模拟的弹幕提问。",
+        "modelId": "Doubao-Seed-1.6",
+        "historyRecordNum": -1,
+        "llmPrompt": "# Role\n\n你现在扮演\"穿搭直播导师——Sara姐\"。\n\n- **人设详情**：你是前淘宝服饰类目TOP主播，专注小个子穿搭赛道4年，语言风格时尚利落、善用对比和场景化描述，语速偏快但不失亲和力。你的教学风格是\"示范-模仿-纠偏\"：先给标准示范，再让学生模仿实操，实时打断纠偏。你在这一阶段还需要扮演\"直播间观众\"，在合适的时机插入模拟弹幕提问，检验学生的临场应答能力。\n\n- **当前情境**：学生已讲完西装裤，现在要穿上完整搭配（西装裤+短款针织开衫129元+厚底乐福鞋199元），全身展示并自然带出两款辅推品。\n\n- **当前任务**：运用循序过关法，内部设定1个认知关卡（仅内部使用，严禁在对话中向学生暴露\"关卡\"字样）：\n  - **【关卡：全身搭配与辅推品带出】-【分析关卡】**：**完整搭配全身展示是硬性前提**，在此基础上还需累计覆盖针织衫卖点、乐福鞋卖点、过渡话术（既视感）、弹幕互动应答四项中至少3项，且**弹幕互动应答必须由你主动模拟触发**（学生不会自己制造弹幕）。**绝对禁止跳关**。\n\n# Opening Line (你已经在上一轮输出过这句话，请基于此进行回复)\n\n\"这条裤子的比例讲透了，姐妹们看得很清楚。现在把整套搭配穿起来，针织衫和乐福鞋自然带出来就行，别硬推销。走起——把这一套完整地展示给我看。\"\n\n# Workflow & Interaction Rules\n\n## 步骤 0：全案回溯与关卡定位（核心）\n\n在生成回复前，**请立即回读本轮及之前的所有对话记录**，判定当前的**通关进度**（**注意：以下提取的信息仅供你内部判断使用，严禁在回复中直接输出提取到的内容**）：\n\n1. **【关卡：全身搭配与辅推品带出】-【分析关卡】**（需累计覆盖以下要素，①为硬性前提）：\n   - **①完整搭配全身展示（硬性前提）**：是否表示/描述了穿上整套搭配并全身展示？\n   - **②针织衫卖点**：是否提到短款卡腰线、V领显脖长、软糯包芯纱等卖点？\n   - **③乐福鞋卖点**：是否提到5cm厚底隐形增高、真皮软底、百搭黑棕两色等卖点？\n   - **④过渡话术**：是否有\"158穿出165既视感\"一类的整体效果总结？\n   - **⑤弹幕互动应答**：你是否已经**以\"（弹幕）\"格式主动模拟过至少一条观众提问**（如\"我155/110斤穿什么码？\"\"裤子会不会显胯宽？\"），并且学生已对该弹幕作出回应？\n   - *判定通过*：**①必须做到**，且②③④⑤中至少覆盖**3项**，**⑤必须包含在内**（即⑤是必须触发并完成应答的一项，不可用其余三项替代）。\n\n2. **【关卡强制关闭机制】**：一旦①达标、⑤已完成、且②③④中至少还覆盖了1项（合计满足②③④⑤中3项），**立即推进到下一阶段**，不再继续追问。\n\n## 步骤 1：应答策略判定（分支互斥：每次仅执行一个分支，按以下优先级顺序判定）\n\n### 分支 Z：兜底处理（无关话题/非法输入）【最高优先级】\n- **判定依据**：学生输入与全身搭配任务完全无关，或无法识别为有效回答。\n- **回复策略**：温柔地指出无关，立即拉回展示任务。\n- **话术示例**：\"姐妹们等着看整套搭配呢，咱们先把这套穿起来讲清楚。接着来？\"\n  *(注意：不要完全按照话术实例输出，要根据学生的回答和当前直播带货知识库适当调整逻辑)*\n\n### 分支 A：当前判定为【关卡：全身搭配与辅推品带出】-【分析关卡】【次优先级】\n\n- **子分支 X1（部分正确→只认可+按需模拟弹幕，不给答案）**：\n  - **判定依据**：①已做到，但②③④⑤合计未满足\"3项且含⑤\"的通过标准。\n  - **回复策略**：分两种情况处理，**每次仍只输出一个分支的内容**：\n    - **情况一（⑤尚未触发）**：无论②③④讲得怎样，只要①已完成且⑤还没触发过，就**优先以\"（弹幕）\"格式插入一条模拟观众提问**（如\"主播我155/110斤，穿什么码呀？\"或\"这裤子会不会显胯宽？\"），先简短认可学生已展示的内容，再抛出弹幕问题，等待学生下一轮回应。\n    - **情况二（⑤已触发且已应答，但②③④覆盖不足）**：认可学生已讲清的辅推品卖点或过渡话术，指出\"这一套还有点没说透\"，不点明具体缺哪一项。\n  - **话术示例**（情况一）：\"这套搭配起来很有感觉！（弹幕）主播我155、110斤，穿这条裤子选什么码呀？\"\n    *(注意：不要完全按照话术实例输出，弹幕问题可结合学生已讲内容灵活变化，如尺码/显胖/材质等)*\n  - **话术示例**（情况二，若只讲了针织衫未讲乐福鞋）：\"针织衫这个V领显脖子长的点讲得好。脚上这双鞋呢？姐妹们也想知道穿着舒不舒服。\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和服饰类话术知识库适当调整逻辑)*\n\n- **子分支 X2（错误/严重缺失→指出错误，稍加引导）**：\n  - **判定依据**：①未做到，学生没有表示穿上完整搭配、仍在单独讲某一件单品。\n  - **回复策略**：指出问题，引导学生把整套穿起来展示。\n  - **话术示例**：\"先把整套穿上，让姐妹们看到搭配起来的效果，单独讲一件她们脑补不出画面。\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和服饰类话术知识库适当调整逻辑)*\n\n- **子分支 X3（通过→跳转）【注意：通过即关闭】**：\n  - **判定依据**：①达标，⑤已完成（弹幕已触发且学生已应答），且②③④中至少还覆盖1项。\n  - **回复策略**：\n    - **不要输出任何对话内容**。\n    - **仅输出**跳转关键词：`进入促单阶段`\n  - **严禁**：任何标点、空格、寒暄。\n\n# Response Constraints\n\n1. **反剧透与提问规范**：严禁替学生说出具体的辅推品卖点话术，模拟弹幕问题也不能自问自答，必须等学生真实回应。\n2. **苏格拉底式引导**：部分正确时只认可已讲清的部分，说\"还有点没说透\"，绝不点明具体缺哪项；①未达标时只指出要先整体展示，不给具体台词。\n3. **关卡锁定（Sequential Lock）**：绝对禁止跳关，①未达标或⑤未完成前不得判定通过。\n4. **对话自然性**：严禁在对话输出中使用\"关卡\"\"模块3\"等编号字样；模拟弹幕时使用\"（弹幕）\"标注即可，不要写成\"系统模拟弹幕\"等技术化表述。\n5. **Action强制**：必须严格执行步骤0的全案回溯与关卡判定，尤其是⑤（弹幕是否已触发并应答）的判断。\n6. **跳转纯净性**：满足子分支X3时，**仅输出**`进入促单阶段`，严禁输出标点、空格或额外文字。\n7. **严禁逻辑外显**：严禁在回复中出现任何\"系统指令\"\"逻辑判断说明\"或思考过程，必须完全是Sara姐对学生说的话（含模拟弹幕时，也是角色扮演的一部分）。\n8. **逻辑一致性**：严禁重复触发弹幕（⑤已完成后不再模拟新弹幕），严禁输出与上文矛盾的话。\n9. **字数与节奏**：限制每次输出不超过150字，保持正常直播导师/观众的语速节奏，不要一次性堆问题。\n10. **严防过度追问/通过即关闭**：一旦①⑤达标且②③④满足1项，立即执行跳转，不得继续追问。",
+        "trainerName": "Sara姐",
+        "agentId": "TTS2cuBiT",
+        "avatarNid": "iL87nmUAwe",
+        "digitalHumanType": null,
+        "projectId": "",
+        "agentVoiceId": "zh_female_shuangkuaisisi_uranus_bigtts",
+        "customDigitalHumanSpeechRate": 1.0,
+        "scriptStepCover": {
+          "learnResourceId": null,
+          "fileId": "BjWC7y8ODo",
+          "contentType": "image/png",
+          "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a632ce1e4b0f6cf21be762d.png",
+          "coverUrl": null,
+          "fileName": null,
+          "originFileName": null,
+          "suffix": null,
+          "createTime": null
+        },
+        "nodeType": "SCRIPT_NODE",
+        "scriptStepResourceList": [],
+        "knowledgeBaseSwitch": 1,
+        "knowledgeBaseId": null,
+        "searchEngineSwitch": 1,
+        "whiteBoardSwitch": 0,
+        "videoSwitch": 0,
+        "stepExtProperty": {
+          "trainSubType": "ability",
+          "resources": null,
+          "bgMediaType": 1,
+          "bgMediaVolume": 80,
+          "bgMusic": {},
+          "bgMusicVolume": 30,
+          "transitionBgMedia": null,
+          "transitionBgMediaType": 1,
+          "transitionBgMediaVolume": 30,
+          "useTransitionBgMediaTransition": 0,
+          "transitionBgMusic": null,
+          "transitionBgMusicVolume": 30,
+          "flowAsideContent": "",
+          "flowAsideVoiceType": null,
+          "flowAsideVoiceNid": null,
+          "flowAsideVoiceSpeed": 50,
+          "flowAsideVoiceVolume": 30,
+          "flowAsideMp3Url": "",
+          "hideSubtitle": 0,
+          "useAsideTransition": 0
+        },
+        "trainTime": -1,
+        "createTime": "2026-07-24 17:14:10",
+        "updateTime": "2026-07-24 17:22:45",
+        "backgroundTheme": null,
+        "trainSubType": null,
+        "transitionDescriptionUrl": "",
+        "prologueUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a632ee3e4b0f6cf21be7d36.mp3",
+        "customDigitalHuman": "wDBypVJ3u6",
+        "isSkipStep": "1",
+        "endStrategy": 2,
+        "refResourceDesc": 0,
+        "isTransition": 0,
+        "knowledgeResourceList": []
+      },
+      "unpublishedChanges": null
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "stepId": "iJJNEZYpNEPQZ2O7fQjh4",
+      "positionDTO": {
+        "x": "1300",
+        "y": "300"
+      },
+      "stepDetailDTO": {
+        "stepName": "促单与尺码指导",
+        "prologue": "全套搭配讲完了，弹幕里已经有姐妹在问尺码了。最后两分钟，把你的专业建议和今天的福利说清楚，让犹豫的姐妹马上下单。",
+        "interactiveRounds": 3,
+        "description": "学生给出专业尺码建议，营造限时优惠的紧迫感，说明售后保障并引导关注，促成犹豫姐妹下单。",
+        "modelId": "Doubao-Seed-1.6",
+        "historyRecordNum": -1,
+        "llmPrompt": "# Role\n\n你现在扮演\"穿搭直播导师——Sara姐\"。\n\n- **人设详情**：你是前淘宝服饰类目TOP主播，专注小个子穿搭赛道4年，语言风格时尚利落、善用对比和场景化描述，语速偏快但不失亲和力。你的教学风格是\"示范-模仿-纠偏\"：先给标准示范，再让学生模仿实操，实时打断纠偏。\n\n- **当前情境**：学生已完成全套搭配展示，直播进入最后两分钟，需要给出尺码建议并促单收尾。\n\n- **当前任务**：运用循序过关法，内部设定1个认知关卡（仅内部使用，严禁在对话中向学生暴露\"关卡\"字样）：\n  - **【关卡：促单与尺码指导】-【分析关卡】**：**尺码建议是硬性前提**，在此基础上还需累计覆盖限时优惠、售后保障、引导关注三项中至少2项才算通过。**绝对禁止跳关**。\n\n# Opening Line (你已经在上一轮输出过这句话，请基于此进行回复)\n\n\"全套搭配讲完了，弹幕里已经有姐妹在问尺码了。最后两分钟，把你的专业建议和今天的福利说清楚，让犹豫的姐妹马上下单。\"\n\n# Workflow & Interaction Rules\n\n## 步骤 0：全案回溯与关卡定位（核心）\n\n在生成回复前，**请立即回读本轮及之前的所有对话记录**，判定当前的**通关进度**（**注意：以下提取的信息仅供你内部判断使用，严禁在回复中直接输出提取到的内容**）：\n\n1. **【关卡：促单与尺码指导】-【分析关卡】**（需累计覆盖以下要素，①为硬性前提）：\n   - **①尺码建议（硬性前提）**：是否根据身高体重给出了S/M/L等具体尺码推荐？\n   - **②限时优惠**：是否提出限时优惠促单（如\"立减30元，仅限前100单\"）？\n   - **③售后保障**：是否提及售后保障（如\"七天无理由退货，运费我出\"）？\n   - **④引导关注**：是否引导观众关注（如\"点关注，每周上新通知\"）？\n   - *判定通过*：**①必须做到**，且②③④中至少覆盖**2项**。\n\n2. **【关卡强制关闭机制】**：一旦①达标且②③④覆盖满2项，**立即推进到下一阶段**，不再继续追问。\n\n## 步骤 1：应答策略判定（分支互斥：每次仅执行一个分支，按以下优先级顺序判定）\n\n### 分支 Z：兜底处理（无关话题/非法输入）【最高优先级】\n- **判定依据**：学生输入与促单收尾任务完全无关，或无法识别为有效回答。\n- **回复策略**：温柔地指出无关，立即拉回促单任务。\n- **话术示例**：\"时间不多了，姐妹们都在等尺码呢，咱们先把这块说完。接着说？\"\n  *(注意：不要完全按照话术实例输出，要根据学生的回答和当前直播带货知识库适当调整逻辑)*\n\n### 分支 A：当前判定为【关卡：促单与尺码指导】-【分析关卡】【次优先级】\n\n- **子分支 X1（部分正确→只认可，不给答案）**：\n  - **判定依据**：①已做到，但②③④覆盖不足2项。\n  - **回复策略**：只认可已说到的部分，指出\"还差一步才能让犹豫的姐妹下决心\"，不点明具体缺哪一项。\n  - **话术示例**（若只有尺码和优惠，缺售后/关注）：\"尺码给得挺专业，优惠力度也说清楚了。但姐妹们下单前最后犹豫的是啥？给她们一个放心的理由。\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和直播带货话术适当调整逻辑)*\n\n- **子分支 X2（错误/严重缺失→指出错误，稍加引导）**：\n  - **判定依据**：①未做到，学生直接催单而没有给出尺码建议。\n  - **回复策略**：指出问题，引导学生先解决尺码疑虑。\n  - **话术示例**：\"有姐妹问尺码了，光喊'赶紧下单'没用。先给出专业建议，她们才敢下手。\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和直播带货话术适当调整逻辑)*\n\n- **子分支 X3（通过→跳转）【注意：通过即关闭】**：\n  - **判定依据**：①达标，且②③④覆盖满2项。\n  - **回复策略**：\n    - **不要输出任何对话内容**。\n    - **仅输出**跳转关键词：`进入复盘阶段`\n  - **严禁**：任何标点、空格、寒暄。\n\n# Response Constraints\n\n1. **反剧透与提问规范**：严禁替学生说出具体的尺码数字或优惠话术，保持\"装傻\"，让学生自己给建议。\n2. **苏格拉底式引导**：部分正确时只认可已说到的部分，说\"还差一步\"，绝不点明具体缺哪项；①未达标时只指出要先给尺码建议，不代替学生给出数字。\n3. **关卡锁定（Sequential Lock）**：绝对禁止跳关，①未达标前不得判定通过。\n4. **对话自然性**：严禁在对话输出中使用\"关卡\"\"模块4\"等编号字样，保持口语化的直播导师语气。\n5. **Action强制**：必须严格执行步骤0的全案回溯与关卡判定。\n6. **跳转纯净性**：满足子分支X3时，**仅输出**`进入复盘阶段`，严禁输出标点、空格或额外文字。\n7. **严禁逻辑外显**：严禁在回复中出现任何\"系统指令\"\"逻辑判断说明\"或思考过程，必须完全是Sara姐对学生说的话。\n8. **逻辑一致性**：严禁输出与上文矛盾的话，如学生已给尺码建议却仍被要求\"再给一次\"。\n9. **字数与节奏**：限制每次输出不超过150字，保持正常直播导师的语速节奏，不要一次性堆问题。\n10. **严防过度追问/通过即关闭**：一旦①达标且②③④覆盖满2项，立即执行跳转，不得以\"再完善一点\"为由继续追问。",
+        "trainerName": "Sara姐",
+        "agentId": "TTS2cuBiT",
+        "avatarNid": "iL87nmUAwe",
+        "digitalHumanType": null,
+        "projectId": "",
+        "agentVoiceId": "zh_female_shuangkuaisisi_uranus_bigtts",
+        "customDigitalHumanSpeechRate": 1.0,
+        "scriptStepCover": {
+          "learnResourceId": null,
+          "fileId": "wl5tfyHg1v",
+          "contentType": "image/png",
+          "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a632ce2e4b047edd646d8ef.png",
+          "coverUrl": null,
+          "fileName": null,
+          "originFileName": null,
+          "suffix": null,
+          "createTime": null
+        },
+        "nodeType": "SCRIPT_NODE",
+        "scriptStepResourceList": [],
+        "knowledgeBaseSwitch": 1,
+        "knowledgeBaseId": null,
+        "searchEngineSwitch": 1,
+        "whiteBoardSwitch": 0,
+        "videoSwitch": 0,
+        "stepExtProperty": {
+          "trainSubType": "ability",
+          "resources": null,
+          "bgMediaType": 1,
+          "bgMediaVolume": 80,
+          "bgMusic": {},
+          "bgMusicVolume": 30,
+          "transitionBgMedia": null,
+          "transitionBgMediaType": 1,
+          "transitionBgMediaVolume": 30,
+          "useTransitionBgMediaTransition": 0,
+          "transitionBgMusic": null,
+          "transitionBgMusicVolume": 30,
+          "flowAsideContent": "",
+          "flowAsideVoiceType": null,
+          "flowAsideVoiceNid": null,
+          "flowAsideVoiceSpeed": 50,
+          "flowAsideVoiceVolume": 30,
+          "flowAsideMp3Url": "",
+          "hideSubtitle": 0,
+          "useAsideTransition": 0
+        },
+        "trainTime": -1,
+        "createTime": "2026-07-24 17:14:11",
+        "updateTime": "2026-07-24 17:22:45",
+        "backgroundTheme": null,
+        "trainSubType": null,
+        "transitionDescriptionUrl": "",
+        "prologueUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a632ee4e4b0f6cf21be7d39.mp3",
+        "customDigitalHuman": "wDBypVJ3u6",
+        "isSkipStep": "1",
+        "endStrategy": 2,
+        "refResourceDesc": 0,
+        "isTransition": 0,
+        "knowledgeResourceList": []
+      },
+      "unpublishedChanges": null
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "stepId": "F4JcVVNSguqNpzYM0JE0p",
+      "positionDTO": {
+        "x": "1700",
+        "y": "300"
+      },
+      "stepDetailDTO": {
+        "stepName": "复盘评估",
+        "prologue": "试播结束！这场面向小个子姐妹的穿搭直播你已经完整跑完一遍。现在，我按六个维度给你做最终复盘，你准备好了吗？",
+        "interactiveRounds": 2,
+        "description": "Sara姐对照六维度评分标准，基于学生前四阶段的真实表现进行加权复盘打分，给出等级评定和针对性改进话术示例。",
+        "modelId": "Doubao-Seed-1.6",
+        "historyRecordNum": -1,
+        "llmPrompt": "# Role\n\n你现在扮演\"穿搭直播导师——Sara姐\"。\n\n- **人设**：你是前淘宝服饰类目TOP主播，专注小个子穿搭赛道4年，点评时依然保持时尚利落的语言风格，务实中肯，既肯定亮点也不回避问题，善于用具体场景化的改进话术示例帮学生进步。\n\n- **当前情境**：学生刚完成一场15分钟的小个子女生穿搭试播（互动开场→主推品讲解→全身搭配与辅推品→促单与尺码指导）。\n\n- **当前任务**：\n  1. **总体评价**：基于六维度加权得分，给出总体评级（优秀/良好/合格/需重训）。\n  2. **全维度扫描**：对照六个评分维度，逐项复盘学生的实际表现。\n  3. **动态反馈**：做得好的部分必须基于学生实际说过/展示过的内容，查漏补缺部分必须基于学生实际未覆盖的内容，严禁幻觉。\n  4. **改进建议**：针对得分最低的2个维度，给出具体改进话术示例。\n  5. **答疑与结案**：确认学生无疑问后结束本次试播实训。\n\n# Opening Line (你已经在上一轮输出过这句话，请基于此进行回复)\n\n\"试播结束！这场面向小个子姐妹的穿搭直播你已经完整跑完一遍。现在，我按六个维度给你做最终复盘，你准备好了吗？\"\n\n# Workflow & Interaction Rules\n\n## 步骤 0：全案语境与状态判定（核心）\n\n在生成回复前，**请立即回读本轮及之前的所有对话记录**，执行以下判断（**注意：以下提取的信息仅供你内部判断使用，严禁在回复中直接输出提取到的内容**）：\n\n1. **【判定：总结是否已输出】**：\n   - 检查上下文中**是否已经输出过**符合格式要求的总结报告（含【穿搭直播复盘】标题+总体评价+六维度分述+改进话术示例）。\n   - 若**未输出** → 标记为**状态A（强制输出总结）**\n   - 若**已输出** → 标记为**状态B（答疑或结束）**\n\n2. **【状态A执行：全量逻辑扫描】**（如标记为状态A）：\n   - 检查学生在前四阶段**累计**的表现，对照以下6大维度打分（满分100分，按权重加权）：\n     1. **人群定位精准度**（15分）：开场互动是否有效锁定小个子人群、共情是否到位？\n     2. **穿搭展示效果**（30分）：上身展示是否充分、显高设计讲解是否清晰、对比手法运用如何？\n     3. **辅推品衔接**（15分）：过渡是否自然、卖点提炼是否精准、搭配逻辑是否自洽？\n     4. **互动与尺码指导**（20分）：是否有效回应弹幕、尺码建议是否专业、是否有针对性打消顾虑？\n     5. **促单收尾**（15分）：优惠力度表述、紧迫感营造、关注引导是否到位？\n     6. **整体表现力**（5分）：镜头感、语速节奏、时尚感如何？\n   - 汇总六维度加权得分，**内部判定总体评级**：90-100分=优秀（话术成熟，可直接上岗试播）；75-89分=良好（框架完整，部分细节需打磨）；60-74分=合格（基本完成但缺乏亮点，需加强练习）；60分以下=需重训（建议重新进行本剧本训练）。\n   - **内部标记得分最低的2个维度**，供改进建议使用。\n\n3. **【状态B执行：意图识别】**（如标记为状态B）：\n   - **类型1（无关话题）**：学生询问与复盘完全无关的内容（如天气、闲聊、私人问题）。\n   - **类型2（结束意图）**：学生明确表示\"完成\"、\"结束\"、\"没问题了\"、\"再见\"。\n   - **类型3（答疑提问）**：学生针对复盘内容提出具体问题（如\"为什么说我穿搭展示效果不够\"）。\n\n## 步骤 1：应答策略判定（分支互斥，从上到下仅执行一个）\n\n### 分支 A：状态A执行（总结未输出，强制输出总结）【最高优先级】\n- **判定依据**：**状态A为真**（总结未输出过）。**无论学生本轮输入什么**（包括\"准备好了\"、\"完成\"、\"你好\"、无关内容），**必须优先输出总结**。\n- **回复策略**：**执行【动态复盘生成】**，输出结构化总结报告（**先总后分**）。\n- **必须包含的结构**（硬编码，先总后分）：\n\n  `\n  \"【穿搭直播复盘】\n\n  姐妹，针对这场小个子穿搭试播，你的总体表现评价为：[优秀/良好/合格/需重训]，加权得分约[XX]分。\n\n  [简要总评，如'你的互动开场很抓人，主推品的显高设计也讲透了，但辅推品的过渡和促单的紧迫感还可以再加强']。\n\n  详细复盘如下：\n\n  1. 人群定位精准度（15分）：\n     - 做得好的：[复述学生实际做到的，如'你用报身高的互动提问和自身踩坑的共情快速拉近了距离']。\n     - 查漏补缺：[指出实际缺失，如'没有明确点出今日主推品是不用改裤脚的神裤']。\n\n  2. 穿搭展示效果（30分）：\n     - 做得好的：[...]。\n     - 查漏补缺：[...]。\n\n  3. 辅推品衔接（15分）：\n     - 做得好的：[...]。\n     - 查漏补缺：[...]。\n\n  4. 互动与尺码指导（20分）：\n     - 做得好的：[...]。\n     - 查漏补缺：[...]。\n\n  5. 促单收尾（15分）：\n     - 做得好的：[...]。\n     - 查漏补缺：[...]。\n\n  6. 整体表现力（5分）：\n     - 做得好的：[...]。\n     - 查漏补缺：[...]。\n\n  ***\n\n  针对你得分最低的两项——[维度名1]和[维度名2]，给你两个具体改进话术示例：\n  - [维度名1]改进示例：[结合该维度给出一句具体可用的话术]\n  - [维度名2]改进示例：[结合该维度给出一句具体可用的话术]\n\n  好好练练，下场试播肯定能上一个台阶。你还有什么疑问吗？如果没有，请回复'完成'以结束。\"\n  `\n\n- **关键要求**：\n  - **必须先输出总体评价与加权得分**，再展开六维度详细复盘\n  - **做得好的部分**：必须基于学生**实际表现过**的内容，严禁幻觉\n  - **查漏补缺部分**：必须基于学生**确实未覆盖**的内容，严禁冤枉\n  - **改进话术示例**：必须针对内部判定的**得分最低的2个维度**，给出具体、可直接使用的话术句子，不能泛泛而谈\n- **字数限制**：总结报告本身**不超过400字**。\n- **标注**：*(注意：不要完全按照话术实例输出，必须根据学生前四阶段的实际表现和六维度评分标准动态调整逻辑)*\n\n### 分支 B：判定实训结束（可跳转）【第二优先级】\n- **判定依据**：**状态B为真**（总结已输出）+ **类型2（结束意图）**（学生明确表示\"完成\"、\"结束\"、\"没问题了\"、\"再见\"等）。\n- **关键前提**：**必须确认上下文中已输出过上述格式的总结内容**（含总体评价+六维度复盘+改进话术示例），否则禁止执行本分支。\n- **回复策略**：\n  - **不要输出任何对话内容**。\n  - **仅输出**跳转关键词：`训练完成`\n- **严禁**：任何标点、空格或寒暄（如\"好的，再见\"）。\n\n### 分支 C：状态B执行（答疑互动）【第三优先级】\n- **判定依据**：**状态B为真**（总结已输出）+ **类型3（答疑提问）**（学生针对复盘内容提出具体问题）。\n- **回复策略**：**基于直播带货实战经验启发式解答**（侧重思路点拨，不照本宣科），并在每次回答后询问：\"这么说你明白了吗？还有其他想问的吗？\"\n- **话术示例**：\n  - *问*：\"为什么说我互动与尺码指导不够？\"\n  - *答*：\"你确实回了一条弹幕，但另一条问显胯宽的就没接住，观众问题没被理睬容易划走。尺码建议给得也偏笼统，得按身高区间分开说。这么说你明白了吗？\"\n    *(注意：不要完全按照话术实例输出，要根据学生的回答和直播带货知识库适当调整逻辑)*\n\n### 分支 D：兜底处理（无关话题）【兜底处理】\n- **判定依据**：**状态B为真**（总结已输出）+ 学生输入与当前复盘任务完全无关（如闲聊天气、询问私人问题）。\n- **回复策略**：**温柔指出无关，立即拉回复盘主题，继续上一次的询问**。\n- **话术示例**：\"咱们先专注于刚才的复盘内容哈。针对我指出的这几点，你还有什么疑问吗？如果没有，请回复'完成'以结束。\"\n  *(注意：不要完全按照话术实例输出，要根据学生的回答和当前任务语境适当调整逻辑)*\n\n**分支互斥原则（必须遵守）：**\n- **每次回复仅执行一个分支**，按以下优先级顺序判定：\n  1. 强制输出总结（分支A）→ 是则执行（**状态A时优先级最高，无论学生说什么**）\n  2. 结束跳转（分支B）→ 是则执行（**必须确认总结已输出**）\n  3. 答疑互动（分支C）→ 是则执行\n  4. 无关话题（分支D）→ 是则执行\n- **严禁同时执行多个分支**\n\n# Response Constraints\n\n1. **【严禁幻觉/评价真实性】**：评价内容必须**基于上文真实对话**一一对应。**严禁**把学生没做的说成做了，也**严禁**冤枉学生。总体评价必须基于六维度加权得分客观判定。\n2. **【强制输出机制】**：**总结未输出前（状态A），无论学生输入什么，必须优先执行分支A（强制输出总结）**，严禁提前跳转或闲聊回应。\n3. **【先总后分结构】**：总结报告**必须首先给出总体评价结论与加权得分**，再展开六维度详细复盘，最后给出针对最低2个维度的改进话术示例。\n4. **【跳转硬性前提】**：执行分支B（结束跳转）前，**必须确认上下文中已输出过符合格式的总结报告**。若未输出，即使学生说\"完成\"，也禁止跳转，应强制执行分支A。\n5. **【无关话题处理】**：**仅当总结已输出后（状态B）**，学生询问无关内容时，执行分支D；若总结未输出（状态A），即使学生闲聊，也应强制执行分支A，不予闲聊回应。\n6. **【称呼要求】**：严禁出现\"学生\"二字，必须使用\"你\"或\"姐妹\"。\n7. **【跳转纯净性】**：满足分支B条件时，**只输出**跳转关键词`训练完成`，严禁带有任何标点、空格或文字。\n8. **【严禁逻辑外显】**：严禁在回复中出现任何\"系统指令\"、\"后续操作提示\"、\"逻辑判断说明\"。你的输出必须完全是Sara姐对学生说的话。\n9. **【字数限制】**：总结报告不超过400字，答疑回复（分支C）不超过200字，保持条理清晰、语气务实中肯。",
+        "trainerName": "Sara姐",
+        "agentId": "TTS2cuBiT",
+        "avatarNid": "iL87nmUAwe",
+        "digitalHumanType": null,
+        "projectId": "",
+        "agentVoiceId": "zh_female_shuangkuaisisi_uranus_bigtts",
+        "customDigitalHumanSpeechRate": 1.0,
+        "scriptStepCover": {
+          "learnResourceId": null,
+          "fileId": "B9TizRszEq",
+          "contentType": "image/png",
+          "fileUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a632ce3e4b0f6cf21be7633.png",
+          "coverUrl": null,
+          "fileName": null,
+          "originFileName": null,
+          "suffix": null,
+          "createTime": null
+        },
+        "nodeType": "SCRIPT_NODE",
+        "scriptStepResourceList": [],
+        "knowledgeBaseSwitch": 1,
+        "knowledgeBaseId": null,
+        "searchEngineSwitch": 1,
+        "whiteBoardSwitch": 0,
+        "videoSwitch": 0,
+        "stepExtProperty": {
+          "trainSubType": "ability",
+          "resources": null,
+          "bgMediaType": 1,
+          "bgMediaVolume": 80,
+          "bgMusic": {},
+          "bgMusicVolume": 30,
+          "transitionBgMedia": null,
+          "transitionBgMediaType": 1,
+          "transitionBgMediaVolume": 30,
+          "useTransitionBgMediaTransition": 0,
+          "transitionBgMusic": null,
+          "transitionBgMusicVolume": 30,
+          "flowAsideContent": "",
+          "flowAsideVoiceType": null,
+          "flowAsideVoiceNid": null,
+          "flowAsideVoiceSpeed": 50,
+          "flowAsideVoiceVolume": 30,
+          "flowAsideMp3Url": "",
+          "hideSubtitle": 0,
+          "useAsideTransition": 0
+        },
+        "trainTime": -1,
+        "createTime": "2026-07-24 17:14:11",
+        "updateTime": "2026-07-24 17:22:40",
+        "backgroundTheme": null,
+        "trainSubType": null,
+        "transitionDescriptionUrl": "",
+        "prologueUrl": "https://prod-polymas-oss.polymas.com/polymas-basic-resource/202607/6a632ee0e4b047edd646dffa.mp3",
+        "customDigitalHuman": "wDBypVJ3u6",
+        "isSkipStep": "1",
+        "endStrategy": 2,
+        "refResourceDesc": 0,
+        "isTransition": 0,
+        "knowledgeResourceList": []
+      },
+      "unpublishedChanges": null
+    }
+  ],
+  "flows": [
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "flowId": "o-Nn65t45xr_DanQ-XI85",
+      "scriptStepStartId": "wDSFeYSCF5_Y1h7QgW-Fs",
+      "scriptStepEndId": "B-MygIJ0Tjg9GFlxu0MMd",
+      "scriptStepStartHandle": "wDSFeYSCF5_Y1h7QgW-Fs-source-bottom",
+      "scriptStepEndHandle": "B-MygIJ0Tjg9GFlxu0MMd-target-top",
+      "flowCondition": "",
+      "flowConfiguration": {
+        "relation": "and",
+        "conditions": [
+          {
+            "text": "条件组1",
+            "relation": "and",
+            "conditions": [
+              {
+                "text": ""
+              }
+            ]
+          }
+        ]
+      },
+      "isDefault": 1,
+      "flowSettingType": "quick",
+      "transitionPrompt": "",
+      "transitionHistoryNum": 10
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "flowId": "pWWAMBON-ISR8yBqTQ5DC",
+      "scriptStepStartId": "B-MygIJ0Tjg9GFlxu0MMd",
+      "scriptStepEndId": "vrGh1Id11nX7ThncBotMW",
+      "scriptStepStartHandle": "B-MygIJ0Tjg9GFlxu0MMd-source-bottom",
+      "scriptStepEndHandle": "vrGh1Id11nX7ThncBotMW-target-top",
+      "flowCondition": "进入主推品讲解阶段",
+      "flowConfiguration": {
+        "relation": "and",
+        "conditions": [
+          {
+            "text": "条件组1",
+            "relation": "and",
+            "conditions": [
+              {
+                "text": "进入主推品讲解阶段"
+              }
+            ]
+          }
+        ]
+      },
+      "isDefault": 1,
+      "flowSettingType": "quick",
+      "transitionPrompt": "【输入参数】\\n\n- 下一阶段原始开场白 ${next_stage_opening}\\n    \\n\n【整体生成目标】\\n\n基于下一阶段的原始开场白，生成符合当前教学场景的自然过渡话语。可以：\n1. 直接使用下一阶段原始开场白\n2. 或根据当前对话上下文调整开场白的表述方式，使过渡更自然",
+      "transitionHistoryNum": 10
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "flowId": "0qWtcrrqgZCmxXLIf4TBy",
+      "scriptStepStartId": "vrGh1Id11nX7ThncBotMW",
+      "scriptStepEndId": "Auoruqyt0rNAqp-CXE__Z",
+      "scriptStepStartHandle": "vrGh1Id11nX7ThncBotMW-source-bottom",
+      "scriptStepEndHandle": "Auoruqyt0rNAqp-CXE__Z-target-top",
+      "flowCondition": "进入全身搭配阶段",
+      "flowConfiguration": {
+        "relation": "and",
+        "conditions": [
+          {
+            "text": "条件组1",
+            "relation": "and",
+            "conditions": [
+              {
+                "text": "进入全身搭配阶段"
+              }
+            ]
+          }
+        ]
+      },
+      "isDefault": 1,
+      "flowSettingType": "quick",
+      "transitionPrompt": "【输入参数】\\n\n- 下一阶段原始开场白 ${next_stage_opening}\\n    \\n\n【整体生成目标】\\n\n基于下一阶段的原始开场白，生成符合当前教学场景的自然过渡话语。可以：\n1. 直接使用下一阶段原始开场白\n2. 或根据当前对话上下文调整开场白的表述方式，使过渡更自然",
+      "transitionHistoryNum": 10
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "flowId": "fPYt3jYsX0j5F2sd5q-xD",
+      "scriptStepStartId": "Auoruqyt0rNAqp-CXE__Z",
+      "scriptStepEndId": "iJJNEZYpNEPQZ2O7fQjh4",
+      "scriptStepStartHandle": "Auoruqyt0rNAqp-CXE__Z-source-bottom",
+      "scriptStepEndHandle": "iJJNEZYpNEPQZ2O7fQjh4-target-top",
+      "flowCondition": "进入促单阶段",
+      "flowConfiguration": {
+        "relation": "and",
+        "conditions": [
+          {
+            "text": "条件组1",
+            "relation": "and",
+            "conditions": [
+              {
+                "text": "进入促单阶段"
+              }
+            ]
+          }
+        ]
+      },
+      "isDefault": 1,
+      "flowSettingType": "quick",
+      "transitionPrompt": "【输入参数】\\n\n- 下一阶段原始开场白 ${next_stage_opening}\\n    \\n\n【整体生成目标】\\n\n基于下一阶段的原始开场白，生成符合当前教学场景的自然过渡话语。可以：\n1. 直接使用下一阶段原始开场白\n2. 或根据当前对话上下文调整开场白的表述方式，使过渡更自然",
+      "transitionHistoryNum": 10
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "flowId": "raq-P4p--YAPo8d4iOtj3",
+      "scriptStepStartId": "iJJNEZYpNEPQZ2O7fQjh4",
+      "scriptStepEndId": "F4JcVVNSguqNpzYM0JE0p",
+      "scriptStepStartHandle": "iJJNEZYpNEPQZ2O7fQjh4-source-bottom",
+      "scriptStepEndHandle": "F4JcVVNSguqNpzYM0JE0p-target-top",
+      "flowCondition": "进入复盘阶段",
+      "flowConfiguration": {
+        "relation": "and",
+        "conditions": [
+          {
+            "text": "条件组1",
+            "relation": "and",
+            "conditions": [
+              {
+                "text": "进入复盘阶段"
+              }
+            ]
+          }
+        ]
+      },
+      "isDefault": 1,
+      "flowSettingType": "quick",
+      "transitionPrompt": "【输入参数】\\n\n- 下一阶段原始开场白 ${next_stage_opening}\\n    \\n\n【整体生成目标】\\n\n基于下一阶段的原始开场白，生成符合当前教学场景的自然过渡话语。可以：\n1. 直接使用下一阶段原始开场白\n2. 或根据当前对话上下文调整开场白的表述方式，使过渡更自然",
+      "transitionHistoryNum": 10
+    },
+    {
+      "trainTaskId": "MRaAgyBN1PTJXV6oPxpZ",
+      "flowId": "P2OetGyhwQpU5jPu0cypK",
+      "scriptStepStartId": "F4JcVVNSguqNpzYM0JE0p",
+      "scriptStepEndId": "KskPkq1XmL_BFbw-FLg9_",
+      "scriptStepStartHandle": "F4JcVVNSguqNpzYM0JE0p-source-bottom",
+      "scriptStepEndHandle": "KskPkq1XmL_BFbw-FLg9_-target-top",
+      "flowCondition": "训练完成",
+      "flowConfiguration": {
+        "relation": "and",
+        "conditions": [
+          {
+            "text": "条件组1",
+            "relation": "and",
+            "conditions": [
+              {
+                "text": "训练完成"
+              }
+            ]
+          }
+        ]
+      },
+      "isDefault": 1,
+      "flowSettingType": "quick",
+      "transitionPrompt": "【输入参数】\\n\n- 下一阶段原始开场白 ${next_stage_opening}\\n    \\n\n【整体生成目标】\\n\n基于下一阶段的原始开场白，生成符合当前教学场景的自然过渡话语。可以：\n1. 直接使用下一阶段原始开场白\n2. 或根据当前对话上下文调整开场白的表述方式，使过渡更自然",
+      "transitionHistoryNum": 10
+    }
+  ]
+}

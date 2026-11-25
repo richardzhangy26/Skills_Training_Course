@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-27",
+  "new_tasks": [
+    {
+      "title": "南方医科大学-临床技能模块｜全英文问诊伴学与考核训练（本周末前）",
+      "assigned_by": "秦俪珊（转发蔡晓凡）",
+      "source_time": "2026-10-26 15:23及后续",
+      "scope": "20例病例库每次3例、伴学和考核两模式、全英文",
+      "deadline_original": "本周末前",
+      "deadline_range": [
+        "2026-10-26",
+        "2026-11-01"
+      ],
+      "deadline": null,
+      "todo_saved": true,
+      "case_script_pdf_missing": true,
+      "title_reopened_verified": true,
+      "description_reopened_verified": true,
+      "deadline_field": null,
+      "deadline_field_reopened_verified": true
+    },
+    {
+      "title": "电子科技大学-国际交流与沟通｜读书报告视频批阅（优先10月30日，备选11月2日）",
+      "assigned_by": "修晶钰",
+      "source_time": "2026-10-27 9:57—10:32及后续",
+      "scope": "抽不同教师分值样本校准，尽量偏差5分以内",
+      "deadline_original": [
+        "这周五之前",
+        "周五有希望吗",
+        "或者周一"
+      ],
+      "preferred_date": "2026-10-30",
+      "backup_date": "2026-11-02",
+      "todo_saved": true,
+      "title_reopened_verified": true,
+      "description_reopened_verified": true,
+      "deadline_field": null,
+      "deadline_field_reopened_verified": true
+    },
+    {
+      "title": "中南财经大学（校名待核对）-微观经济学｜新闻未推送排查与关联优化",
+      "assigned_by": "刘晨昕",
+      "source_time": "2026-10-27 10:20及11:25",
+      "scope": "排查前几天未推送；主题活动新闻关联不足，座谈会类可参考；老师接受每天一条",
+      "deadline": null,
+      "todo_saved": true,
+      "title_reopened_verified": true,
+      "description_reopened_verified": true,
+      "deadline_field": null,
+      "deadline_field_reopened_verified": true
+    },
+    {
+      "title": "天津大学-热力学基础｜实训一按已确认样例补全（加急）",
+      "assigned_by": "周文文",
+      "source_time": "2026-10-26 15:34及后续",
+      "scope": "实训一样例通过后补充完整；实训二2026-10-27聊天交付回执已记录",
+      "deadline": null,
+      "todo_saved": true,
+      "title_reopened_verified": true,
+      "description_reopened_verified": true,
+      "deadline_field": null,
+      "deadline_field_reopened_verified": true
+    }
+  ],
+  "updates": [
+    {
+      "course": "北大医学部-智能体场景化训练案例",
+      "subtask_deadlines": [
+        {
+          "name": "凝胶过滤层析",
+          "date": "2026-10-27",
+          "qualifier": "下班前",
+          "source": "秦俪珊2026-10-26 13:06 明天下班前"
+        },
+        {
+          "name": "酶竞争性抑制",
+          "date": "2026-10-30",
+          "source": "同段 这个还是周五"
+        }
+      ],
+      "remaining_materials_pending": 2,
+      "todo_update_attempted": true,
+      "todo_update_verified": true,
+      "title_unchanged": true,
+      "dates_in_description": true,
+      "deadline_field": null
+    },
+    {
+      "course": "流体力学-学校待确认",
+      "todo_title": "流体力学-学校待确认｜PPT第6—14页AI微课小样（10月23日）",
+      "scope": "PPT6—14页",
+      "deadline": "2026-10-23",
+      "deadline_field_set": false,
+      "latest_context": "张心睿2026-10-26称订单应该要取消；用户同日说仍在调整；未确认正式取消",
+      "todo_update_verified": true,
+      "todo_status": "未完成"
+    }
+  ],
+  "readback_pending": [
+    "南方医科20例病例脚本PDF仍待导出归档",
+    "北大两项子任务日期在原待办备注，未设置独立截止字段",
+    "流体力学原10月23日截止日期在标题与说明，截止字段为空"
+  ],
+  "ui_blocker": null,
+  "wecom_cli_used": false,
+  "messages_sent": false,
+  "course_implementation_executed": false,
+  "last_verified_unfinished": 20
+}

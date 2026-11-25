@@ -6,6 +6,10 @@ allowed-tools: Read, Grep, Glob, Write
 
 # English Speaking Prompt Expert
 
+## 能力训练统一配置
+
+生成、修改或导入配置前，读取[根目录统一规则](../../../AGENTS.md#能力训练模型与数字人统一规则)：模型统一为 `doubao-seed-2.0-pro`；默认组合平台已有形象、声音新建本任务数字人；仅在用户明确要求“新建一个数字人形象”或自定义形象时才自定义。生成阶段只选资源，实际创建在已授权导入阶段执行。
+
 ## Purpose
 
 Produce fully English-language training prompts for the Polymas speaking-training platform, paired with **structured AND/OR intent `conditionRule` jump conditions** (the new platform mechanism — not the retired `NEXT_TO_xxx` keyword approach).
@@ -137,7 +141,7 @@ Assemble all modules into one Markdown file. Polymas-compatible format, minus `t
 Recommended layout per stage:
 
 - **Stage N: [Name]**
-  - Virtual Trainer Name, Model (Doubao-Seed-1.6 default), Voice (English voice, e.g. en-US-GuyNeural), Interaction rounds, Stage description (English).
+  - Virtual Trainer Name, Model (doubao-seed-2.0-pro default), Voice (current platform English voiceNid with matching voice parameters), Interaction rounds, Stage description (English).
   - Opening Line block (fenced).
   - Prompt block (fenced; full English, no keywords).
   - `Jump Conditions (conditionRule) — Outer: [AND/OR]` with AND/OR groups.
@@ -202,4 +206,4 @@ Save to `[task_document_dir]/English_Training_Script.md`.
 
 ## Note on model
 
-Default target model: `Doubao-Seed-1.6`. All templates and constraints are written to keep the prompt tight, directive, and free of nested conditionals that this model handles less reliably. If the user requests another model (Claude / GPT-4 / DeepSeek), keep the English-only, no-keyword, structured-conditionRule rules unchanged — they are platform rules, not model rules.
+Default target model: `doubao-seed-2.0-pro`. All templates and constraints are written to keep the prompt tight, directive, and free of nested conditionals that this model handles less reliably. If the user requests another model (Claude / GPT-4 / DeepSeek), keep the English-only, no-keyword, structured-conditionRule rules unchanged — they are platform rules, not model rules.

@@ -1,0 +1,306 @@
+{
+  "checked_on": "2026-10-20",
+  "window": "上次整理后至2026-10-20",
+  "tasks": [
+    {
+      "key": "hfut-ch4",
+      "school": "合肥工业大学",
+      "course": "数字逻辑电路",
+      "person": "郑嘉宁",
+      "message_at": "2026-10-20 10:00",
+      "type": "作业批阅",
+      "title": "合肥工业大学-数字逻辑电路｜第4章作业批阅（本周内）",
+      "scope": "题4.18、4.21、4.22，共3题10个采分点，总分100；评分细则经老师确认可参考。每个采分点全对满分、任一错误0分，不设中间分。题目原件为图片型DOCX，不能因文本提取为空认作空文件。",
+      "ddl_original": "这个需要这周内搞定",
+      "ddl_range": [
+        "2026-10-19",
+        "2026-10-25"
+      ],
+      "ddl_date": null,
+      "folder": "homework_review/合肥工业大学-数字逻辑电路",
+      "evidence": "本次企业微信私聊现场回读，学校课程在消息中明确",
+      "todo_status": "标题及备注已保存，日期字段另见回读记录"
+    },
+    {
+      "key": "zaozhuang-sequential",
+      "school": "枣庄职业技术学院",
+      "course": "生命与急救教育",
+      "person": "张霖一",
+      "message_at": "2026-10-20 09:53及10:37后续",
+      "type": "能力训练调整",
+      "title": "枣庄职业技术学院-生命与急救教育｜模块四、六顺序实训（10月22日下班前）",
+      "scope": "模块四、六先按顺序执行、交简单可看版本；10:37已收到生命与急救（二）及（三）。上午聊天称没有子任务，但新模块四原稿实际仍含子任务层级，实施前需核对顺序执行粒度，不擅自删除子任务。",
+      "ddl_original": "然后看看星期四下班前可以不；你回复可以的",
+      "ddl_date": "2026-10-22",
+      "folder": "skills_training_course/枣庄职业技术学院-生命与急救教育",
+      "evidence": "本次聊天现场回读；学校依据已有同名课程目录，需求表尚未现场核验",
+      "todo_status": "本轮已保存并重新打开核对10月22日下班前、新原件及原稿层级差异；截止字段仍未设置成功",
+      "ddl_basis": "2026-10-20的星期四是10月22日；原文下班前，未约定具体时刻",
+      "scope_conflict": "聊天称没有子任务；新（二）原稿含任务一气道异物梗阻急救及子任务1等层级。"
+    },
+    {
+      "key": "cdgm-labor",
+      "school": "成都工贸职业技术学院",
+      "course": "劳动教育",
+      "person": "赵欣兰",
+      "message_at": "2026-10-19 13:41",
+      "type": "能力训练",
+      "title": "成都工贸职业技术学院-劳动教育｜多路线创新实训（10月28日）",
+      "scope": "一个能力训练内让学生先选路线，再在路线下选择脚本。原ZIP含7个专业群DOCX，保留单岗位独立训练/计时/评价要求。",
+      "ddl_original": "ddl下周三可以吗；用户回复“好的”",
+      "ddl_date": "2026-10-28",
+      "ddl_basis": "10月19日是周一，下周三为10月28日，无具体时刻",
+      "folder": "skills_training_course/成都工贸职业技术学院-劳动教育",
+      "evidence": "本次私聊现场回读，学校课程明确；7份DOCX可读且ZIP CRC通过",
+      "todo_status": "标题及备注已保存，日期字段另见回读记录"
+    },
+    {
+      "key": "nantong-video",
+      "school": "南通大学",
+      "course": "中学英语教学设计",
+      "person": "秦俪珊",
+      "message_at": "2026-10-19 17:25",
+      "type": "作业批阅",
+      "title": "南通大学-中学英语教学设计｜模拟授课视频批阅（本周）",
+      "scope": "学生提交模拟授课视频，给课堂语言准确性、教案设计方面建议。参考通用评分标准：教学内容与过程60、教学技能20、综合表现与问答20。与已有4场景能力训练为不同交付物。",
+      "ddl_original": "也是本周吧",
+      "ddl_range": [
+        "2026-10-19",
+        "2026-10-25"
+      ],
+      "ddl_date": null,
+      "folder": "homework_review/南通大学-中学英语教学设计",
+      "evidence": "本次私聊现场回读；原DOC已归档；07:37视频样例目前仅在聊天可见，尚未本地导出",
+      "missing_files": [
+        "秦俪珊2026-10-19 17:25发送的07:37模拟授课视频样例"
+      ],
+      "todo_status": "标题及备注已保存，日期字段另见回读记录"
+    },
+    {
+      "key": "ludong-propeller",
+      "school": "鲁东大学",
+      "course": "船舶快速性实验",
+      "person": "秦俪珊",
+      "message_at": "2026-10-19 16:47",
+      "type": "作业批阅",
+      "title": "鲁东大学-船舶快速性实验｜船舶螺旋桨设计批阅（下周）",
+      "scope": "船舶螺旋桨设计，原文“和之前的要求一样”。先按已有实验报告批阅项目归档；原件含各节评分要求，制作前仍需对照既有要求。不得将原件示例数值固定为所有学生标准答案。",
+      "ddl_original": "这个不急，下周做完吧",
+      "ddl_range": [
+        "2026-10-26",
+        "2026-11-01"
+      ],
+      "ddl_date": null,
+      "folder": "homework_review/鲁东大学-船舶快速性实验",
+      "evidence": "本次私聊现场回读，学校课程明确；原DOC可读",
+      "todo_status": "标题及备注已保存，日期字段另见回读记录"
+    },
+    {
+      "key": "expert-feasibility",
+      "school": null,
+      "course": null,
+      "person": "张逸仙",
+      "message_at": "2026-10-19 18:25以后",
+      "type": "专家能力评估",
+      "title": "专家需求评估｜学术检索、外部API及PPT翻译转LaTeX（10月20日）",
+      "scope": "评估学术检索、老师平台API接入、PPT翻译及转LaTeX的可行性，给周三会议具体回复。对方尚未拿到网站；课程学校暂不明，后续需需求表负责人张一弛记录匹配，不把咨询当成已承诺实现。",
+      "ddl_original": "您明天有空帮忙看看嘛，因为我可能周三要跟老师开会；用户答应",
+      "ddl_date": "2026-10-20",
+      "ddl_basis": "10月19日的明天为10月20日，周三会议为10月21日，未给出具体时间",
+      "folder": "polymas_v5/docs/task-intake/2026-10-20-专家需求评估",
+      "evidence": "本次聊天现场回读；仍待学校课程匹配",
+      "todo_status": "标题及备注已保存，日期字段另见回读记录",
+      "workdir": "/Users/zhangyichi/工作/能力训练/polymas_v5",
+      "continuation_status": "已接入polymas_v5任务目录；Default只读认证成功，两个候选当前版本已核验，完整合同与端到端执行未验证",
+      "continuation_readme": "/Users/zhangyichi/工作/能力训练/polymas_v5/docs/task-intake/2026-10-20-专家需求评估/README.md"
+    },
+    {
+      "key": "xj-interrogation",
+      "school": "新疆警察学院",
+      "course": "侦查讯问学",
+      "person": "李蓉",
+      "message_at": "2026-10-19 16:05",
+      "type": "能力训练调整",
+      "title": "新疆警察学院-侦查讯问学｜实训调整（本周反馈）",
+      "scope": "对方询问实训调整进度，用户提出“这周可以吗”，对方答“行~”。已有“新疆警察学院-优化”待办且截止字段10月30日，本次只补充本周约定与原10月30日两种依据，不覆盖原日期。",
+      "ddl_original": "这周可以吗；行~",
+      "ddl_range": [
+        "2026-10-19",
+        "2026-10-25"
+      ],
+      "existing_ddl": "2026-10-30",
+      "ddl_date": null,
+      "folder": "skills_training_course/新疆警察学院-侦查讯问学",
+      "evidence": "本次聊天现场回读；学校依据同课程制作项目，当前待办原日期已现场看到",
+      "todo_status": "已更新原待办，本周约定写备注，原截止10月30日保留"
+    }
+  ],
+  "consultations_not_actioned": [
+    "王鑫雨今日AI原生课预约咨询已回复",
+    "郭佳佳三维文件批阅可行性咨询无新明确交付",
+    "李妍5微课一句话描述此前已发送",
+    "李蓉综合英语10月16日双方确认恢复"
+  ],
+  "carryover_pending": [
+    {
+      "key": "WRITING-REVIEW-20261019",
+      "arranger": "高巧欣（原分派秦俪珊）",
+      "course": "文化与旅游创意写作",
+      "school": "云南艺术学院",
+      "type": "作业批阅",
+      "deadline": "2026-10-21",
+      "deadline_evidence": "沿用10月14日下周三；本次无新DDL",
+      "path": "homework_review/文化与旅游创意写作-云南艺术学院",
+      "status": "10月19日10:18确认“仅ppt”。更新原待办，Word策划只作参考，不新增第二个Word批阅。",
+      "todo_action": "更新原待办范围",
+      "todo_saved": true,
+      "todo_deadline_verified": false,
+      "todo_status": "本地记录与归档完成，企业微信尚未保存本次更新/新增。",
+      "source_ledger": "/Users/zhangyichi/工作/能力训练/docs/task-intake/2026-10-19-最新任务/任务台账.json",
+      "current_verification": "2026-10-20列表已回读保存标题；日期字段与描述持久化分开记录"
+    },
+    {
+      "key": "WRITING-TRAIN-20261019",
+      "arranger": "高巧欣（原分派秦俪珊）",
+      "course": "文化与旅游创意写作",
+      "school": "云南艺术学院",
+      "type": "能力训练",
+      "deadline": "2026-10-21",
+      "path": "skills_training_course/文化与旅游创意写作-云南艺术学院",
+      "status": "10月19日13:49已发送文化与旅游创意写作-对话测试.zip，收到确认；本次只记录聊天交付，不重做平台验收。",
+      "todo_action": "更新原待办交付回执，保留原状态",
+      "todo_saved": true,
+      "todo_deadline_verified": false,
+      "todo_status": "本地记录与归档完成，企业微信尚未保存本次更新/新增。",
+      "source_ledger": "/Users/zhangyichi/工作/能力训练/docs/task-intake/2026-10-19-最新任务/任务台账.json",
+      "current_verification": "2026-10-20列表已回读保存标题；日期字段与描述持久化分开记录"
+    },
+    {
+      "key": "DB-20261019",
+      "arranger": "秦俪珊",
+      "contact": "何思韵",
+      "course": "数据库原理与应用",
+      "school": "广州软件学院",
+      "type": "能力训练",
+      "deadline": "2026-10-22",
+      "path": "skills_training_course/广州软件学院-数据库原理与应用",
+      "status": "10月19日11:27你告知三个能力训练完成并交付好学生测试ZIP，何思韵回复感谢。目录已由用户/其他任务更名为学校-课程，本次复用现路径，不重建旧路径。",
+      "todo_action": "更新原待办交付进度和当前资料路径；不代勾完成",
+      "todo_saved": true,
+      "todo_deadline_verified": false,
+      "todo_status": "本地记录与归档完成，企业微信尚未保存本次更新/新增。",
+      "source_ledger": "/Users/zhangyichi/工作/能力训练/docs/task-intake/2026-10-19-最新任务/任务台账.json",
+      "current_verification": "2026-10-20列表已回读保存标题；日期字段与描述持久化分开记录"
+    },
+    {
+      "key": "FANGJI-20261016",
+      "arranger": "王鑫雨",
+      "course": "方剂学",
+      "school": "山东中医药大学",
+      "type": "能力训练",
+      "deadline": "2026-10-21",
+      "deadline_evidence": "10月16日13:59你提议“下周三之前 可以”，对方同意；换算为10月21日前，未给具体时刻",
+      "path": "skills_training_course/山东中医药大学-方剂学",
+      "legacy_project": "skills_training_course/山东中医药大学-方剂学",
+      "mapping_evidence": "聊天称方剂学老课程；学校依本地既有课程目录匹配，尚未本次需求表现场复核。",
+      "status": "原始DOCX已归档并校验；未制作部署。",
+      "todo_action": "新增小儿积食训练待办，学校匹配依据写备注",
+      "todo_saved": true,
+      "todo_deadline_verified": false,
+      "todo_status": "标题已填入创建表单，备注窗口已打开；Mac锁屏，备注写入失败，尚未提交。恢复时先查重。",
+      "todo_title": "山东中医药大学-方剂学｜小儿积食实训（10月21日前）",
+      "source_ledger": "/Users/zhangyichi/工作/能力训练/docs/task-intake/2026-10-19-最新任务/任务台账.json",
+      "current_verification": "2026-10-20列表已回读保存标题；日期字段与描述持久化分开记录"
+    },
+    {
+      "key": "USED-CAR-20261016",
+      "arranger": "王鑫雨",
+      "course": "二手车评估鉴定作业工单",
+      "school": "安徽职业技术大学",
+      "type": "作业批阅部署跟进",
+      "deadline": null,
+      "deadline_evidence": "10月16日对方说先部署，时间你安排，好了告知；未给明确DDL。",
+      "path": "homework_review/安徽职业技术大学-二手车评估鉴定作业工单",
+      "mapping_evidence": "聊天“安徽那个二手车”与既有本地课程目录匹配，尚未本次需求表现场复核。",
+      "status": "聊天已获对接人同意推进；本次仅记录，不执行部署或发送消息。",
+      "todo_action": "新增部署跟进，沿用已有制作项目",
+      "todo_saved": true,
+      "todo_deadline_verified": false,
+      "todo_status": "本地记录与归档完成，企业微信尚未保存本次更新/新增。",
+      "source_ledger": "/Users/zhangyichi/工作/能力训练/docs/task-intake/2026-10-19-最新任务/任务台账.json",
+      "current_verification": "2026-10-20列表已回读保存标题；日期字段与描述持久化分开记录"
+    }
+  ],
+  "coverage": {
+    "today_read": [
+      "王鑫雨",
+      "郑嘉宁",
+      "张霖一"
+    ],
+    "yesterday_read": [
+      "张逸仙",
+      "李蓉",
+      "赵欣兰",
+      "秦俪珊"
+    ],
+    "previously_checked_not_rechecked": [
+      "高巧欣",
+      "何思韵",
+      "李妍5",
+      "郭佳佳",
+      "朱子阳"
+    ],
+    "new_unread_not_checked": [
+      "戴启巍"
+    ],
+    "limitations": [
+      "日期字段及后续新增消息见待办保存回读.json",
+      "未发送消息、未执行制作部署",
+      "学校课程匹配有个别缺口"
+    ]
+  },
+  "additional_intake": [
+    {
+      "person": "李蓉",
+      "message_at": "2026-10-20 10:31及10:53交期回复",
+      "school": "湖南中医药大学",
+      "course": "冠心病的中西医结合诊疗",
+      "type": "能力训练修改",
+      "scope": "按2026年10月15日修改意见2.docx调整冠心病能力训练，含流程先体格检查再辅助检查、图片与播报、轮次/健康宣教等要求，具体以原件为准",
+      "ddl_date": null,
+      "evidence": "本次私聊正文与附件名已读；学校依据已有唯一同名制作目录",
+      "folder": "skills_training_course/湖南中医药大学-冠心病的中西医结合诊疗",
+      "attachment_status": "企业微信附件打开连续超时；本机微信有同名同大小候选，内容与冠心病一致，但尚不能证明与本次企业微信接收件字节相同",
+      "todo_status": "标题草稿已填，未提交；说明与日期字段尚未保存",
+      "ddl_preferred": "2026-10-23",
+      "ddl_fallback": "2026-10-27",
+      "ddl_original": "这周五能行吗？不行就下周二；用户答好的",
+      "ddl_basis": "本周五=10月23日，备选下周二=10月27日，保留条件，不伪造唯一确定日期"
+    },
+    {
+      "person": "秦俪珊",
+      "message_at": "2026-10-20 10:32-10:40",
+      "type": "个人签名提醒",
+      "scope": "插件链接未放回，用户回复上次请假忘放，准备补回；后续讨论请假签名自动消失。与AI微课汇总表无关；随后主界面可见插件链接已补回。",
+      "ddl_date": null,
+      "todo_status": "现场主界面已显示能力训练助手插件链接，用户已自行补回，无需新增未完成待办"
+    },
+    {
+      "person": "赵欣兰",
+      "message_at": "2026-10-20 10:39及10:55后续",
+      "type": "微课意向咨询",
+      "files": [
+        "大学英语六级阅读选词填空 Script 10.14.doc",
+        "大学英语六级阅读选词填空 10.14.pptx"
+      ],
+      "scope": "对方后来称秦老师让直接对接用户，用户表示最快下周。对方问下周具体日，尚未明确回复。卡通人物、女老师声音，语速0.8至0.9，句间及每页末0.5秒停顿，逗号/冒号/分号0.2秒停顿，文字多时移除数字人。",
+      "ddl_range": [
+        "2026-10-26",
+        "2026-11-01"
+      ],
+      "school": null,
+      "course": "大学英语六级阅读选词填空（学校待核对）",
+      "todo_status": "本轮仅补生命急救与冠心病；该后续新分派待下次查重及学校匹配，未保存待办"
+    }
+  ]
+}

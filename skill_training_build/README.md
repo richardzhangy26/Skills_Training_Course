@@ -47,6 +47,41 @@ python create_configuration_from_markdown.py <markdown文件路径> --with-steps
 - 创建成功后，会自动把新的 `TASK_ID` 写回项目根目录 `.env`。
 - `--with-steps` 模式会在新建成功后复用 `create_task_from_markdown.py` 的节点导入逻辑。
 
+### 原生口语训练部署
+
+口语训练与能力训练共用 `/teacher-course/abilityTrain/*` 后端路径，但口语训练必须在基础配置和节点请求中使用 `trainSubType: oral`。不要使用通用能力训练创建命令部署口语训练。
+
+```bash
+# 新建原生口语训练并导入阶段、连线和发布
+python -m skill_training_build.deploy_language_training \
+  <训练剧本配置.md> \
+  --course-id <COURSE_ID> \
+  --library-id <LIBRARY_ID> \
+  --publish
+
+# 将误建为 ability 的既有任务原地迁移为 oral，保留 Task ID
+python -m skill_training_build.deploy_language_training \
+  <训练剧本配置.md> \
+  --task-id <TRAIN_TASK_ID> \
+  --course-id <COURSE_ID> \
+  --library-id <LIBRARY_ID> \
+  --publish
+```
+
+专用部署器会同时校验：顶层与扩展配置的 `trainSubType`、START/END 与业务节点的口语子类型、阶段数量和连线数量，以及每个业务节点是否具备完整数字人四元组（`agentId` / `avatarNid` / `agentVoiceId` / `customDigitalHuman`）。`en-US-GuyNeural` 只是 Azure TTS 标识，不能当作数字人保存。新建过程会立即写入 `.oral_deploy_state.json`，中断后必须使用其中的 Task ID 恢复，避免重复创建。
+
+未显式指定数字人时，专用部署器使用英语数字人 `Assistant`：
+
+```markdown
+**声音**: TgbLpKo08D
+**形象**: 6ikwydCEOp
+**数字人音色**: en_female_sarah_new_conversation_wvae_bigtts
+**数字人**: 3cNI5DCVT3
+**数字人语速**: 1
+```
+
+部署器还会创建或复用口语批阅智能体实例，并将 `instanceNid` 和 `version` 放入返回的编辑 URL。缺少 `instanceNid` 的 URL 会导致口语页面保存时提示“agent实例id不能为空”。
+
 ## 使用指南
 
 ### 1. 准备任务脚本 (Markdown)
@@ -57,8 +92,11 @@ python create_configuration_from_markdown.py <markdown文件路径> --with-steps
 *   `### 阶段N: 阶段名称`: 定义一个新的阶段。
 *   `**虚拟训练官名字**`: 对应 API 的 `trainerName`。
 *   `**模型**`: 对应 `modelId` (例如 `Doubao-Seed-1.6-flash`（默认值）, `Doubao-1.5-pro-256k`)。
-*   `**声音**`: (选填) `agentId`，例如 `Tg3LpKo28D`（默认值）。
-*   `**形象**`: (选填) `avatarNid`。
+*   `**声音**`: (选填) `agentId`，例如 `Tg3LpKo28D`（能力训练默认擎苍）。口语训练默认 `TgbLpKo08D`（Assistant / Luna）。
+*   `**形象**`: (选填) `avatarNid`。口语训练默认 `6ikwydCEOp`。
+*   `**数字人**`: (选填) `customDigitalHuman`。口语训练默认 `3cNI5DCVT3`。
+*   `**数字人音色**`: (选填) `agentVoiceId`。口语训练默认 `en_female_sarah_new_conversation_wvae_bigtts`。
+*   `**数字人语速**`: (选填) `customDigitalHumanSpeechRate`，口语训练默认 `1`。
 *   `**阶段描述**`: 阶段的简短描述。
 *   `**互动轮次**`: 设置该阶段的互动轮数。
 *   `**开场白**`: 该阶段开始时 AI 的默认发言。

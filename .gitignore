@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 .env.backup
+/secrets.json
 *.swp
 odes
 智能体课程配置账号情况*.csv
